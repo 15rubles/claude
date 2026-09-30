@@ -197,8 +197,16 @@
   .achcard.nm { border-color: rgba(255,110,90,0.55); }
   .title-layout .panel.main { max-width: 570px; }
   .panel h3 { margin: 0 0 12px; color: #ffd54a; font-size: 22px; text-align: center; letter-spacing: 1px; }
-  .panel.rules .controls { margin: 0 0 12px; }
-  .panel.rules .hint { margin-top: 0; text-align: center; }
+  .rsec { background: rgba(0,0,0,0.25); border-radius: 12px; padding: 8px 12px 9px; margin: 0 0 9px; }
+  .rhead { font-size: 12px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #ffd54a; margin: 0 0 6px; }
+  .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; font-size: 13px; color: #f5e8c8; }
+  .cgrid div { display: flex; align-items: center; gap: 7px; }
+  .cgrid .key { min-width: 0; padding: 1px 7px; font-size: 11px; }
+  .rrow { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 1.35; color: #f5e8c8; margin: 3px 0; }
+  .rrow canvas { width: 30px; height: 30px; flex-shrink: 0; }
+  .rrow b { color: #ffe7a8; }
+  .rrow .c-chili { color: #ff8a70; } .rrow .c-sugar { color: #7fd4ff; }
+  .rrow .c-garden { color: #9fe08a; } .rrow .c-tunnel { color: #c9a0ff; }
   @media (max-width: 1000px) {
     .title-layout { flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: center; overflow-y: auto; height: 100%; }
     .title-layout .panel { max-height: none; flex-shrink: 0; }
@@ -292,18 +300,43 @@
   <div class="title-layout">
   <div class="panel rules">
     <h3>How to play</h3>
-    <div class="controls">
-      <div><span class="crownicon"><span class="key">Mouse</span></span><span>Your queen follows the cursor</span></div>
-      <div><span class="crownicon"><span class="crumb"></span></span><span>Eat green crumbs &mdash; every 3 hatch a new worker</span></div>
-      <div><span class="crownicon"><span class="key">Left click</span></span><span>Workers charge the cursor for 2 seconds (your queen is left unguarded!)</span></div>
-      <div><span class="crownicon" style="color:#9fd6ff">Guard</span><span>Your workers form rings around your queen to protect her</span></div>
-      <div><span class="crownicon">Conquer</span><span>If <b>any</b> of your ants touches an enemy queen, her colony is yours</span></div>
-      <div><span class="crownicon" style="color:#ff8a70">Pickups</span><span><b style="color:#ff8a70">Fire Chili</b> makes your ants fight harder &middot; <b style="color:#7fd4ff">Sugar Rush</b> speeds your queen and readies your charge</span></div>
-      <div><span class="crownicon" style="color:#9fe08a">Places</span><span>Hold a <b>Fungus Garden</b> alone to farm ants &middot; <b>Tunnels</b> carry your colony to the linked hole</span></div>
-      <div><span class="crownicon"><span class="key">M</span></span><span>Toggle music &middot; <b>Esc</b> opens options</span></div>
-      <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
+
+    <div class="rsec">
+      <div class="rhead">Controls</div>
+      <div class="cgrid">
+        <div><span class="key">Mouse</span>Move your queen</div>
+        <div><span class="key">Left click</span>Charge</div>
+        <div><span class="key">Space</span>Charge</div>
+        <div><span class="key">Esc</span>Pause &amp; options</div>
+        <div><span class="key">M</span>Music on / off</div>
+        <div><span class="key">Enter</span>Start / restart</div>
+      </div>
     </div>
-      <div class="hint">Tip: stand still to brace your guards. Charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
+
+    <div class="rsec">
+      <div class="rhead">Rules</div>
+      <div class="rrow"><canvas data-icon="crumb"></canvas><span><b>Grow</b> - eat green crumbs; every 3 hatch a new worker.</span></div>
+      <div class="rrow"><canvas data-icon="guard"></canvas><span><b>Guard</b> - workers ring your queen. Stand still to brace them.</span></div>
+      <div class="rrow"><canvas data-icon="charge"></canvas><span><b>Charge</b> - workers rush the cursor for 2s, leaving your queen unguarded.</span></div>
+      <div class="rrow"><canvas data-icon="crown"></canvas><span><b>Conquer</b> - any of your ants touching an enemy queen takes her whole colony.</span></div>
+      <div class="rrow"><canvas data-icon="danger"></canvas><span><b>Beware</b> - one enemy ant reaching <i>your</i> queen ends your reign.</span></div>
+      <div class="rrow"><canvas data-icon="tags"></canvas><span><b>Size tags</b> - green: smaller than you, red: bigger. Small colonies move faster.</span></div>
+      <div class="rrow"><canvas data-icon="streak"></canvas><span><b>Streaks</b> - conquer again within 6s for bonus ants.</span></div>
+    </div>
+
+    <div class="rsec">
+      <div class="rhead">Power-ups</div>
+      <div class="rrow"><canvas data-icon="chili"></canvas><span><b class="c-chili">Fire Chili</b> - your ants fight much harder for 10s.</span></div>
+      <div class="rrow"><canvas data-icon="sugar"></canvas><span><b class="c-sugar">Sugar Rush</b> - faster queen for 8s and your charge is ready.</span></div>
+    </div>
+
+    <div class="rsec">
+      <div class="rhead">The map</div>
+      <div class="rrow"><canvas data-icon="garden"></canvas><span><b class="c-garden">Fungus Garden</b> - stand inside alone to farm new ants.</span></div>
+      <div class="rrow"><canvas data-icon="tunnel"></canvas><span><b class="c-tunnel">Tunnels</b> - step in to move your whole colony to the linked hole.</span></div>
+      <div class="rrow"><canvas data-icon="terrain"></canvas><span><b>Rocks</b> block your path, <b>puddles</b> slow you down.</span></div>
+      <div class="rrow"><canvas data-icon="storm"></canvas><span><b>Events</b> - storms, picnics, earthquakes and mating flights shake things up.</span></div>
+    </div>
   </div>
   <div class="panel main">
     <canvas id="logo" width="160" height="90"></canvas>
@@ -3126,80 +3159,80 @@ function drawTunnelIcon(x, y, r, frac) {
 }
 
 // Fire Chili pickup: a curved red pepper with a green stem
-function drawChili(x, y, k) {
-  ctx.fillStyle = '#e8261c';
-  ctx.strokeStyle = '#6e0c06';
-  ctx.lineWidth = 1.2 * k;
-  ctx.beginPath();
-  ctx.moveTo(x - 7 * k, y - 6 * k);
-  ctx.bezierCurveTo(x + 2 * k, y - 9 * k, x + 9 * k, y - 2 * k, x + 7 * k, y + 5 * k);
-  ctx.bezierCurveTo(x + 6 * k, y + 9 * k, x + 3 * k, y + 11 * k, x + 1 * k, y + 12 * k);
-  ctx.bezierCurveTo(x + 2 * k, y + 6 * k, x - 1 * k, y - 1 * k, x - 7 * k, y - 1 * k);
-  ctx.closePath();
-  ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,220,200,0.75)';   // shine
-  ctx.lineWidth = 1.3 * k;
-  ctx.beginPath(); ctx.moveTo(x - 3 * k, y - 5 * k); ctx.quadraticCurveTo(x + 3 * k, y - 5 * k, x + 4.5 * k, y); ctx.stroke();
-  ctx.fillStyle = '#3f9e2a';                    // calyx + stem
-  ctx.strokeStyle = '#1d4d12';
-  ctx.lineWidth = 0.9 * k;
-  ctx.beginPath(); ctx.ellipse(x - 7 * k, y - 3.5 * k, 2.2 * k, 3.4 * k, 0.3, 0, TAU); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = '#3f9e2a';
-  ctx.lineWidth = 1.6 * k;
-  ctx.beginPath(); ctx.moveTo(x - 8 * k, y - 6 * k); ctx.quadraticCurveTo(x - 11 * k, y - 9 * k, x - 9 * k, y - 12 * k); ctx.stroke();
+function drawChili(x, y, k, g = ctx) {
+  g.fillStyle = '#e8261c';
+  g.strokeStyle = '#6e0c06';
+  g.lineWidth = 1.2 * k;
+  g.beginPath();
+  g.moveTo(x - 7 * k, y - 6 * k);
+  g.bezierCurveTo(x + 2 * k, y - 9 * k, x + 9 * k, y - 2 * k, x + 7 * k, y + 5 * k);
+  g.bezierCurveTo(x + 6 * k, y + 9 * k, x + 3 * k, y + 11 * k, x + 1 * k, y + 12 * k);
+  g.bezierCurveTo(x + 2 * k, y + 6 * k, x - 1 * k, y - 1 * k, x - 7 * k, y - 1 * k);
+  g.closePath();
+  g.fill(); g.stroke();
+  g.strokeStyle = 'rgba(255,220,200,0.75)';   // shine
+  g.lineWidth = 1.3 * k;
+  g.beginPath(); g.moveTo(x - 3 * k, y - 5 * k); g.quadraticCurveTo(x + 3 * k, y - 5 * k, x + 4.5 * k, y); g.stroke();
+  g.fillStyle = '#3f9e2a';                    // calyx + stem
+  g.strokeStyle = '#1d4d12';
+  g.lineWidth = 0.9 * k;
+  g.beginPath(); g.ellipse(x - 7 * k, y - 3.5 * k, 2.2 * k, 3.4 * k, 0.3, 0, TAU); g.fill(); g.stroke();
+  g.strokeStyle = '#3f9e2a';
+  g.lineWidth = 1.6 * k;
+  g.beginPath(); g.moveTo(x - 8 * k, y - 6 * k); g.quadraticCurveTo(x - 11 * k, y - 9 * k, x - 9 * k, y - 12 * k); g.stroke();
   // little flame licks while it waits to be eaten
   const f = 0.6 + 0.4 * Math.sin(time * 12 + x);
-  ctx.fillStyle = `rgba(255,170,40,${0.7 * f})`;
-  ctx.beginPath();
-  ctx.moveTo(x + 2 * k, y - 8 * k); ctx.quadraticCurveTo(x + 5 * k, y - 12 * k * f, x + 3 * k, y - 15 * k * f);
-  ctx.quadraticCurveTo(x + 7 * k, y - 11 * k, x + 6 * k, y - 7 * k); ctx.closePath(); ctx.fill();
+  g.fillStyle = `rgba(255,170,40,${0.7 * f})`;
+  g.beginPath();
+  g.moveTo(x + 2 * k, y - 8 * k); g.quadraticCurveTo(x + 5 * k, y - 12 * k * f, x + 3 * k, y - 15 * k * f);
+  g.quadraticCurveTo(x + 7 * k, y - 11 * k, x + 6 * k, y - 7 * k); g.closePath(); g.fill();
 }
 
 // Sugar Rush pickup: a sparkling sugar cube drawn in 3/4 view
-function drawSugarCube(x, y, k) {
+function drawSugarCube(x, y, k, g = ctx) {
   const s = 7.5 * k, h = s * 0.55;          // half-width of a face, depth of the top face
   const top = [[x, y - s - h], [x + s, y - s], [x, y - s + h], [x - s, y - s]];
   const left = [[x - s, y - s], [x, y - s + h], [x, y + s * 0.95], [x - s, y + s * 0.95 - h]];
   const right = [[x, y - s + h], [x + s, y - s], [x + s, y + s * 0.95 - h], [x, y + s * 0.95]];
   const face = (pts, fill) => {
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-    ctx.closePath();
-    ctx.fillStyle = fill; ctx.fill();
+    g.beginPath();
+    g.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+    g.closePath();
+    g.fillStyle = fill; g.fill();
   };
   face(left, '#dde8f2');
   face(right, '#c3d3e2');
   face(top, '#ffffff');
   // crisp outline and edges
-  ctx.strokeStyle = '#8fa6bc';
-  ctx.lineWidth = 0.9 * k;
-  ctx.beginPath();
-  ctx.moveTo(top[0][0], top[0][1]); ctx.lineTo(top[1][0], top[1][1]); ctx.lineTo(right[2][0], right[2][1]);
-  ctx.lineTo(right[3][0], right[3][1]); ctx.lineTo(left[3][0], left[3][1]); ctx.lineTo(top[3][0], top[3][1]);
-  ctx.closePath();
-  ctx.moveTo(top[3][0], top[3][1]); ctx.lineTo(top[2][0], top[2][1]); ctx.lineTo(top[1][0], top[1][1]);
-  ctx.moveTo(top[2][0], top[2][1]); ctx.lineTo(right[3][0], right[3][1]);
-  ctx.stroke();
+  g.strokeStyle = '#8fa6bc';
+  g.lineWidth = 0.9 * k;
+  g.beginPath();
+  g.moveTo(top[0][0], top[0][1]); g.lineTo(top[1][0], top[1][1]); g.lineTo(right[2][0], right[2][1]);
+  g.lineTo(right[3][0], right[3][1]); g.lineTo(left[3][0], left[3][1]); g.lineTo(top[3][0], top[3][1]);
+  g.closePath();
+  g.moveTo(top[3][0], top[3][1]); g.lineTo(top[2][0], top[2][1]); g.lineTo(top[1][0], top[1][1]);
+  g.moveTo(top[2][0], top[2][1]); g.lineTo(right[3][0], right[3][1]);
+  g.stroke();
   // grainy crystal texture on the side faces
-  ctx.fillStyle = 'rgba(140,165,190,0.55)';
+  g.fillStyle = 'rgba(140,165,190,0.55)';
   for (const [fx, fy] of [[-0.6, 0.1], [-0.35, 0.45], [-0.75, 0.55], [-0.2, 0.05], [0.3, 0.2], [0.6, 0.0], [0.45, 0.55], [0.75, 0.4], [0.2, 0.6]]) {
-    ctx.fillRect(x + fx * s, y + fy * s, 0.9 * k, 0.9 * k);
+    g.fillRect(x + fx * s, y + fy * s, 0.9 * k, 0.9 * k);
   }
   // loose grains beside the cube
-  ctx.fillStyle = '#ffffff';
+  g.fillStyle = '#ffffff';
   for (const [dx, dy, r] of [[10, 6, 1.4], [12.5, 3, 1], [-11, 7, 1.2]]) {
-    ctx.fillRect(x + (dx - r) * k, y + (dy - r) * k, 2 * r * k, 2 * r * k);
+    g.fillRect(x + (dx - r) * k, y + (dy - r) * k, 2 * r * k, 2 * r * k);
   }
   // twinkle on the top corner
   const tw = 0.5 + 0.5 * Math.sin(time * 6 + x * 0.1);
   const sx = x + s * 0.45, sy = y - s - h * 0.35, sr = (1.5 + 2.5 * tw) * k;
-  ctx.fillStyle = `rgba(255,255,255,${0.5 + 0.5 * tw})`;
-  ctx.beginPath();
-  ctx.moveTo(sx, sy - sr); ctx.lineTo(sx + sr * 0.25, sy - sr * 0.25); ctx.lineTo(sx + sr, sy);
-  ctx.lineTo(sx + sr * 0.25, sy + sr * 0.25); ctx.lineTo(sx, sy + sr); ctx.lineTo(sx - sr * 0.25, sy + sr * 0.25);
-  ctx.lineTo(sx - sr, sy); ctx.lineTo(sx - sr * 0.25, sy - sr * 0.25);
-  ctx.closePath(); ctx.fill();
+  g.fillStyle = `rgba(255,255,255,${0.5 + 0.5 * tw})`;
+  g.beginPath();
+  g.moveTo(sx, sy - sr); g.lineTo(sx + sr * 0.25, sy - sr * 0.25); g.lineTo(sx + sr, sy);
+  g.lineTo(sx + sr * 0.25, sy + sr * 0.25); g.lineTo(sx, sy + sr); g.lineTo(sx - sr * 0.25, sy + sr * 0.25);
+  g.lineTo(sx - sr, sy); g.lineTo(sx - sr * 0.25, sy - sr * 0.25);
+  g.closePath(); g.fill();
 }
 
 function panel(x, y, w, h) {
@@ -3778,6 +3811,72 @@ document.getElementById('playBtn').addEventListener('click', startGame);
 document.getElementById('restartBtn').addEventListener('click', startGame);
 document.getElementById('againBtn').addEventListener('click', startGame);
 
+// Small drawn icons for the How to play panel
+function drawRuleIcons() {
+  const d = Math.min(2, window.devicePixelRatio || 1);
+  document.querySelectorAll('canvas[data-icon]').forEach(cv => {
+    cv.width = 30 * d; cv.height = 30 * d;
+    const g = cv.getContext('2d');
+    g.setTransform(d, 0, 0, d, 0, 0);
+    g.lineJoin = 'round'; g.lineCap = 'round';
+    const dot = (x, y, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); };
+    switch (cv.dataset.icon) {
+      case 'crumb':
+        dot(15, 15, 9, 'rgba(120,255,90,0.2)'); dot(14, 16, 5.5, '#5cc93a'); dot(17.5, 13.5, 4, '#5cc93a'); dot(12.5, 13.5, 1.8, '#b8ff8c'); break;
+      case 'guard':
+        for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; dot(15 + Math.cos(a) * 11, 15 + Math.sin(a) * 11, 2.2, '#f5c542'); }
+        dot(15, 15, 4.5, '#f5c542'); g.strokeStyle = '#7a5200'; g.lineWidth = 1; g.beginPath(); g.arc(15, 15, 4.5, 0, TAU); g.stroke(); break;
+      case 'charge':
+        g.strokeStyle = '#ffd54a'; g.lineWidth = 2;
+        for (const y of [9, 15, 21]) { g.beginPath(); g.moveTo(4, y); g.lineTo(16, y); g.stroke(); }
+        g.fillStyle = '#ff9a3c'; g.beginPath(); g.moveTo(16, 6); g.lineTo(27, 15); g.lineTo(16, 24); g.closePath(); g.fill(); break;
+      case 'crown':
+        g.fillStyle = '#ffd700'; g.strokeStyle = '#7a5200'; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(5, 23); g.lineTo(4, 9); g.lineTo(10, 15); g.lineTo(15, 6); g.lineTo(20, 15); g.lineTo(26, 9); g.lineTo(25, 23); g.closePath(); g.fill(); g.stroke();
+        dot(15, 18, 2, '#e0283c'); break;
+      case 'danger':
+        g.fillStyle = '#e0402a'; g.strokeStyle = '#6a1208'; g.lineWidth = 1.2;
+        g.beginPath(); g.moveTo(15, 4); g.lineTo(27, 25); g.lineTo(3, 25); g.closePath(); g.fill(); g.stroke();
+        g.fillStyle = '#fff'; g.fillRect(13.8, 10, 2.4, 9); dot(15, 22, 1.4, '#fff'); break;
+      case 'tags':
+        g.fillStyle = 'rgba(40,120,40,0.95)'; roundRect(g, 2, 4, 16, 10, 4); g.fill();
+        g.fillStyle = 'rgba(150,30,25,0.95)'; roundRect(g, 12, 16, 16, 10, 4); g.fill();
+        g.fillStyle = '#fff'; g.font = 'bold 8px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('12', 10, 9.5); g.fillText('48', 20, 21.5); break;
+      case 'streak':
+        g.font = '900 15px "Trebuchet MS", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.lineWidth = 3; g.strokeStyle = '#5a1a04'; g.strokeText('x2', 15, 16); g.fillStyle = '#ff9a3c'; g.fillText('x2', 15, 16); break;
+      case 'chili': drawChili(16, 15, 0.95, g); break;
+      case 'sugar': drawSugarCube(15, 17, 1.05, g); break;
+      case 'garden': {
+        const gr = g.createRadialGradient(15, 16, 2, 15, 16, 14);
+        gr.addColorStop(0, 'rgba(120,170,70,0.9)'); gr.addColorStop(1, 'rgba(90,120,50,0.1)');
+        g.fillStyle = gr; g.beginPath(); g.arc(15, 16, 14, 0, TAU); g.fill();
+        for (const [x, y, r, c] of [[10, 13, 5, '#c9674a'], [20, 18, 4, '#d9b27a']]) {
+          g.fillStyle = '#e8dcc0'; g.fillRect(x - 1, y, 2, r * 0.9);
+          g.fillStyle = c; g.beginPath(); g.ellipse(x, y, r, r * 0.65, 0, 0, TAU); g.fill();
+          dot(x - r * 0.35, y - r * 0.2, r * 0.18, 'rgba(255,245,220,0.8)');
+        }
+        break;
+      }
+      case 'tunnel':
+        dot(15, 15, 13, '#8a6440'); dot(14, 14, 11, '#a07650'); dot(15, 15, 8, '#0c0603');
+        g.strokeStyle = '#c9a0ff'; g.lineWidth = 2; g.beginPath(); g.arc(15, 15, 13, 0, TAU); g.stroke(); break;
+      case 'terrain':
+        g.fillStyle = 'rgba(90,130,160,0.9)'; g.beginPath(); g.ellipse(19, 21, 10, 6, -0.2, 0, TAU); g.fill();
+        g.fillStyle = '#8f8676'; g.beginPath(); g.moveTo(4, 17); g.lineTo(7, 7); g.lineTo(14, 4); g.lineTo(19, 9); g.lineTo(17, 17); g.lineTo(10, 20); g.closePath(); g.fill();
+        g.fillStyle = 'rgba(255,245,225,0.3)'; g.beginPath(); g.moveTo(7, 9); g.lineTo(13, 6); g.lineTo(15, 10); g.lineTo(9, 12); g.closePath(); g.fill(); break;
+      case 'storm':
+        g.fillStyle = '#b8c4d4';
+        g.beginPath(); g.arc(10, 12, 6, 0, TAU); g.arc(17, 9, 7, 0, TAU); g.arc(22, 13, 5, 0, TAU); g.rect(10, 12, 12, 6); g.fill();
+        g.fillStyle = '#ffd54a'; g.beginPath(); g.moveTo(16, 17); g.lineTo(12, 24); g.lineTo(15, 24); g.lineTo(13, 29); g.lineTo(19, 21); g.lineTo(16, 21); g.lineTo(18, 17); g.closePath(); g.fill();
+        g.strokeStyle = '#8fd0ff'; g.lineWidth = 1.4;
+        for (const x of [7, 23]) { g.beginPath(); g.moveTo(x, 20); g.lineTo(x - 2, 25); g.stroke(); }
+        break;
+    }
+  });
+}
+
 // Title-screen skin picker: each option shows its queen and two workers
 function buildSkinPicker() {
   document.querySelectorAll('.skins').forEach(fillSkinPicker);
@@ -3831,6 +3930,7 @@ applyGfx();
 renderProfile();
 checkAchievements(false);
 if (!skinUnlocked(SKINS[selectedSkin])) selectedSkin = 0;
+drawRuleIcons();
 buildSkinPicker();
 renderBest();
 updateAchButton();
