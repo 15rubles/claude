@@ -1,0 +1,12 @@
+# One-click setup for Render.com (https://render.com): New -> Blueprint -> pick this repo.
+services:
+  - type: web
+    name: colony-io
+    runtime: node
+    plan: free
+    region: ohio          # pick the region closest to all players (oregon, ohio, virginia, frankfurt, singapore)
+    branch: web-version
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true

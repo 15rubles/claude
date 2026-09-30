@@ -1,620 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Colony.io</title>
-<style>
-  html, body {
-    margin: 0;
-    height: 100%;
-    overflow: hidden;
-    background: #2a1a0d;
-    font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  canvas#game { display: block; cursor: crosshair; touch-action: none; }
-
-  .overlay {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(ellipse at center, rgba(30,18,8,0.35) 0%, rgba(15,8,3,0.75) 100%);
-    padding: 16px;
-    box-sizing: border-box;
-    animation: fadeIn 0.4s ease-out;
-  }
-  .hidden { display: none; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes pop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-  .panel {
-    background: linear-gradient(180deg, #6a4524 0%, #45290f 100%);
-    border: 3px solid #d4a843;
-    border-radius: 20px;
-    padding: 28px 40px 32px;
-    color: #f5e8c8;
-    text-align: center;
-    box-shadow: 0 14px 50px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,230,160,0.25);
-    max-width: 560px;
-    width: 100%;
-    max-height: calc(100vh - 32px);
-    overflow-y: auto;
-    box-sizing: border-box;
-    animation: pop 0.35s ease-out;
-  }
-  .panel h1 {
-    font-size: 54px;
-    line-height: 1.05;
-    margin: 4px 0 8px;
-    color: #ffd54a;
-    text-shadow: 0 3px 0 #7a4c0c, 0 6px 18px rgba(0,0,0,0.6);
-    letter-spacing: 1px;
-  }
-  .panel h2 {
-    font-size: 40px;
-    margin: 4px 0 10px;
-    color: #ffd54a;
-    text-shadow: 0 3px 0 #7a4c0c, 0 6px 16px rgba(0,0,0,0.6);
-  }
-  .panel.lose h2 { color: #ff7a6a; text-shadow: 0 3px 0 #6a1a10, 0 6px 16px rgba(0,0,0,0.6); }
-  .tagline { margin: 0 0 18px; color: #e8cf98; font-style: italic; }
-  .controls {
-    text-align: left;
-    background: rgba(0,0,0,0.25);
-    border-radius: 12px;
-    padding: 14px 18px;
-    margin: 0 0 22px;
-    line-height: 1.55;
-    font-size: 15px;
-  }
-  .controls div { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
-  .key {
-    display: inline-block;
-    min-width: 62px;
-    text-align: center;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: #f5e8c8;
-    color: #45290f;
-    font-weight: bold;
-    font-size: 13px;
-    box-shadow: 0 2px 0 #9c7a44;
-    flex-shrink: 0;
-  }
-  .crumb {
-    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
-    background: #7fe05a; box-shadow: 0 0 6px #9cff6a; vertical-align: middle;
-  }
-  .crownicon {
-    display: inline-block; min-width: 78px; text-align: center; color: #ffd54a; font-weight: bold; flex-shrink: 0;
-  }
-  .stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin: 12px 0 24px;
-  }
-  .stat {
-    background: rgba(0,0,0,0.28);
-    border-radius: 10px;
-    padding: 10px 6px;
-  }
-  .stat .v { font-size: 28px; font-weight: bold; color: #ffd54a; }
-  .stat .l { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #d8c090; }
-  button {
-    font-family: inherit;
-    font-size: 24px;
-    font-weight: bold;
-    color: #3a2208;
-    background: linear-gradient(180deg, #ffe07a 0%, #f0b429 100%);
-    border: none;
-    border-radius: 14px;
-    padding: 12px 56px;
-    cursor: pointer;
-    box-shadow: 0 5px 0 #9a6a10, 0 8px 18px rgba(0,0,0,0.45);
-    transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
-  }
-  button:hover { filter: brightness(1.08); transform: translateY(-1px); }
-  button:active { transform: translateY(4px); box-shadow: 0 1px 0 #9a6a10, 0 3px 8px rgba(0,0,0,0.45); }
-  #logo { display: block; margin: 0 auto; }
-  button.secondary {
-    font-size: 15px; padding: 8px 22px; margin-top: 14px;
-    color: #f5e8c8; background: rgba(0,0,0,0.3); box-shadow: 0 3px 0 rgba(0,0,0,0.35);
-    border: 1px solid rgba(212,168,67,0.5);
-  }
-  .settings { display: flex; flex-direction: column; gap: 8px; margin: 4px auto 0; max-width: 340px; }
-  .settings-label { margin-top: 20px !important; }
-  .slider { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #f5e8c8; }
-  .slider span { width: 58px; text-align: left; }
-  .slider b { width: 42px; text-align: right; color: #ffd54a; font-size: 13px; }
-  .slider.muted b::after { content: ' (M)'; color: #ff8a70; font-size: 10px; }
-  .slider input { flex: 1; accent-color: #f0b429; cursor: pointer; }
-  .seg { flex: 1; display: flex; gap: 4px; }
-  .seg button {
-    flex: 1; font-size: 12px; padding: 4px 0; border-radius: 7px; box-shadow: none;
-    color: #f5e8c8; background: rgba(0,0,0,0.3); border: 1px solid rgba(212,168,67,0.4);
-  }
-  .seg button:hover { transform: none; }
-  .diffrow { display: flex; align-items: center; gap: 10px; max-width: 380px; margin: 10px auto 4px; font-size: 14px; color: #f5e8c8; }
-  .diffrow .seg button { font-size: 13px; padding: 6px 0; }
-  .seg button[data-diff="nightmare"].on { background: linear-gradient(180deg, #ff7a6a, #c0281c); color: #fff; }
-  .diffhint { font-size: 12px; color: #d8c090; margin: 0 0 14px; min-height: 16px; }
-  .seg button.on { background: linear-gradient(180deg, #ffe07a, #f0b429); color: #3a2208; border-color: transparent; }
-  .panel.options { max-width: 420px; }
-  .panel.options .settings { margin: 8px auto 22px; }
-  #optionsBtn {
-    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-    font-size: 14px; padding: 7px 16px 7px 14px; border-radius: 10px;
-    color: #f5e8c8; background: rgba(30,18,8,0.75); border: 1.5px solid rgba(212,168,67,0.6);
-    box-shadow: 0 3px 10px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 8px;
-  }
-  #optionsBtn.hidden { display: none; }
-  #optionsBtn:hover { transform: translateX(-50%) translateY(-1px); }
-  #optionsBtn:active { transform: translateX(-50%) translateY(1px); }
-  #optionsBtn .bars { width: 14px; height: 10px; border-top: 2px solid #ffd54a; border-bottom: 2px solid #ffd54a; position: relative; }
-  #optionsBtn .bars::after { content: ''; position: absolute; left: 0; right: 0; top: 4px; border-top: 2px solid #ffd54a; }
-  .title-layout {
-    display: flex; align-items: center; justify-content: center; gap: 18px;
-    width: 100%; max-height: 100%; flex-wrap: wrap; align-content: safe center; align-items: safe center; overflow-y: auto;
-  }
-  .title-layout .panel.rules { max-width: 410px; text-align: left; padding: 22px 22px; }
-  .title-layout .panel.profile { max-width: 340px; padding: 22px 22px; }
-  .lvlbox { display: flex; gap: 12px; align-items: center; background: rgba(0,0,0,0.28); border: 1px solid rgba(201,160,255,0.45); border-radius: 12px; padding: 10px 12px; text-align: left; }
-  .lvlbadge { width: 64px; height: 64px; flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
-  }
-  .badgerow { display: flex; justify-content: space-between; margin: 8px 2px 0; }
-  .badgerow canvas { cursor: help; }
-  .xpbadge { vertical-align: middle; flex-shrink: 0; }
-  .oldbadge {
-    background: radial-gradient(circle at 35% 30%, #d9c0ff, #7a4ad0); box-shadow: 0 0 14px rgba(170,120,255,0.5); color: #fff; }
-  .lvlbadge small { font-size: 9px; letter-spacing: 1px; }
-  .lvlbadge b { font-size: 24px; line-height: 1; }
-  .lvlinfo { flex: 1; min-width: 0; }
-  .lvltitle { color: #e7d6ff; font-weight: bold; font-size: 16px; }
-  .xpbar { height: 8px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden; margin: 5px 0 3px; }
-  .xpbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #a070ff, #e0c8ff); transition: width 1.1s ease-out; }
-  .xpsmall { font-size: 11px; color: #d8c090; }
-  .xpsmall.next { margin: 6px 0 12px; color: #c9b0f0; }
-  .cosm { display: flex; flex-direction: column; gap: 6px; margin: 0 0 4px; }
-  .cosrow { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f5e8c8; }
-  .cosrow span { width: 92px; text-align: left; }
-  .cosrow b { flex: 1; text-align: center; color: #ffd54a; }
-  .cosrow em { font-style: normal; font-size: 11px; color: #c8ae7a; width: 30px; text-align: right; }
-  .cosbtn { font-size: 16px; padding: 0 9px; line-height: 22px; border-radius: 7px; box-shadow: none; color: #f5e8c8; background: rgba(0,0,0,0.3); border: 1px solid rgba(212,168,67,0.4); }
-  .cosbtn:hover { transform: none; }
-  .xpbox:empty { display: none; }
-  .xpbox { max-width: 440px; margin: -4px auto 16px; padding: 8px 14px; border-radius: 10px; background: rgba(160,110,255,0.12); border: 1px solid rgba(201,160,255,0.45); }
-  .xphead { color: #e7d6ff; font-weight: bold; font-size: 17px; }
-  .xphead small { display: block; font-weight: normal; font-size: 11px; color: #d8c090; }
-  .xprow { display: flex; align-items: center; gap: 8px; color: #e7d6ff; font-size: 13px; }
-  .xprow .xpbar { flex: 1; }
-  .lvlup { margin-top: 6px; color: #ffe27a; font-weight: bold; animation: pop 0.5s ease-out; }
-  .lvlup small { color: #f5e8c8; font-weight: normal; }
-  .achcard.nm { border-color: rgba(255,110,90,0.55); }
-  .title-layout .panel.main { max-width: 570px; }
-  .panel h3 { margin: 0 0 12px; color: #ffd54a; font-size: 22px; text-align: center; letter-spacing: 1px; }
-  .rsec { background: rgba(0,0,0,0.25); border-radius: 12px; padding: 8px 12px 9px; margin: 0 0 9px; }
-  .rhead { font-size: 12px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; color: #ffd54a; margin: 0 0 6px; }
-  .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; font-size: 13px; color: #f5e8c8; }
-  .cgrid div { display: flex; align-items: center; gap: 7px; }
-  .cgrid .key { min-width: 0; padding: 1px 7px; font-size: 11px; }
-  .cgrid .wide { grid-column: 1 / -1; }
-  .cgrid .or { font-size: 11px; color: #c8ae7a; margin: 0 -2px; }
-  .rrow { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 1.35; color: #f5e8c8; margin: 3px 0; }
-  .rrow canvas { width: 30px; height: 30px; flex-shrink: 0; }
-  .rrow b { color: #ffe7a8; }
-  .rrow .c-chili { color: #ff8a70; } .rrow .c-sugar { color: #7fd4ff; }
-  .rrow .c-garden { color: #9fe08a; } .rrow .c-tunnel { color: #c9a0ff; }
-  @media (max-width: 1000px) {
-    .title-layout { flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: center; overflow-y: auto; height: 100%; }
-    .title-layout .panel { max-height: none; flex-shrink: 0; }
-    .title-layout .panel.main { order: -2; }
-    .title-layout .panel.profile { order: -1; }
-  }
-  .skins-label { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #d8c090; margin: -8px 0 8px; }
-  .deathtip {
-    margin: -4px auto 14px; padding: 8px 14px; max-width: 420px; border-radius: 10px;
-    background: rgba(255,210,80,0.12); border: 1px solid rgba(255,210,80,0.4); color: #ffe7a8; font-size: 14px;
-  }
-  .deathtip:empty, .streakline:empty { display: none; }
-  .streakline { margin: -6px 0 12px; color: #ff9a5a; font-weight: bold; }
-  .best {
-    margin: -4px auto 20px; padding: 8px 16px; max-width: 380px;
-    background: rgba(0,0,0,0.28); border: 1px solid rgba(212,168,67,0.45); border-radius: 12px;
-  }
-  .best-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #d8c090; }
-  .best-main { font-size: 15px; color: #f5e8c8; }
-  .best-main b { font-size: 26px; color: #ffd54a; margin-right: 2px; }
-  .best-sub { font-size: 12px; color: #d8c090; }
-  .best-none { font-size: 13px; color: #e8cf98; font-style: italic; padding: 2px 0; }
-  .newbest {
-    display: inline-block; margin: -4px 0 14px; padding: 4px 14px; border-radius: 20px;
-    background: linear-gradient(180deg, #ffe07a, #f0b429); color: #3a2208; font-weight: bold;
-    box-shadow: 0 0 16px rgba(255,210,80,0.6); animation: pop 0.4s ease-out;
-  }
-  .newbest.hidden { display: none; }
-  .skins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 20px; }
-  .skin {
-    font: inherit; font-size: 11px; font-weight: bold; color: #f5e8c8;
-    background: rgba(0,0,0,0.28); border: 2px solid transparent; border-radius: 10px;
-    padding: 4px 4px 3px; width: 70px; cursor: pointer; box-shadow: none;
-    display: flex; flex-direction: column; align-items: center; gap: 1px;
-  }
-  .skin:hover { filter: none; transform: none; background: rgba(0,0,0,0.4); }
-  .skin:active { transform: none; box-shadow: none; }
-  .skin.sel { border-color: #ffd54a; background: rgba(255,213,74,0.18); }
-  .skin canvas { width: 56px; height: 48px; }
-  .skins { max-height: 196px; overflow-y: auto; padding: 4px; }
-  .panel.ach { max-width: 760px; }
-  .achlist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: calc(100vh - 260px); overflow-y: auto; margin: 0 0 18px; text-align: left; padding: 2px; }
-  @media (max-width: 640px) { .achlist { grid-template-columns: 1fr; } }
-  .achcard { display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.28); border: 1px solid rgba(212,168,67,0.25); border-radius: 10px; padding: 6px 10px 6px 6px; }
-  .achcard canvas { width: 56px; height: 48px; flex-shrink: 0; filter: grayscale(1) brightness(0.5); }
-  .achcard.done { border-color: rgba(201,160,255,0.7); background: rgba(160,110,255,0.12); }
-  .achcard.done canvas { filter: none; }
-  .achtxt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-  .achtxt b { color: #ffd54a; font-size: 14px; }
-  .achcard.done .achtxt b { color: #d9c0ff; }
-  .achtxt span { font-size: 12px; color: #e8d8b0; }
-  .achtxt em { font-size: 11px; color: #c8ae7a; font-style: normal; margin-top: 2px; }
-  .achbar { height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; margin-top: 4px; overflow: hidden; }
-  .achbar i { display: block; height: 100%; background: linear-gradient(90deg, #f0b429, #ffe07a); }
-  .achcard.done .achbar i { background: linear-gradient(90deg, #a070ff, #d9c0ff); }
-  .achline { color: #d9c0ff; font-weight: bold; margin: -6px 0 12px; }
-  .achline:empty { display: none; }
-  .skin { position: relative; }
-  .skin.locked { color: #b8a27a; }
-  .skin.locked canvas { opacity: 0.55; }
-  .skin.peek { border-color: rgba(201,160,255,0.8); }
-  .lockico { position: absolute; top: 7px; right: 6px; width: 10px; height: 8px; background: #e8cf98; border-radius: 2px; }
-  .lockico::before { content: ''; position: absolute; left: 1.5px; top: -5px; width: 7px; height: 7px; box-sizing: border-box;
-    border: 1.5px solid #e8cf98; border-bottom: none; border-radius: 4px 4px 0 0; }
-  .skininfo { font-size: 12px; min-height: 16px; margin: 2px 0 0; color: #d9c0ff; }
-  .cosprev { width: 296px; height: 120px; background: #4a2f17; max-width: 100%; border-radius: 10px; border: 1px solid rgba(212,168,67,0.45); display: block; margin: 0 auto 10px; }
-  .cosgroup { text-align: left; }
-  .coslabel { font-size: 12px; color: #d8c090; margin-bottom: 4px; }
-  .coslabel em { font-style: normal; color: #b8a27a; font-size: 11px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
-  .chip { font-size: 12px; padding: 4px 8px; border-radius: 8px; box-shadow: none; display: inline-flex; align-items: center; gap: 5px;
-    color: #f5e8c8; background: rgba(0,0,0,0.3); border: 1px solid rgba(212,168,67,0.35); font-weight: bold; }
-  .chip:hover { transform: none; filter: brightness(1.15); }
-  .chip.on { background: linear-gradient(180deg, #ffe07a, #f0b429); color: #3a2208; border-color: transparent; }
-  .chip.locked { opacity: 0.5; cursor: not-allowed; font-weight: normal; }
-  .chip small { font-size: 10px; color: #c9b0f0; }
-  .sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.4); }
-  .sw.nosw { background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(255,255,255,0.35) 3px 4px) !important; }
-  .hint { margin-top: 14px; font-size: 12px; color: #c8ae7a; }
-  @media (max-width: 480px) {
-    .panel { padding: 20px 18px 24px; }
-    .panel h1 { font-size: 40px; }
-    .controls { font-size: 13px; }
-  }
-
-  .slider.theme b { display: none; }
-  .slider.theme .seg button { white-space: nowrap; font-size: 11px; }
-  .title-layout .panel { overflow-x: hidden; }
-  .main-settings { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 8px 16px; max-width: none; margin: 4px 0 0; }
-  .main-settings .slider { min-width: 0; gap: 6px; }
-  .main-settings .slider input { min-width: 0; width: 0; }
-  .main-settings .slider b { width: 36px; }
-  .main-settings .seg { min-width: 0; gap: 3px; }
-  .main-settings .seg button { min-width: 0; padding: 4px 1px; font-size: 11px; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  @media (max-height: 820px) {
-    .panel.main { padding-top: 16px; padding-bottom: 20px; }
-    .panel.main h1 { font-size: 42px; }
-    .panel.main .tagline { margin-bottom: 10px; }
-    .panel.main .skins { max-height: 150px; margin-bottom: 12px; }
-    .panel.main .diffhint { margin-bottom: 10px; }
-  }
-  .main-settings .slider span { width: auto; min-width: 44px; flex-shrink: 0; white-space: nowrap; }
-  .main-settings .slider.gfx b, .main-settings .slider.theme b { display: none; }
-  .panel.main .settings-label { margin-top: 14px !important; margin-bottom: 6px; }
-  .panel.main #logo { margin-top: -6px; }
-  .panel.main h1 { margin-top: 0; }
-  @media (max-width: 560px) { .main-settings { grid-template-columns: 1fr; } }
-  /* ---------- Theme: War Room ---------- */
-  body[data-theme="war"] { background: #15202b; font-family: "Courier New", Courier, monospace; }
-  body[data-theme="war"] .overlay { background: radial-gradient(ellipse at center, rgba(21,32,43,0.35) 0%, rgba(10,16,22,0.8) 100%); }
-  body[data-theme="war"] .panel {
-    background: linear-gradient(180deg, #223344 0%, #15202b 100%);
-    border: 2px solid #c9b98f; border-radius: 4px; color: #f1ead8;
-    box-shadow: 0 14px 50px rgba(0,0,0,0.7), inset 0 0 0 4px rgba(201,185,143,0.12);
-  }
-  body[data-theme="war"] .panel h1, body[data-theme="war"] .panel h2, body[data-theme="war"] .panel h3 {
-    font-family: Impact, "Arial Black", sans-serif; font-weight: normal; color: #f1ead8; letter-spacing: 2px; text-shadow: 3px 3px 0 #b3261e;
-  }
-  body[data-theme="war"] .panel.lose h2 { color: #ff8a7a; text-shadow: 3px 3px 0 #000; }
-  body[data-theme="war"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose) {
-    font-family: Impact, "Arial Black", sans-serif; font-weight: normal; letter-spacing: 3px; text-transform: uppercase;
-    color: #15202b; background: #f1ead8; border-radius: 3px; box-shadow: 0 5px 0 #8d8470, 0 8px 18px rgba(0,0,0,0.5);
-  }
-  body[data-theme="war"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose):active { box-shadow: 0 1px 0 #8d8470, 0 3px 8px rgba(0,0,0,0.5); }
-  body[data-theme="war"] button.secondary, body[data-theme="war"] .seg button, body[data-theme="war"] .chip {
-    font-family: "Courier New", Courier, monospace; color: #f1ead8; background: rgba(241,234,216,0.07); border: 1px solid rgba(201,185,143,0.6); border-radius: 3px;
-  }
-  body[data-theme="war"] .seg button.on, body[data-theme="war"] .chip.on { background: #b3261e; color: #f1ead8; border-color: #b3261e; }
-  body[data-theme="war"] .key { background: #f1ead8; color: #15202b; border-radius: 2px; box-shadow: 0 2px 0 #8d8470; }
-  body[data-theme="war"] :is(.rsec, .best, .stat, .controls, .achcard, .lvlbox, .skin) { background: rgba(241,234,216,0.06); border-radius: 3px; }
-  body[data-theme="war"] :is(.rhead, .skins-label, .best-label, .stat .l) { color: #c9b98f; }
-  body[data-theme="war"] :is(.stat .v, .best-main b, .slider b, .cosrow b) { color: #f1ead8; }
-  body[data-theme="war"] .stat .v { font-family: Impact, "Arial Black", sans-serif; font-weight: normal; letter-spacing: 1px; }
-  body[data-theme="war"] .tagline { color: #c9d3dc; }
-  body[data-theme="war"] .slider input { accent-color: #b3261e; }
-  body[data-theme="war"] .skin.sel { border-color: #b3261e; background: rgba(179,38,30,0.2); }
-  body[data-theme="war"] .newbest { background: #b3261e; color: #f1ead8; box-shadow: 0 0 16px rgba(179,38,30,0.6); }
-  body[data-theme="war"] .cosprev { background: #15202b; border-color: rgba(201,185,143,0.6); border-radius: 3px; }
-  body[data-theme="war"] #optionsBtn { font-family: "Courier New", Courier, monospace; background: rgba(21,32,43,0.88); border-color: #c9b98f; border-radius: 3px; color: #f1ead8; }
-  body[data-theme="war"] #optionsBtn .bars, body[data-theme="war"] #optionsBtn .bars::after { border-color: #f1ead8; }
-
-  /* ---------- Theme: Garden Picnic ---------- */
-  body[data-theme="picnic"] { background: #3f7f33; }
-  body[data-theme="picnic"] .overlay { background: radial-gradient(ellipse at center, rgba(20,60,20,0.25) 0%, rgba(15,45,15,0.65) 100%); }
-  body[data-theme="picnic"] .panel {
-    background: linear-gradient(180deg, #57a444 0%, #2f6b2a 100%);
-    border: 3px solid #ffffff; border-radius: 24px; color: #fbfff3;
-    box-shadow: 0 0 0 6px #e84a4a, 0 14px 44px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.3);
-  }
-  body[data-theme="picnic"] .panel h1, body[data-theme="picnic"] .panel h2 { color: #ffffff; text-shadow: 0 3px 0 #c93636, 0 6px 16px rgba(0,0,0,0.35); }
-  body[data-theme="picnic"] .panel h3 { color: #fff27a; }
-  body[data-theme="picnic"] .panel.lose h2 { color: #ffd0c8; }
-  body[data-theme="picnic"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose) {
-    color: #ffffff; background: linear-gradient(180deg, #ff7070 0%, #e84a4a 100%); border-radius: 18px;
-    box-shadow: 0 5px 0 #a82f2f, 0 8px 18px rgba(0,0,0,0.4); text-shadow: 0 1px 0 rgba(0,0,0,0.25);
-  }
-  body[data-theme="picnic"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose):active { box-shadow: 0 1px 0 #a82f2f, 0 3px 8px rgba(0,0,0,0.4); }
-  body[data-theme="picnic"] button.secondary, body[data-theme="picnic"] .seg button, body[data-theme="picnic"] .chip {
-    color: #ffffff; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.6);
-  }
-  body[data-theme="picnic"] .seg button.on, body[data-theme="picnic"] .chip.on { background: #ffd23f; color: #2f4a1a; border-color: transparent; }
-  body[data-theme="picnic"] .key { background: #ffffff; color: #2f6b2a; box-shadow: 0 2px 0 #9cc48a; }
-  body[data-theme="picnic"] :is(.rsec, .best, .stat, .controls, .achcard, .lvlbox, .skin) { background: rgba(20,60,20,0.25); }
-  body[data-theme="picnic"] :is(.rhead, .best-main b, .stat .v, .slider b, .cosrow b) { color: #fff27a; }
-  body[data-theme="picnic"] :is(.skins-label, .best-label, .stat .l, .tagline) { color: #e4f5d4; }
-  body[data-theme="picnic"] .slider input { accent-color: #e84a4a; }
-  body[data-theme="picnic"] .skin.sel { border-color: #ffd23f; background: rgba(255,210,63,0.2); }
-  body[data-theme="picnic"] .newbest { background: #ffd23f; color: #2f4a1a; }
-  body[data-theme="picnic"] .cosprev { background: #3f7f33; border-color: rgba(255,255,255,0.6); }
-  body[data-theme="picnic"] #optionsBtn { background: rgba(38,84,34,0.85); border-color: #ffffff; border-radius: 14px; color: #ffffff; }
-  body[data-theme="picnic"] #optionsBtn .bars, body[data-theme="picnic"] #optionsBtn .bars::after { border-color: #ffd23f; }
-</style>
-</head>
-<body>
-<canvas id="game"></canvas>
-
-<div id="titleScreen" class="overlay">
-  <div class="title-layout">
-  <div class="panel rules">
-    <h3>How to play</h3>
-
-    <div class="rsec">
-      <div class="rhead">Controls</div>
-      <div class="cgrid">
-        <div><span class="key">Mouse</span>Move your queen</div>
-        <div><span class="key">Esc</span>Pause &amp; options</div>
-        <div class="wide"><span class="key">Left click</span><span class="or">or</span><span class="key">Space</span>Charge</div>
-        <div><span class="key">M</span>Music on / off</div>
-        <div><span class="key">Enter</span>Start / restart</div>
-      </div>
-    </div>
-
-    <div class="rsec">
-      <div class="rhead">Rules</div>
-      <div class="rrow"><canvas data-icon="crumb"></canvas><span><b>Grow</b> - eat green crumbs; every 3 hatch a new worker.</span></div>
-      <div class="rrow"><canvas data-icon="guard"></canvas><span><b>Guard</b> - workers ring your queen. Stand still to brace them.</span></div>
-      <div class="rrow"><canvas data-icon="charge"></canvas><span><b>Charge</b> - workers rush the cursor for 2s, leaving your queen unguarded.</span></div>
-      <div class="rrow"><canvas data-icon="crown"></canvas><span><b>Conquer</b> - any of your ants touching an enemy queen takes her whole colony.</span></div>
-      <div class="rrow"><canvas data-icon="danger"></canvas><span><b>Beware</b> - one enemy ant reaching <i>your</i> queen ends your reign.</span></div>
-      <div class="rrow"><canvas data-icon="tags"></canvas><span><b>Size tags</b> - green: smaller than you, red: bigger. Small colonies move faster.</span></div>
-      <div class="rrow"><canvas data-icon="streak"></canvas><span><b>Streaks</b> - conquer again within 6s for bonus ants.</span></div>
-    </div>
-
-    <div class="rsec">
-      <div class="rhead">Power-ups</div>
-      <div class="rrow"><canvas data-icon="chili"></canvas><span><b class="c-chili">Fire Chili</b> - your ants fight much harder for 10s.</span></div>
-      <div class="rrow"><canvas data-icon="sugar"></canvas><span><b class="c-sugar">Sugar Rush</b> - faster queen for 8s and your charge is ready.</span></div>
-    </div>
-
-    <div class="rsec">
-      <div class="rhead">The map</div>
-      <div class="rrow"><canvas data-icon="garden"></canvas><span><b class="c-garden">Fungus Garden</b> - stand inside alone to farm new ants.</span></div>
-      <div class="rrow"><canvas data-icon="tunnel"></canvas><span><b class="c-tunnel">Tunnels</b> - step in to move your whole colony to the linked hole.</span></div>
-      <div class="rrow"><canvas data-icon="terrain"></canvas><span><b>Rocks</b> block your path, <b>puddles</b> slow you down.</span></div>
-      <div class="rrow"><canvas data-icon="storm"></canvas><span><b>Events</b> - storms, picnics, earthquakes and mating flights shake things up.</span></div>
-    </div>
-  </div>
-  <div class="panel main">
-    <canvas id="logo" width="160" height="90"></canvas>
-    <h1>Colony.io</h1>
-    <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
-    <div class="skins-label">Choose your colony</div>
-    <div class="skins"></div>
-    <div class="skininfo" id="skinInfo"></div>
-    <div class="diffrow"><span>Difficulty</span><div class="seg"><button data-diff="easy">Easy</button><button data-diff="normal">Normal</button><button data-diff="nightmare">Nightmare</button></div></div>
-    <div class="diffhint" id="diffHint"></div>
-    <button id="playBtn">Play</button>
-    <div><button id="achBtn" class="secondary">Achievements</button></div>
-    <div class="skins-label settings-label">Settings</div>
-    <div class="settings main-settings">
-      <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
-      <label class="slider"><span>Sounds</span><input type="range" min="0" max="100" data-setting="sfx"><b class="val"></b></label>
-      <div class="slider gfx"><span>Graphics</span><div class="seg"><button data-gfx="auto">Auto</button><button data-gfx="high">High</button><button data-gfx="low">Low</button></div><b></b></div>
-      <div class="slider theme"><span>Theme</span><div class="seg"><button data-theme-opt="default">Classic</button><button data-theme-opt="war">War Room</button><button data-theme-opt="picnic">Picnic</button></div><b></b></div>
-    </div>
-  </div>
-  <div class="panel profile">
-    <h3>Your Colony</h3>
-    <div class="lvlbox">
-      <canvas id="lvlBadge" class="lvlbadge"></canvas>
-      <div class="lvlinfo">
-        <div class="lvltitle" id="lvlTitle">Larva</div>
-        <div class="xpbar"><i id="lvlBar"></i></div>
-        <div class="xpsmall" id="lvlXp"></div>
-      </div>
-    </div>
-    <div class="badgerow" id="badgeRow"></div>
-    <div class="xpsmall next" id="lvlNext"></div>
-    <div id="bestBox" class="best"></div>
-    <div class="skins-label">Cosmetics</div>
-    <canvas id="cosPreview" class="cosprev"></canvas>
-    <div class="cosm" id="cosmBox"></div>
-  </div>
-  </div>
-</div>
-
-<div id="overScreen" class="overlay hidden">
-  <div class="panel lose">
-    <h2>Your Queen Has Fallen</h2>
-    <p class="tagline" id="overBy">Your colony was absorbed.</p>
-    <p class="deathtip" id="overTip"></p>
-    <div class="newbest hidden">New high score!</div>
-    <div class="stats">
-      <div class="stat"><div class="v" id="overSize">0</div><div class="l">Final size</div></div>
-      <div class="stat"><div class="v" id="overPeak">0</div><div class="l">Peak size</div></div>
-      <div class="stat"><div class="v" id="overKills">0</div><div class="l">Colonies conquered</div></div>
-      <div class="stat"><div class="v" id="overTime">0:00</div><div class="l">Time survived</div></div>
-    </div>
-    <p class="streakline" id="overStreak"></p>
-    <div class="xpbox" id="overXp"></div>
-    <p class="achline" id="overAch"></p>
-    <button id="restartBtn">Restart</button>
-    <div><button class="secondary menuBtn">Main menu</button></div>
-  </div>
-</div>
-
-<div id="achScreen" class="overlay hidden">
-  <div class="panel ach">
-    <h2>Achievements</h2>
-    <p class="tagline" id="achCount"></p>
-    <div id="achList" class="achlist"></div>
-    <button id="achClose">Back</button>
-  </div>
-</div>
-
-<div id="optionsScreen" class="overlay hidden">
-  <div class="panel options">
-    <h2>Paused</h2>
-    <p class="tagline">Options</p>
-    <div class="settings">
-      <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
-      <label class="slider"><span>Sounds</span><input type="range" min="0" max="100" data-setting="sfx"><b class="val"></b></label>
-      <div class="slider gfx"><span>Graphics</span><div class="seg"><button data-gfx="auto">Auto</button><button data-gfx="high">High</button><button data-gfx="low">Low</button></div><b></b></div>
-      <div class="slider theme"><span>Theme</span><div class="seg"><button data-theme-opt="default">Classic</button><button data-theme-opt="war">War Room</button><button data-theme-opt="picnic">Picnic</button></div><b></b></div>
-    </div>
-    <button id="resumeBtn">Resume</button>
-    <div><button id="quitBtn" class="secondary">End match &amp; main menu</button></div>
-  </div>
-</div>
-
-<button id="optionsBtn" class="hidden" title="Options (Esc)"><span class="bars"></span>Options</button>
-
-<div id="winScreen" class="overlay hidden">
-  <div class="panel">
-    <h2>Victory!</h2>
-    <p class="tagline">Every rival colony bows to you. Your colony rules the map.</p>
-    <div class="newbest hidden">New high score!</div>
-    <div class="stats">
-      <div class="stat"><div class="v" id="winSize">0</div><div class="l">Colony size</div></div>
-      <div class="stat"><div class="v" id="winPeak">0</div><div class="l">Peak size</div></div>
-      <div class="stat"><div class="v" id="winKills">0</div><div class="l">Colonies conquered</div></div>
-      <div class="stat"><div class="v" id="winTime">0:00</div><div class="l">Time</div></div>
-    </div>
-    <p class="streakline" id="winStreak"></p>
-    <div class="xpbox" id="winXp"></div>
-    <p class="achline" id="winAch"></p>
-    <button id="againBtn">Play Again</button>
-    <div><button class="secondary menuBtn">Main menu</button></div>
-  </div>
-</div>
-
-<script>
 'use strict';
+/* global SHARED */
+const {
+  TAU, WORLD_W, WORLD_H, QUEEN_R, WORKER_R, FOOD_R, PLAYER_SPEED, CHARGE_TIME, PLAYER_CHARGE_CD, RING0, FOOD_PER_WORKER,
+  PLAYER_COLOR, SKINS, CELL, FRENZY_TIME, RUSH_TIME, RUSH_SPEED, GARDEN_R, GARDEN_RATE, HOLE_R, TUNNEL_CD, POWER_INFO,
+  TUNNEL_COLORS, PALETTE, STREAK_WINDOW, STREAK_NAMES, MILESTONES, RAIN_TIME, DIFFS, NET,
+} = SHARED;
 
 // ============================================================
 //  Constants
 // ============================================================
-const TAU = Math.PI * 2;
-const WORLD_W = 4000, WORLD_H = 2600;          // ~4x a typical screen
-const QUEEN_R = 13, WORKER_R = 5, FOOD_R = 3.5;
-const PLAYER_SPEED = 220;
-const AI_SPEED = 185, AI_FLEE_SPEED = 180;
-const PLAYER_GRACE = 20, SPAWN_GRACE = 10;   // seconds new colonies are ignored by AI hunters
-const WORKER_SPEED = 270, CHARGE_SPEED = 380;
-const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 3;
-const RING0 = 36, RING_GAP = 11, RING_SPACING = 10.5;   // guard ring layout around the queen
-const FOOD_MAX = 420, FOOD_RESPAWN_RATE = 9;   // crumbs per second while below max
-const FOOD_PER_WORKER = 3, MAX_WORKERS = 400;
-const START_ENEMIES = 8, MAX_ENEMIES = 16;
-const PLAYER_COLOR = '#f5c542';
 // Player skins: restyle the queen and every worker in her colony
-const SKINS = [
-  // basic ants: available from the start
-  { id: 'gold',    name: 'Golden',    color: '#f5c542', glow: '255,220,90', basic: true },
-  { id: 'fire',    name: 'Fire Ant',  color: '#ff5a26', glow: '255,110,40', head: '#8a1a05', embers: true, basic: true },
-  { id: 'black',   name: 'Black Ant', color: '#2e2e34', glow: '200,200,220', head: '#18181c', basic: true },
-  { id: 'brown',   name: 'Carpenter', color: '#8b5a2b', glow: '220,160,100', head: '#4f2f12', basic: true },
-  { id: 'green',   name: 'Green Ant', color: '#6cbf3c', glow: '160,240,110', head: '#3f7d1e', basic: true },
-  { id: 'blue',    name: 'Blue Ant',  color: '#3d86e0', glow: '120,180,255', head: '#1f4e8f', basic: true },
-  // unlocked by achievements
-  { id: 'bee',     name: 'Bumblebee', color: '#ffd21f', glow: '255,215,60', stripes: '#1b1408', workerWings: true },
-  { id: 'lady',    name: 'Ladybug',   color: '#e0282e', glow: '255,90,90', head: '#15100c', spots: '#15100c' },
-  { id: 'ghost',   name: 'Ghost',     color: '#d4ecff', glow: '170,220,255', alpha: 0.55, workerWings: true },
-  { id: 'rainbow', name: 'Rainbow',   color: '#ff66cc', glow: '255,160,230', rainbow: true },
-  { id: 'leaf',    name: 'Leafcutter', color: '#b5652a', glow: '150,220,90', head: '#5a2c10', leaf: true },
-  { id: 'frost',   name: 'Frost',     color: '#9fd8ff', glow: '190,235,255', head: '#eaf8ff', stars: '#ffffff' },
-  { id: 'galaxy',  name: 'Galaxy',    color: '#3b1f78', glow: '150,110,255', head: '#1c0f3e', stars: '#fff6b0' },
-  { id: 'robot',   name: 'Robot',     color: '#a3adb7', glow: '120,230,255', head: '#56606a', stripes: '#5f6973', visor: '#3ff0ff' },
-  { id: 'lava',    name: 'Lava',      color: '#2d1a14', glow: '255,120,30', head: '#1a0d08', cracks: '#ff8a1e' },
-  { id: 'candy',   name: 'Candy',     color: '#ff8fc4', glow: '255,170,210', stripes: '#ffffff' },
-  { id: 'royal',   name: 'Royal',     color: '#7b3fbf', glow: '190,130,255', head: '#3a1a66', stripes: '#ffd54a' },
-  { id: 'diamond', name: 'Diamond',   color: '#bff4ff', glow: '200,250,255', head: '#f2feff', stars: '#ffffff', alpha: 0.8 },
-  { id: 'emperor', name: 'Emperor',   color: '#1d1d24', glow: '255,210,80', head: '#0d0d10', stripes: '#ffd54a', visor: '#ffd54a' },
-  { id: 'legend',  name: 'Legend',    color: '#ffcf3a', glow: '255,230,120', head: '#fff2a8', stars: '#ffffff', embers: true, workerWings: true },
-  // other bug colonies
-  { id: 'army',    name: 'Army Ant',  color: '#7a2a18', glow: '255,110,80', head: '#3a120a', mandibles: true },
-  { id: 'termite', name: 'Termite',   body: 'termite', color: '#efe0c0', glow: '255,235,190', head: '#c07a35' },
-  { id: 'wasp',    name: 'Wasp',      body: 'wasp', color: '#ffd21f', glow: '255,220,60', stripes: '#15110a', head: '#2a1e08' },
-  { id: 'hornet',  name: 'Hornet',    body: 'wasp', color: '#e0801c', glow: '255,160,60', stripes: '#3a1a08', head: '#f2c230' },
-  { id: 'moth',    name: 'Moth',      body: 'wasp', stinger: false, color: '#b9a58a', glow: '230,210,170', head: '#8a765c', mothWings: 'rgba(214,196,164,0.9)' },
-  { id: 'scarab',  name: 'Scarab',    body: 'beetle', color: '#1f8a7a', glow: '90,230,200', head: '#0f4a42', stars: '#8ff5e0' },
-  { id: 'jewel',   name: 'Jewel Beetle', body: 'beetle', color: '#28a86a', glow: '120,240,150', head: '#15603a', stripes: '#e0b83a' },
-  { id: 'stag',    name: 'Stag Beetle', body: 'beetle', color: '#4a2a18', glow: '200,140,90', head: '#2a160c', horns: true },
-  { id: 'firefly', name: 'Firefly',   body: 'beetle', color: '#3c3c2c', glow: '230,255,110', head: '#d05030', glowTail: true },
-  { id: 'spider',  name: 'Spider',    body: 'spider', color: '#6a5a4a', glow: '200,170,140', head: '#3a2e24', spots: '#3a2e24' },
-  { id: 'widow',   name: 'Black Widow', body: 'spider', color: '#1a1a1e', glow: '255,80,90', head: '#0c0c0e', hourglass: '#e0202a' },
-  { id: 'roach',   name: 'Cockroach', body: 'roach', color: '#7a4520', glow: '220,150,90', head: '#3a200c', rim: '#d09a5a' },
-];
 let selectedSkin = 0;
 try { const i = SKINS.findIndex(k => k.id === localStorage.getItem('qoth-skin')); if (i >= 0) selectedSkin = i; } catch (e) {}
-const SEP_DIST = 10, FIGHT_DIST = 10;
-const CELL = 40;
 // power-ups & structures
-const POWERUP_MAX = 5, FRENZY_TIME = 10, RUSH_TIME = 8, RUSH_SPEED = 1.35, FRENZY_POWER = 1.5;
-const GARDEN_R = 75, GARDEN_RATE = 1.0, HOLE_R = 18, TUNNEL_CD = 12;
-const POWER_INFO = {
-  frenzy: { name: 'Fire Chili', color: '#ff4a3d', glow: 'rgba(255,80,60,', msg: 'Fire Chili! Your ants fight harder' },
-  rush:   { name: 'Sugar Rush',  color: '#4fc8ff', glow: 'rgba(80,200,255,', msg: 'Sugar Rush! Faster queen, charge ready' },
-};
-const TUNNEL_COLORS = ['#c9a0ff', '#8fe0c8', '#ffb870'];
-const GCOLS = Math.ceil(WORLD_W / CELL), GROWS = Math.ceil(WORLD_H / CELL);
-
-const PALETTE = [
-  { name: 'Crimson Hive',   color: '#e0403a' },
-  { name: 'Azure Nest',     color: '#3d8fe0' },
-  { name: 'Violet Mound',   color: '#9b59d0' },
-  { name: 'Cyan Burrow',    color: '#2ec4d6' },
-  { name: 'Ember Brood',    color: '#ff7a2e' },
-  { name: 'Rose Swarm',     color: '#f062a8' },
-  { name: 'Ivory Legion',   color: '#ece4d6' },
-  { name: 'Obsidian Horde', color: '#26262b' },
-  { name: 'Indigo Den',     color: '#5b5fd6' },
-  { name: 'Slate Clan',     color: '#8fa3b3' },
-  { name: 'Scarlet Tunnel', color: '#a8102a' },
-  { name: 'Teal Dynasty',   color: '#1f9e8f' },
-];
 
 // ============================================================
 //  Helpers
@@ -695,7 +93,7 @@ window.addEventListener('keydown', e => {
   } else if (e.code === 'Escape') {
     if (state === 'playing') openOptions(); else if (state === 'paused') closeOptions();
   } else if (e.code === 'Enter') {
-    if (state === 'title' || state === 'over' || state === 'victory') startGame();
+    if ((state === 'title' || state === 'over' || state === 'victory') && document.activeElement.tagName !== 'INPUT') startGame();
   }
 });
 
@@ -716,14 +114,6 @@ let powerups = [], gardens = [], tunnels = [];
 // game feel
 let shake = 0, shakeX = 0, shakeY = 0, hitStop = 0, deathTimer = 0;
 let banners = [];   // big screen-space announcements
-const STREAK_WINDOW = 6;
-const STREAK_NAMES = ['', '', 'Double Conquest!', 'Triple Conquest!', 'Rampage!', 'Unstoppable!'];
-const MILESTONES = [
-  { at: 25,  title: '25 ANTS!',  perk: 'Your crown grows' },
-  { at: 50,  title: '50 ANTS!',  perk: 'Jewels set in your crown' },
-  { at: 100, title: '100 ANTS!', perk: 'A royal aura surrounds your queen' },
-  { at: 200, title: '200 ANTS!', perk: 'Your crown blazes with gold' },
-];
 function addShake(a) { shake = Math.max(shake, a); }
 function addBanner(text, sub, color, life = 2.2, size = 44) {
   banners.push({ text, sub, color, life, max: life, size });
@@ -736,696 +126,31 @@ let eventTimer = 60, raining = 0, quakeTime = 0, picnic = null, lastEvent = '';
 let creatures = [], creatureTimer = 30, bossTimer = 300;
 let magnifier = null, flood = null, migration = null, golden = null;
 let nightT = 0, bloodMoon = 0, sugarRain = 0, sugarRainT = 0;
-const RAIN_TIME = 20, RAIN_SLOW = 0.78, PUDDLE_SLOW = 0.55;
 let stats = { start: 0, kills: 0, peak: 0, finalSize: 0, killedBy: '', endTime: 0 };
 const cam = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.8 };
-
-const antGrid = Array.from({ length: GCOLS * GROWS }, () => []);
-const foodGrid = Array.from({ length: GCOLS * GROWS }, () => []);
 
 // ============================================================
 //  Entity creation
 // ============================================================
-function makeColony(x, y, workers, name, color, isPlayer) {
-  const c = {
-    id: uid++, name, color, isPlayer,
-    dark: shade(color, color === '#26262b' ? -0.6 : -0.5),
-    light: shade(color, 0.45),
-    alive: true, food: 0, births: 0, grace: 0, frenzy: 0, rush: 0, tunnelCd: 3,
-    charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
-    workers: [],
-    queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 }, outerR: RING0,
-    ai: { mode: 'wander', target: null, food: null, think: 0, react: rand(0, 0.2), wx: x, wy: y,
-          chargeTarget: null, aggro: rand(0.7, 1.1) * (isPlayer ? 1 : diff().aggro), orbit: Math.random() < 0.5 ? -1 : 1,
-          likesFarm: Math.random() < 0.5, power: null, garden: null },
-  };
-  for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
-  return c;
-}
 
-function addWorker(c, x, y) {
-  const a = rand(0, TAU), r = Math.sqrt(Math.random());
-  c.workers.push({
-    id: uid++, col: c,
-    x: clamp(x, 5, WORLD_W - 5), y: clamp(y, 5, WORLD_H - 5),
-    vx: 0, vy: 0, ang: rand(0, TAU), walk: rand(0, 10),
-    ox: Math.cos(a) * r, oy: Math.sin(a) * r, jit: rand(0, TAU),
-    sx: 0, sy: 0, fx: 0, fy: 0, ex: 0, ey: 0, ed: Infinity,
-    fightCd: 0, dead: false,
-  });
-}
-
-function spawnFood(x, y) {
-  if (x === undefined) {   // random crumb: not inside a rock
-    for (let t = 0; t < 6; t++) { x = rand(20, WORLD_W - 20); y = rand(20, WORLD_H - 20); if (!inRock(x, y, 6)) break; }
-  } else if (inRock(x, y, 4)) return;
-  food.push({
-    x, y,
-    r: rand(2.6, 4.2), ox: rand(-1.5, 1.5), oy: rand(-1.5, 1.5), age: 0, dead: false,
-  });
-}
-
-function pickPalette() {
-  const used = new Set(colonies.filter(c => c.alive).map(c => c.color));
-  const free = PALETTE.filter(p => !used.has(p.color));
-  const src = free.length ? free : PALETTE;
-  return src[randInt(0, src.length - 1)];
-}
-
-function findSpawnPos(minFromPlayer, minFromQueens) {
-  let best = null, bestScore = -1;
-  for (let t = 0; t < 80; t++) {
-    const x = rand(180, WORLD_W - 180), y = rand(180, WORLD_H - 180);
-    if (inRock(x, y, 70)) continue;
-    let score = Infinity;
-    for (const c of colonies) {
-      if (!c.alive) continue;
-      const d = dist(x, y, c.queen.x, c.queen.y);
-      const need = c.isPlayer ? minFromPlayer : minFromQueens;
-      score = Math.min(score, d / need);
-    }
-    if (score >= 1) return { x, y };
-    if (score > bestScore) { bestScore = score; best = { x, y }; }
-  }
-  return best;
-}
-
-function spawnEnemy(size) {
-  const p = findSpawnPos(900, 380);
-  const pal = pickPalette();
-  const c = makeColony(p.x, p.y, size, pal.name, pal.color, false);
-  c.grace = SPAWN_GRACE;
-  colonies.push(c);
-  if (state === 'playing') {
-    floaters.push({ type: 'ring', x: p.x, y: p.y, color: pal.color, life: 1.5, max: 1.5, r: 80 });
-    floaters.push({ type: 'text', text: `${pal.name} has emerged!`, x: p.x, y: p.y - 40, color: pal.color, life: 2.5, max: 2.5, size: 18 });
-  }
-  return c;
-}
-
-function enemyCount() {
-  let n = 0;
-  for (const c of colonies) if (c.alive && !c.isPlayer) n++;
-  return n;
-}
-
-function colonySize(c) { return c.workers.length; }
+function colonySize(c) { return c.n !== undefined ? c.n : c.workers.length; }
 
 // ============================================================
 //  World setup
 // ============================================================
-function resetWorld(withPlayer) {
-  miniCache.t = -1;
-  colonies = []; food = []; particles = []; floaters = [];
-  player = null; time = 0; foodAccum = 0;
-  placeStructures();
-  bgCanvas && buildBackground();
-  powerups = []; powerTimer = 3;
-  raining = 0; quakeTime = 0; picnic = null; eventTimer = rand(55, 75); lastEvent = '';
-  creatures = []; creatureTimer = rand(20, 35); bossTimer = 300;
-  magnifier = null; flood = null; migration = null; golden = null; nightT = 0; bloodMoon = 0; sugarRain = 0;
-  for (let i = 0; i < 2; i++) spawnPowerup();
-  for (let i = 0; i < FOOD_MAX; i++) spawnFood();
-  for (const f of food) f.age = 1;
-
-  if (withPlayer) {
-    const skin = SKINS[selectedSkin];
-    let px, py;
-    for (let t = 0; t < 50; t++) { px = WORLD_W / 2 + rand(-600, 600); py = WORLD_H / 2 + rand(-400, 400); if (!inRock(px, py, 80)) break; }
-    player = makeColony(px, py, 5, 'You', skin.color, true);
-    player.skin = skin;
-    player.crownColor = (COSMETICS.crown.find(o => o.id === prog.crown) || COSMETICS.crown[0]).color;
-    player.chargeCd = 0;   // charge is ready from the start
-    player.grace = diff().grace;
-    colonies.push(player);
-  }
-  // 8 rivals with sizes spread from 3 to 30
-  const sizes = [3, 30];
-  while (sizes.length < START_ENEMIES) sizes.push(randInt(4, 26));
-  for (const s of sizes) {
-    const p = findSpawnPos(700, 450);
-    const pal = pickPalette();
-    colonies.push(makeColony(p.x, p.y, Math.max(3, Math.round(s * diff().startSize)), pal.name, pal.color, false));
-  }
-  spawnTimer = rand(3, 7);
-  if (player) { cam.x = player.queen.x; cam.y = player.queen.y; }
-}
-
-function startGame() {
-  startMusic();
-  stats = { diff: settings.diff };   // rivals are created with this match's difficulty
-  document.getElementById('optionsScreen').classList.add('hidden');
-  document.getElementById('optionsBtn').classList.remove('hidden');
-  resetWorld(true);
-  state = 'playing';
-  stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0,
-            streak: 0, bestStreak: 0, lastConquer: -99, milestone: 0, deathCause: '', deathX: 0, deathY: 0,
-            charges: 0, newAch: [], achTimer: 0, diff: settings.diff, ghostSpawned: false, ghostBeaten: false, trailT: 0 };
-  life.games++;
-  banners = []; shake = 0; hitStop = 0;
-  checkAchievements();
-  mouse.x = W / 2; mouse.y = H / 2;
-  document.getElementById('titleScreen').classList.add('hidden');
-  document.getElementById('overScreen').classList.add('hidden');
-  document.getElementById('winScreen').classList.add('hidden');
-}
-
-function tryPlayerCharge() {
-  if (state !== 'playing' || !player || !player.alive) return;
-  if (player.chargeCd > 0 || player.charge > 0) return;
-  const m = screenToWorld(mouse.x, mouse.y);
-  startCharge(player, m.x, m.y);
-}
-
-function startCharge(c, x, y) {
-  c.chargeHit = false;
-  if (c.isPlayer && state === 'playing') { life.charges++; stats.charges++; }
-  if (c.isPlayer) playSfx('charge');
-  else if (state === 'playing' && onScreen(c.queen.x, c.queen.y)) playSfx('charge', 0.5);
-  c.charge = CHARGE_TIME;
-  c.chargeX = x; c.chargeY = y;
-}
 
 function screenToWorld(sx, sy) {
   return { x: cam.x + (sx - W / 2) / cam.zoom, y: cam.y + (sy - H / 2) / cam.zoom };
 }
 
 // ============================================================
-//  Queen movement
-// ============================================================
-function steerQueen(q, tvx, tvy, dt, resp) {
-  // slide around rocks that lie ahead instead of pushing into them
-  const ts = Math.hypot(tvx, tvy);
-  if (ts > 1) {
-    for (const r of rocks) {
-      const dx = r.x - q.x, dy = r.y - q.y, d = Math.hypot(dx, dy), clear = r.r + QUEEN_R + 45;
-      if (d > clear || d < 1 || (dx * tvx + dy * tvy) / (d * ts) < 0.25) continue;
-      const side = dx * tvy - dy * tvx > 0 ? 1 : -1;
-      const w = 0.4 + (1 - d / clear) * 1.6;
-      tvx += -dy / d * side * ts * w; tvy += dx / d * side * ts * w;
-      const n = Math.hypot(tvx, tvy); tvx = tvx / n * ts; tvy = tvy / n * ts;
-    }
-  }
-  const k = 1 - Math.exp(-resp * dt);
-  q.vx += (tvx - q.vx) * k;
-  q.vy += (tvy - q.vy) * k;
-  const tf = terrainFactor(q.x, q.y);
-  q.x += q.vx * dt * tf; q.y += q.vy * dt * tf;
-  if (rocks.length) pushOutOfRocks(q, QUEEN_R);
-  if (q.x < QUEEN_R) { q.x = QUEEN_R; q.vx = 0; }
-  if (q.x > WORLD_W - QUEEN_R) { q.x = WORLD_W - QUEEN_R; q.vx = 0; }
-  if (q.y < QUEEN_R) { q.y = QUEEN_R; q.vy = 0; }
-  if (q.y > WORLD_H - QUEEN_R) { q.y = WORLD_H - QUEEN_R; q.vy = 0; }
-  const s = Math.hypot(q.vx, q.vy);
-  if (s > 6) q.ang = lerpAngle(q.ang, Math.atan2(q.vy, q.vx), 1 - Math.exp(-10 * dt));
-  q.walk += s * dt * 0.13;
-}
-
-function updatePlayer(c, dt) {
-  const q = c.queen;
-  const m = screenToWorld(mouse.x, mouse.y);
-  const dx = m.x - q.x, dy = m.y - q.y, d = Math.hypot(dx, dy);
-  const sp = Math.min(PLAYER_SPEED * speedFactor(c), Math.max(0, d - 4) * 3);
-  steerQueen(q, d > 1 ? dx / d * sp : 0, d > 1 ? dy / d * sp : 0, dt, 7);
-  if (c.charge > 0) { c.chargeX = m.x; c.chargeY = m.y; }
-}
-
-// ============================================================
-//  AI
-// ============================================================
-const STRIKE_RANGE = 340;   // how far an AI will launch a charge from (charge covers ~760px)
-
-// Count enemy workers that stand between an attacker's queen and a target queen,
-// plus the inner guard hugging the target. These are what a charge must break through.
-function blockersOnPath(fromQ, o) {
-  const tq = o.queen;
-  const sx = tq.x - fromQ.x, sy = tq.y - fromQ.y, L2 = sx * sx + sy * sy || 1;
-  let n = 0;
-  for (const w of o.workers) {
-    const dq = (w.x - tq.x) ** 2 + (w.y - tq.y) ** 2;
-    if (dq < 28 * 28) { n++; continue; }
-    const t = clamp(((w.x - fromQ.x) * sx + (w.y - fromQ.y) * sy) / L2, 0, 1);
-    const px = fromQ.x + sx * t, py = fromQ.y + sy * t;
-    if ((w.x - px) ** 2 + (w.y - py) ** 2 < 18 * 18) n++;
-  }
-  return n;
-}
-
-// Look for a chance to charge an enemy queen, regardless of relative colony size.
-function aiStrike(c) {
-  if (c.charge > 0 || c.chargeCd > 0 || c.workers.length < 2) return false;
-  const q = c.queen, my = c.workers.length;
-  let best = null, bestOdds = 0;
-  for (const o of colonies) {
-    if (o === c || !o.alive || o.grace > 0) continue;
-    const tq = o.queen, d = dist(q.x, q.y, tq.x, tq.y);
-    if (d > STRIKE_RANGE) continue;
-    const blockers = blockersOnPath(q, o);
-    let odds = my * c.ai.aggro * (1.5 - d / STRIKE_RANGE) / (2.5 * blockers + 2);
-    if (o.charge > 0) odds *= 1.25;                                       // her guard is away: she's exposed
-    if (colonySize(o) > my && d < 200) odds *= 1.3;                       // cornered: strike first
-    if (o.charge > 0 && dist(o.chargeX, o.chargeY, q.x, q.y) < 200) odds *= 1.2; // counter-attack
-    if (odds > bestOdds) { bestOdds = odds; best = o; }
-  }
-  // not every opening is spotted: hesitate sometimes and need clearly good odds
-  if (best && bestOdds > diff().strike * (bloodMoon > 0 ? 0.6 : 1) && Math.random() < 0.6) {
-    c.ai.chargeTarget = best;
-    startCharge(c, best.queen.x, best.queen.y);
-    return true;
-  }
-  return false;
-}
-
-function aiThink(c) {
-  const q = c.queen, ai = c.ai, my = colonySize(c);
-  ai.target = null;
-
-  // 1) an enemy charge is coming at us: back away and let the guard ring absorb it
-  for (const o of colonies) {
-    if (o === c || !o.alive || o.charge <= 0) continue;
-    if (dist(o.chargeX, o.chargeY, q.x, q.y) < 220 && Math.random() < 0.6) { ai.mode = 'evade'; ai.target = o; return; }
-  }
-
-  let threat = null, threatD = Infinity, prey = null, preyScore = -Infinity;
-  for (const o of colonies) {
-    if (o === c || !o.alive) continue;
-    const d = dist(q.x, q.y, o.queen.x, o.queen.y);
-    const os = colonySize(o);
-    if (o.grace > 0 && os <= my) continue;   // fresh colonies get time to grow
-    if (os > my * 1.4 * ai.aggro && d < 360 && d < threatD) { threat = o; threatD = d; }
-    if (os <= my * 1.2 * ai.aggro && d < 480) {
-      const score = (my + 5) / (os + 5) - d / 480;
-      if (score > preyScore) { preyScore = score; prey = o; }
-    }
-  }
-  // 2) a much bigger colony is close: run, unless we are already hunting something closer
-  if (threat && (!prey || threatD < 240)) { ai.mode = 'flee'; ai.target = threat; return; }
-  // 3) hunt: overwhelm smaller colonies, stalk comparable ones and wait for an opening
-  if (prey) { ai.mode = colonySize(prey) < my * 0.7 ? 'chase' : 'stalk'; ai.target = prey; return; }
-
-  // the golden crumb is worth a long trip
-  if (golden && dist(q.x, q.y, golden.x, golden.y) < 1000) { ai.mode = 'powerup'; ai.power = golden; return; }
-  // 4) power-ups nearby are worth a detour
-  let bp = null, bpd = 450;
-  for (const pu of powerups) {
-    const d = dist(q.x, q.y, pu.x, pu.y);
-    if (d < bpd) { bpd = d; bp = pu; }
-  }
-  if (bp) { ai.mode = 'powerup'; ai.power = bp; return; }
-
-  // 5) some colonies like to settle on a fungus garden nobody else holds
-  if (ai.likesFarm) {
-    let bg = null, bgd = 900;
-    for (const g of gardens) {
-      if (g.owner && g.owner !== c) continue;
-      const d = dist(q.x, q.y, g.x, g.y);
-      if (d < bgd) { bgd = d; bg = g; }
-    }
-    if (bg) { ai.mode = 'farm'; ai.garden = bg; return; }
-  }
-
-  // 6) food
-  let best = null, bestD = 340;
-  const gx = (q.x / CELL) | 0, gy = (q.y / CELL) | 0;
-  for (let yy = gy - 8; yy <= gy + 8; yy++) {
-    if (yy < 0 || yy >= GROWS) continue;
-    for (let xx = gx - 8; xx <= gx + 8; xx++) {
-      if (xx < 0 || xx >= GCOLS) continue;
-      for (const f of foodGrid[yy * GCOLS + xx]) {
-        if (f.dead) continue;
-        const d = dist(q.x, q.y, f.x, f.y);
-        if (d < bestD) { bestD = d; best = f; }
-      }
-    }
-  }
-  if (best) { ai.mode = 'food'; ai.food = best; return; }
-
-  // 5) wander
-  if (ai.mode !== 'wander' || dist(q.x, q.y, ai.wx, ai.wy) < 60) {
-    ai.wx = clamp(q.x + rand(-700, 700), 150, WORLD_W - 150);
-    ai.wy = clamp(q.y + rand(-700, 700), 150, WORLD_H - 150);
-    // now and then, explore through a nearby tunnel
-    if (c.tunnelCd <= 0 && Math.random() < 0.35) {
-      const h = tunnels.find(t => dist(q.x, q.y, t.x, t.y) < 600);
-      if (h) { ai.wx = h.x; ai.wy = h.y; }
-    }
-  }
-  ai.mode = 'wander';
-}
-
-function wallAvoid(q, v) {
-  const m = 260;
-  if (q.x < m) v.x += (m - q.x) / m * 1.6;
-  if (q.x > WORLD_W - m) v.x -= (q.x - (WORLD_W - m)) / m * 1.6;
-  if (q.y < m) v.y += (m - q.y) / m * 1.6;
-  if (q.y > WORLD_H - m) v.y -= (q.y - (WORLD_H - m)) / m * 1.6;
-}
-
-function updateAI(c, dt) {
-  const q = c.queen, ai = c.ai;
-  ai.think -= dt;
-  if (ai.think <= 0) { ai.think = rand(0.35, 0.7); aiThink(c); }
-  // quick reflexes: check for openings several times a second
-  ai.react -= dt;
-  if (ai.react <= 0) {
-    ai.react = rand(0.25, 0.5) * diff().react;
-    if (aiStrike(c)) ai.think = 0;
-    else if (c.charge <= 0 && c.chargeCd <= 0 && c.workers.length >= 15 && Math.random() < 0.15) {
-      const cr = creatures.find(k => k.type !== 'drone' && k.state !== 'flipped' && k.state !== 'out' && dist(k.x, k.y, q.x, q.y) < 230);
-      if (cr) { ai.chargeTarget = null; startCharge(c, cr.x, cr.y); }
-    }
-  }
-
-  // steer our charge onto where the target queen is heading
-  if (c.charge > 0 && ai.chargeTarget && ai.chargeTarget.alive) {
-    const tq = ai.chargeTarget.queen;
-    c.chargeX = tq.x + tq.vx * 0.15; c.chargeY = tq.y + tq.vy * 0.15;
-  }
-
-  const v = { x: 0, y: 0 };
-  let sp = AI_SPEED * 0.6;
-  const tgt = ai.target && ai.target.alive ? ai.target : null;
-
-  if (c.charge > 0 && ai.chargeTarget && ai.chargeTarget.alive) {
-    // our guard is out attacking: keep the queen back out of reach
-    const tq = ai.chargeTarget.queen;
-    const dx = q.x - tq.x, dy = q.y - tq.y, d = Math.hypot(dx, dy) || 1;
-    if (d < 300) { v.x = dx / d; v.y = dy / d; sp = AI_FLEE_SPEED * 0.8; }
-    wallAvoid(q, v);
-  } else if (ai.mode === 'evade' && tgt) {
-    const dx = q.x - tgt.chargeX, dy = q.y - tgt.chargeY, d = Math.hypot(dx, dy) || 1;
-    v.x = dx / d; v.y = dy / d; sp = AI_FLEE_SPEED;
-    wallAvoid(q, v);
-  } else if (ai.mode === 'flee' && tgt) {
-    const dx = q.x - tgt.queen.x, dy = q.y - tgt.queen.y, d = Math.hypot(dx, dy) || 1;
-    v.x = dx / d; v.y = dy / d; sp = AI_FLEE_SPEED;
-    // duck into a nearby tunnel if it isn't back toward the threat
-    if (c.tunnelCd <= 0) {
-      for (const h of tunnels) {
-        const hx = h.x - q.x, hy = h.y - q.y, hd = Math.hypot(hx, hy) || 1;
-        if (hd < 240 && (hx * dx + hy * dy) / (hd * d) > -0.2) { v.x = hx / hd; v.y = hy / hd; break; }
-      }
-    }
-    wallAvoid(q, v);
-  } else if (ai.mode === 'chase' && tgt) {
-    const tq = tgt.queen;
-    v.x = tq.x + tq.vx * 0.3 - q.x; v.y = tq.y + tq.vy * 0.3 - q.y; sp = AI_SPEED;
-  } else if (ai.mode === 'stalk' && tgt) {
-    // circle the target just inside strike range, closing in when she is exposed
-    const tq = tgt.queen;
-    const dx = tq.x - q.x, dy = tq.y - q.y, d = Math.hypot(dx, dy) || 1;
-    const want = tgt.charge > 0 ? 120 : 230;
-    const radial = clamp((d - want) / 80, -1, 1);
-    v.x = dx / d * radial - dy / d * ai.orbit * 0.8;
-    v.y = dy / d * radial + dx / d * ai.orbit * 0.8;
-    sp = AI_SPEED;
-    wallAvoid(q, v);
-  } else if (ai.mode === 'powerup' && ai.power && !ai.power.dead) {
-    v.x = ai.power.x - q.x; v.y = ai.power.y - q.y; sp = AI_SPEED * 0.9;
-  } else if (ai.mode === 'farm' && ai.garden) {
-    const g = ai.garden, d = dist(q.x, q.y, g.x, g.y);
-    v.x = g.x - q.x; v.y = g.y - q.y;
-    sp = d > GARDEN_R * 0.4 ? AI_SPEED * 0.8 : Math.min(30, d);   // settle in and brace
-  } else if (ai.mode === 'food' && ai.food && !ai.food.dead) {
-    v.x = ai.food.x - q.x; v.y = ai.food.y - q.y; sp = AI_SPEED * 0.8;
-  } else {
-    if (ai.mode !== 'wander') { ai.mode = 'wander'; ai.think = 0; }
-    v.x = ai.wx - q.x; v.y = ai.wy - q.y; sp = AI_SPEED * 0.6;
-    if (Math.hypot(v.x, v.y) < 50) ai.think = 0;
-  }
-  sp *= speedFactor(c) * diff().speed;
-  const n = Math.hypot(v.x, v.y);
-  steerQueen(q, n > 0.001 ? v.x / n * sp : 0, n > 0.001 ? v.y / n * sp : 0, dt, 4);
-}
-
-// ============================================================
 //  Grids, fights, food
 // ============================================================
-const usedAntCells = [], usedFoodCells = [];
-function buildGrids() {
-  for (const i of usedAntCells) antGrid[i].length = 0;
-  for (const i of usedFoodCells) foodGrid[i].length = 0;
-  usedAntCells.length = 0; usedFoodCells.length = 0;
-  for (const c of colonies) {
-    if (!c.alive) continue;
-    for (const w of c.workers) {
-      const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
-      const cell = antGrid[gy * GCOLS + gx];
-      if (!cell.length) usedAntCells.push(gy * GCOLS + gx);
-      cell.push(w);
-    }
-  }
-  for (const f of food) {
-    if (f.dead) continue;
-    const gx = clamp((f.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((f.y / CELL) | 0, 0, GROWS - 1);
-    const cell = foodGrid[gy * GCOLS + gx];
-    if (!cell.length) usedFoodCells.push(gy * GCOLS + gx);
-    cell.push(f);
-  }
-}
-
-function fight(a, b) {
-  if (a.fightCd > 0 || b.fightCd > 0) return;
-  a.fightCd = b.fightCd = 0.2;
-  const sa = colonySize(a.col), sb = colonySize(b.col);
-  const pa = (sa + 1) / (sa + sb + 2);  // share of strength for a's side
-  let aDie = 0.9 * (1 - pa), bDie = 0.9 * pa;
-  if (bloodMoon > 0) { aDie *= 1.5; bDie *= 1.5; }
-  // guards holding their ring fight better than chargers crashing into it
-  const ac = a.col.charge > 0, bc = b.col.charge > 0;
-  if (ac && !bc) { aDie *= 1.25; bDie *= 0.75; }
-  if (bc && !ac) { bDie *= 1.25; aDie *= 0.75; }
-  // Fire Chili: enraged ants shrug off hits and hit harder
-  if (a.col.frenzy > 0) { aDie *= 0.6; bDie *= 1.4; }
-  if (b.col.frenzy > 0) { bDie *= 0.6; aDie *= 1.4; }
-  // knock apart
-  const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1;
-  a.vx += dx / d * 120; a.vy += dy / d * 120;
-  b.vx -= dx / d * 120; b.vy -= dy / d * 120;
-  sparks((a.x + b.x) / 2, (a.y + b.y) / 2);
-  for (const side of [a, b]) {   // first crunch of the player's charge
-    if (side.col.isPlayer && side.col.charge > 0 && !side.col.chargeHit) { side.col.chargeHit = true; addShake(6); }
-  }
-  if (state === 'playing' && (a.col.isPlayer || b.col.isPlayer || onScreen(a.x, a.y))) playSfx('fight', a.col.isPlayer || b.col.isPlayer ? 1 : 0.5);
-  if (Math.random() < Math.min(0.95, aDie)) killWorker(a, b.col);
-  if (Math.random() < Math.min(0.95, bDie)) killWorker(b, a.col);
-}
-
-function killWorker(w, killerCol) {
-  if (w.dead) return;
-  w.dead = true;
-  particles.push({ type: 'splat', x: w.x, y: w.y, color: w.col.color, life: 3, max: 3, r: rand(3, 5) });
-  for (let i = 0; i < 4; i++) {
-    const a = rand(0, TAU), s = rand(30, 90);
-    particles.push({ type: 'fleck', x: w.x, y: w.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: w.col.dark, life: 0.5, max: 0.5, r: 1.3 });
-  }
-}
 
 function sparks(x, y) {
   for (let i = 0; i < 2; i++) {
     const a = rand(0, TAU), s = rand(40, 110);
     particles.push({ type: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: '#fff3c0', life: 0.25, max: 0.25, r: 1.2 });
-  }
-}
-
-function eatFood(c, f) {
-  if (f.dead) return;
-  f.dead = true;
-  if (c.isPlayer) { playSfx('eat'); if (state === 'playing') life.crumbs++; }
-  c.food += f.honey ? 2 : 1;
-  while (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
-  for (let i = 0; i < 3; i++) {
-    const a = rand(0, TAU), s = rand(20, 60);
-    particles.push({ type: 'fleck', x: f.x, y: f.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: '#9dff6e', life: 0.4, max: 0.4, r: 1.4 });
-  }
-}
-
-function interactions(dt) {
-  const SEP2 = SEP_DIST * SEP_DIST, FIGHT2 = FIGHT_DIST * FIGHT_DIST;
-  for (const c of colonies) {
-    if (!c.alive) continue;
-    for (const w of c.workers) {
-      if (w.dead) continue;
-      w.fightCd -= dt;
-      const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
-      let nearF = null, nearD = 30;
-      w.ed = Infinity;
-      for (let yy = gy - 1; yy <= gy + 1; yy++) {
-        if (yy < 0 || yy >= GROWS) continue;
-        for (let xx = gx - 1; xx <= gx + 1; xx++) {
-          if (xx < 0 || xx >= GCOLS) continue;
-          const idx = yy * GCOLS + xx;
-          const cell = antGrid[idx];
-          for (let i = 0; i < cell.length; i++) {
-            const o = cell[i];
-            if (o === w || o.dead) continue;
-            const dx = w.x - o.x, dy = w.y - o.y, d2 = dx * dx + dy * dy;
-            if (o.col === w.col) {
-              if (d2 < SEP2 && d2 > 0.0001) {
-                const d = Math.sqrt(d2), p = (SEP_DIST - d) / SEP_DIST;
-                w.sx += dx / d * p * 140; w.sy += dy / d * p * 140;
-              }
-            } else {
-              if (d2 < 38 * 38 && d2 < w.ed * w.ed) { w.ed = Math.sqrt(d2); w.ex = o.x; w.ey = o.y; }
-              if (d2 < FIGHT2 && w.id < o.id) {
-                // enemy ants can't pass through each other, so a guard ring actually blocks.
-                // Guards holding formation brace against chargers and give far less ground.
-                const d = Math.sqrt(d2) || 0.01, nx = dx / d, ny = dy / d, overlap = FIGHT_DIST - d;
-                const wa = w.col.charge > 0, oa = o.col.charge > 0;
-                const ww = wa === oa ? 0.5 : wa ? 0.85 : 0.15;   // share of the correction w takes
-                w.x += nx * overlap * ww; w.y += ny * overlap * ww;
-                o.x -= nx * overlap * (1 - ww); o.y -= ny * overlap * (1 - ww);
-                // inelastic: cancel the closing speed so chargers stop at the wall instead of tunnelling
-                const rv = (w.vx - o.vx) * nx + (w.vy - o.vy) * ny;
-                if (rv < 0) {
-                  w.vx -= rv * nx * ww; w.vy -= rv * ny * ww;
-                  o.vx += rv * nx * (1 - ww); o.vy += rv * ny * (1 - ww);
-                }
-                fight(w, o);
-              }
-              if (w.dead) break;
-            }
-          }
-          if (w.dead) break;
-          const fc = foodGrid[idx];
-          for (let i = 0; i < fc.length; i++) {
-            const f = fc[i];
-            if (f.dead) continue;
-            const d = dist(w.x, w.y, f.x, f.y);
-            if (d < WORKER_R + f.r + 1) { eatFood(c, f); continue; }
-            if (d < nearD) { nearD = d; nearF = f; }
-          }
-        }
-        if (w.dead) break;
-      }
-      if (nearF && c.charge <= 0) {
-        w.fx = (nearF.x - w.x) / nearD * 150; w.fy = (nearF.y - w.y) / nearD * 150;
-      }
-    }
-  }
-
-  // queens eat food
-  for (const c of colonies) {
-    if (!c.alive) continue;
-    const q = c.queen;
-    const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
-    for (let yy = gy - 1; yy <= gy + 1; yy++) {
-      if (yy < 0 || yy >= GROWS) continue;
-      for (let xx = gx - 1; xx <= gx + 1; xx++) {
-        if (xx < 0 || xx >= GCOLS) continue;
-        for (const f of foodGrid[yy * GCOLS + xx]) {
-          if (!f.dead && dist(q.x, q.y, f.x, f.y) < QUEEN_R + f.r) eatFood(c, f);
-        }
-      }
-    }
-  }
-
-  // clean up dead, hatch new workers
-  for (const c of colonies) {
-    if (!c.alive) continue;
-    if (c.workers.some(w => w.dead)) c.workers = c.workers.filter(w => !w.dead);
-    while (c.births > 0) {
-      c.births--;
-      if (c.workers.length >= MAX_WORKERS) continue;
-      const q = c.queen;
-      addWorker(c, q.x - Math.cos(q.ang) * 16 + rand(-4, 4), q.y - Math.sin(q.ang) * 16 + rand(-4, 4));
-      if (c.isPlayer) { floaters.push({ type: 'text', text: '+1', x: q.x, y: q.y - 24, color: '#ffe27a', life: 0.9, max: 0.9, size: 16 }); playSfx('hatch'); }
-    }
-  }
-  if (food.some(f => f.dead)) food = food.filter(f => !f.dead);
-}
-
-// ============================================================
-//  Worker movement (flocking around the queen)
-// ============================================================
-function updateWorkers(c, dt) {
-  const q = c.queen, n = c.workers.length;
-  if (!n) return;
-  // how many rings are needed -> outer radius of the guard
-  let rings = 0;
-  for (let left = n; left > 0; rings++) left -= Math.max(6, Math.floor(TAU * (RING0 + rings * RING_GAP) / RING_SPACING));
-  const outerR = RING0 + (rings - 1) * RING_GAP;
-  c.outerR = outerR;
-  const k = 1 - Math.exp(-7 * dt), kRing = 1 - Math.exp(-16 * dt);
-  const charging = c.charge > 0;
-  const Rc = 8 + 3.5 * Math.sqrt(n);   // tight attack cluster around the charge point
-
-  // which side is the enemy pressing from? guards bunch up on that side of the ring
-  let tvx = 0, tvy = 0, tcount = 0;
-  const scan = outerR + 70, cr = Math.ceil(scan / CELL);
-  const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
-  for (let yy = Math.max(0, gy - cr); yy <= Math.min(GROWS - 1, gy + cr); yy++) {
-    for (let xx = Math.max(0, gx - cr); xx <= Math.min(GCOLS - 1, gx + cr); xx++) {
-      for (const e of antGrid[yy * GCOLS + xx]) {
-        if (e.col === c || e.dead) continue;
-        const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy);
-        if (d > scan || d < 0.01) continue;
-        tvx += dx / d; tvy += dy / d; tcount++;
-      }
-    }
-  }
-  const tmag = Math.hypot(tvx, tvy);
-  // a braced (slow) queen lets the guards reorganise fully; a running ring can only shift a little
-  const shift = Math.hypot(q.vx, q.vy) < 90 ? 0.55 : 0.25;
-  const squeeze = tcount >= 2 && !charging ? shift * Math.min(1, tcount / 8) * Math.min(1, tmag / tcount + 0.2) : 0;
-  const threatAng = Math.atan2(tvy, tvx);
-  c.threatSqueeze = squeeze;
-
-  let idx = 0;
-  for (let ring = 0; idx < n; ring++) {
-    const r = RING0 + ring * RING_GAP;
-    const cnt = Math.min(Math.max(6, Math.floor(TAU * r / RING_SPACING)), n - idx);
-    const rot = time * 0.22 * (ring % 2 ? -1 : 1) + ring * 0.7 + c.id;
-    for (let j = 0; j < cnt; j++) {
-      const w = c.workers[idx + j];
-      let a = rot + j / cnt * TAU;
-      if (squeeze > 0) {
-        const rel = ((a - threatAng + Math.PI) % TAU + TAU) % TAU - Math.PI;
-        a = threatAng + rel * (1 - squeeze);
-      }
-      let tx = q.x + Math.cos(a) * r, ty = q.y + Math.sin(a) * r;
-      let maxS = WORKER_SPEED, guarding = false;
-      if (charging) {
-        tx = c.chargeX + w.ox * Rc; ty = c.chargeY + w.oy * Rc; maxS = CHARGE_SPEED;
-        if (w.ed < 13) maxS = 25;   // locked in melee: must kill the blocker to push on
-      } else if (w.ed < 38 && dist(w.ex, w.ey, q.x, q.y) < r + 3) {
-        // hold the wall against ants outside the ring; only break formation to
-        // run down an intruder that has already slipped inside this guard's ring
-        tx = w.ex; ty = w.ey; maxS = WORKER_SPEED * 1.15;
-      } else guarding = true;
-      const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
-      let dvx, dvy;
-      if (guarding) {
-        // hold the ring slot: move with the queen plus a stiff correction toward the slot,
-        // so the queen stays centred in her colony even at full speed
-        dvx = q.vx + dx * 8 + w.sx * 0.5 + w.fx * 0.5;
-        dvy = q.vy + dy * 8 + w.sy * 0.5 + w.fy * 0.5;
-        const m = Math.hypot(dvx, dvy), cap = PLAYER_SPEED * 1.3 * RUSH_SPEED + 140;
-        if (m > cap) { dvx *= cap / m; dvy *= cap / m; }
-        w.vx += (dvx - w.vx) * kRing; w.vy += (dvy - w.vy) * kRing;
-      } else {
-        const sp = Math.min(maxS, d * (charging ? 6 : 4));
-        dvx = (d > 0.01 ? dx / d * sp : 0) + w.sx + w.fx;
-        dvy = (d > 0.01 ? dy / d * sp : 0) + w.sy + w.fy;
-        w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
-      }
-      if (w.stuck > 0) {   // caught in a spider web
-        w.stuck -= dt; w.vx = w.vy = 0;
-        if (w.stuck <= 0) w.webCd = 3;
-      } else {
-        if (w.webCd > 0) w.webCd -= dt;
-        const tf = terrainFactor(w.x, w.y);
-        w.x = clamp(w.x + w.vx * dt * tf, 3, WORLD_W - 3);
-        w.y = clamp(w.y + w.vy * dt * tf, 3, WORLD_H - 3);
-        if (rocks.length) pushOutOfRocks(w, WORKER_R);
-      }
-      const s = Math.hypot(w.vx, w.vy);
-      if (s > 25) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), 1 - Math.exp(-12 * dt));
-      else w.ang = lerpAngle(w.ang, a, 1 - Math.exp(-6 * dt));   // at rest: face outward on guard
-      w.walk += Math.max(s, 12) * dt * 0.3;
-      w.sx = w.sy = w.fx = w.fy = 0;
-    }
-    idx += cnt;
   }
 }
 
@@ -1438,158 +163,9 @@ function speedFactor(c) {
   return c.rush > 0 ? base * RUSH_SPEED : base;
 }
 
-// Count ants of colony `col` within `r` of (x, y) using the ant grid,
-// optionally only those within `maxQ` of the point (qx, qy).
-function countNear(col, x, y, r, qx = 0, qy = 0, maxQ = Infinity) {
-  const gx = clamp((x / CELL) | 0, 0, GCOLS - 1), gy = clamp((y / CELL) | 0, 0, GROWS - 1), r2 = r * r;
-  let n = 0;
-  for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1); yy++)
-    for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1); xx++)
-      for (const w of antGrid[yy * GCOLS + xx])
-        if (w.col === col && !w.dead && (w.x - x) ** 2 + (w.y - y) ** 2 < r2 &&
-            (maxQ === Infinity || (w.x - qx) ** 2 + (w.y - qy) ** 2 < maxQ * maxQ)) n++;
-  return n;
-}
-
-// The guard ring as a wall: an enemy ant can only slip past a queen's inner ring
-// where its side locally outnumbers her guards. Otherwise it is shoved back out.
-function guardWalls() {
-  const wallR = RING0 + 2;
-  for (const c of colonies) {
-    if (!c.alive || !c.workers.length) continue;
-    const q = c.queen;
-    // a queen standing her ground lets the guards brace; a running ring is looser
-    const brace = Math.hypot(q.vx, q.vy) < 90 ? 2.2 : 1.3;
-    const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
-    for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1); yy++) {
-      for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1); xx++) {
-        for (const e of antGrid[yy * GCOLS + xx]) {
-          if (e.dead || e.col === c) continue;
-          const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy);
-          if (d >= wallR) continue;
-          const defenders = countNear(c, e.x, e.y, 32);
-          const attackers = countNear(e.col, e.x, e.y, 32, q.x, q.y, wallR + 10);   // only the front line
-          const dPow = c.frenzy > 0 ? FRENZY_POWER : 1, aPow = e.col.frenzy > 0 ? FRENZY_POWER : 1;
-          if (defenders * brace * dPow >= attackers * aPow) {
-            const nx = d > 0.01 ? dx / d : 1, ny = d > 0.01 ? dy / d : 0;
-            e.x = q.x + nx * wallR; e.y = q.y + ny * wallR;
-            const vin = e.vx * nx + e.vy * ny;
-            if (vin < 0) { e.vx -= vin * nx; e.vy -= vin * ny; }
-          }
-        }
-      }
-    }
-  }
-}
-
-function antQueenContacts() {
-  guardWalls();
-  for (const c of colonies) {
-    if (!c.alive) continue;
-    const q = c.queen;
-    // queen hit area: thorax/head circle plus her long abdomen behind
-    const bx = q.x - Math.cos(q.ang) * 11, by = q.y - Math.sin(q.ang) * 11;
-    const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
-    let hit = null;
-    for (let yy = gy - 1; yy <= gy + 1 && !hit; yy++) {
-      if (yy < 0 || yy >= GROWS) continue;
-      for (let xx = gx - 1; xx <= gx + 1 && !hit; xx++) {
-        if (xx < 0 || xx >= GCOLS) continue;
-        for (const w of antGrid[yy * GCOLS + xx]) {
-          if (w.dead || w.col === c || !w.col.alive) continue;
-          if (dist(w.x, w.y, q.x, q.y) < QUEEN_R + WORKER_R || dist(w.x, w.y, bx, by) < 9 + WORKER_R) { hit = w; break; }
-        }
-      }
-    }
-    if (hit && c.grace <= 0) conquer(hit.col, c, { via: 'ant', x: hit.x, y: hit.y, attackerCharging: hit.col.charge > 0 });   // colonies in their grace period can't be taken
-  }
-}
-
 // ============================================================
 //  Queen vs queen: conquest
 // ============================================================
-function queenCollisions() {
-  for (let i = 0; i < colonies.length; i++) {
-    const a = colonies[i];
-    if (!a.alive) continue;
-    for (let j = i + 1; j < colonies.length; j++) {
-      const b = colonies[j];
-      if (!b.alive || !a.alive) continue;
-      const dx = a.queen.x - b.queen.x, dy = a.queen.y - b.queen.y, d = Math.hypot(dx, dy);
-      if (d >= QUEEN_R * 2) continue;
-      const sa = colonySize(a), sb = colonySize(b);
-      if (sa > sb && b.grace <= 0) conquer(a, b, { via: 'queen' });
-      else if (sb > sa && a.grace <= 0) conquer(b, a, { via: 'queen' });
-      else {  // evenly matched: bump apart
-        const nx = dx / (d || 1), ny = dy / (d || 1), push = (QUEEN_R * 2 - d) / 2 + 0.5;
-        a.queen.x += nx * push; a.queen.y += ny * push;
-        b.queen.x -= nx * push; b.queen.y -= ny * push;
-        a.queen.vx += nx * 80; a.queen.vy += ny * 80;
-        b.queen.vx -= nx * 80; b.queen.vy -= ny * 80;
-      }
-    }
-  }
-}
-
-function conquer(win, lose, how = { via: 'ant' }) {
-  const loseSize = colonySize(lose), winSize = colonySize(win);
-  lose.alive = false;
-  const lq = lose.queen;
-  particles.push({ type: 'splat', x: lq.x, y: lq.y, color: lose.color, life: 5, max: 5, r: 11 });
-  for (let i = 0; i < 16; i++) {
-    const a = rand(0, TAU), s = rand(60, 180);
-    particles.push({ type: 'fleck', x: lq.x, y: lq.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: i % 2 ? lose.color : win.color, life: 0.8, max: 0.8, r: 2 });
-  }
-  floaters.push({ type: 'ring', x: lq.x, y: lq.y, color: win.color, life: 0.9, max: 0.9, r: 90 });
-
-  for (const w of lose.workers) {
-    const a = rand(0, TAU), r = Math.sqrt(Math.random());
-    w.col = win; w.ox = Math.cos(a) * r; w.oy = Math.sin(a) * r; w.fightCd = 0.6;
-    win.workers.push(w);
-  }
-  lose.workers = [];
-
-  if (win.isPlayer) playSfx('conquer');
-  else if (!lose.isPlayer && state === 'playing' && onScreen(lq.x, lq.y, 200)) playSfx('rival');
-  if (win.isPlayer && state === 'playing') {
-    stats.kills++;
-    floaters.push({ type: 'text', text: `Conquered ${lose.name}! +${loseSize}`, x: lq.x, y: lq.y - 30, color: '#ffe27a', life: 2, max: 2, size: 22 });
-    // kill streak: conquer again quickly for escalating bonuses
-    stats.streak = time - stats.lastConquer <= STREAK_WINDOW ? stats.streak + 1 : 1;
-    stats.lastConquer = time;
-    stats.bestStreak = Math.max(stats.bestStreak, stats.streak);
-    life.conquests++;
-    life.bestStreak = Math.max(life.bestStreak, stats.streak);
-    if (loseSize > winSize) life.giant = 1;
-    if (lose.ghost) {
-      stats.ghostBeaten = true; life.ghostKills++;
-      addBanner('PAST SELF DEFEATED!', 'You have surpassed your best run', '#bfe0ff', 2.8, 42);
-    }
-    if (loseSize >= 50) life.bigGame = 1;
-    if (winSize < 10) life.underdog = 1;
-    if (stats.streak >= 2) {
-      const bonus = 3 * (stats.streak - 1);
-      win.births += bonus;
-      addBanner(STREAK_NAMES[Math.min(stats.streak, 5)], `Streak x${stats.streak}  +${bonus} bonus ants`, stats.streak >= 4 ? '#ff6a3d' : '#ffd54a', 2.2, 40 + Math.min(stats.streak, 5) * 4);
-      playSfx('combo');
-    }
-    addShake(9 + Math.min(stats.streak, 5) * 2);
-    playKillFx(lq.x, lq.y);
-    hitStop = Math.max(hitStop, 0.12);
-    if (enemyCount() === 0) endGame(true);
-  } else if (lose.isPlayer && state === 'playing') {
-    stats.finalSize = loseSize;
-    stats.killedBy = win.name;
-    stats.deathX = how.x ?? lq.x; stats.deathY = how.y ?? lq.y;
-    stats.deathCause = how.via === 'queen' ? 'queen'
-      : lose.charge > 0 ? 'selfCharge'
-      : how.attackerCharging ? 'charged'
-      : Math.hypot(lq.vx, lq.vy) > 90 ? 'running' : 'overrun';
-    startDeathCam(win);
-  } else if (state === 'playing' && onScreen(lq.x, lq.y, 100)) {
-    addShake(4);
-  }
-}
 
 // ---- growth milestones: celebration, crown upgrade, permanent skin unlock ----
 function reachMilestone(m) {
@@ -1604,21 +180,6 @@ function reachMilestone(m) {
   floaters.push({ type: 'ring', x: q.x, y: q.y, color: '#9fe08a', life: 1, max: 1, r: 140 });
 }
 
-// ---- ghost rival: your best run returns to hunt you ----
-function spawnGhost() {
-  stats.ghostSpawned = true;
-  const sk = SKINS.find(k => k.id === best.skin) || SKINS[0];
-  const size = Math.round(Math.min(best.peak, Math.max(20, colonySize(player) * 1.25)));
-  const p = findSpawnPos(750, 300);
-  const c = makeColony(p.x, p.y, size, 'Your Past Self', sk.color, false);
-  c.skin = { ...sk, id: sk.id + '-ghost', alpha: 0.6 };
-  c.ghost = true; c.ai.aggro = 1.3 * diff().aggro; c.grace = 4;
-  colonies.push(c);
-  floaters.push({ type: 'ring', x: p.x, y: p.y, color: '#bfe0ff', life: 1.6, max: 1.6, r: 140 });
-  addBanner('YOUR PAST SELF APPEARS', `The ghost of your best run (${best.peak} ants) is hunting you`, '#bfe0ff', 3.2, 40);
-  playSfx('event');
-}
-
 // ---- death replay: slow-motion zoom on whoever got you, then Game Over ----
 const DEATH_TIPS = {
   queen: 'Tip: never touch a queen whose colony is bigger - red size tags mean danger.',
@@ -1630,7 +191,6 @@ const DEATH_TIPS = {
 function startDeathCam(killer) {
   state = 'dying';
   deathTimer = 2.3;
-  stats.endTime = time - stats.start;
   hitStop = 0.25;
   addShake(14);
   addBanner('CONQUERED!', `by ${killer.name}`, '#ff6a5a', 2.3, 52);
@@ -1998,7 +558,7 @@ const ACHIEVEMENTS = [
   { id: 'farmer',    name: 'Mushroom Farmer',  desc: 'Harvest 150 food from fungus gardens',     key: 'gardenFood', goal: 150,  skin: 'scarab' },
   { id: 'surv5',     name: 'Survivor',         desc: 'Survive 5 minutes in one match',           key: 'longest',    goal: 300,  skin: 'robot' },
   { id: 'surv10',    name: 'Marathon Queen',   desc: 'Survive 10 minutes in one match',          key: 'longest',    goal: 600,  skin: 'galaxy' },
-  { id: 'win',       name: 'Queen of the Hill', desc: 'Win a match',                             key: 'wins',       goal: 1,    skin: 'rainbow' },
+  { id: 'win',       name: 'Queen of the Hill', desc: 'Be #1 on the map with 100+ ants',                             key: 'wins',       goal: 1,    skin: 'rainbow' },
   { id: 'giant',     name: 'Giant Slayer',     desc: 'Conquer a colony bigger than yours',       key: 'giant',      goal: 1,    skin: 'stag' },
   { id: 'blitz',     name: 'Blitz',            desc: 'Reach 50 ants within 2 minutes',           key: 'blitz',      goal: 1,    skin: 'firefly' },
   { id: 'charge',    name: 'Charge!',          desc: 'Launch 50 charges',                        key: 'charges',    goal: 50,   skin: 'spider' },
@@ -2008,10 +568,9 @@ const ACHIEVEMENTS = [
   { id: 'underdog',  name: 'Underdog',         desc: 'Conquer a colony while you have under 10 ants', key: 'underdog', goal: 1, skin: 'frost' },
   // XP-reward achievements
   { id: 'events',    name: 'Weather Watcher',  desc: 'Experience 10 map events',                 key: 'events',     goal: 10,   xp: 250 },
-  { id: 'ghost',     name: 'Beat Your Past Self', desc: 'Conquer the ghost of your best run',    key: 'ghostKills', goal: 1,    xp: 300 },
-  { id: 'nm5',       name: 'Nightmare Survivor', desc: 'Survive 5 minutes on Nightmare',         key: 'nmLongest',  goal: 300,  xp: 500 },
+    { id: 'nm5',       name: 'Nightmare Survivor', desc: 'Survive 5 minutes on Nightmare',         key: 'nmLongest',  goal: 300,  xp: 500 },
   { id: 'nm100',     name: 'Nightmare Horde',  desc: 'Reach 100 ants on Nightmare',              key: 'nmPeak',     goal: 100,  xp: 700 },
-  { id: 'nmwin',     name: 'Nightmare Queen',  desc: 'Win a match on Nightmare',                 key: 'nmWins',     goal: 1,    xp: 1500 },
+  { id: 'nmwin',     name: 'Nightmare Queen',  desc: 'Be #1 with 100+ ants on Nightmare',                 key: 'nmWins',     goal: 1,    xp: 1500 },
   { id: 'spider',    name: 'Arachnophobe',     desc: 'Defeat a spider',                          key: 'spiderKills', goal: 1,   xp: 200 },
   { id: 'ladybug',   name: 'Flip It',          desc: 'Flip a ladybug beetle',                    key: 'ladyFlips',  goal: 1,    xp: 200 },
   { id: 'wasp',      name: 'Swatter',          desc: 'Swat a wasp scout',                        key: 'waspKills',  goal: 1,    xp: 200 },
@@ -2140,136 +699,6 @@ function endGame(won) {
 // ============================================================
 //  Power-ups & structures
 // ============================================================
-function placeStructures() {
-  gardens = []; tunnels = []; rocks = []; puddles = [];
-  const taken = [];   // {x, y, r} footprints already used
-  const pick = (margin, r, gap) => {
-    for (let t = 0; t < 300; t++) {
-      const x = rand(margin, WORLD_W - margin), y = rand(margin, WORLD_H - margin);
-      if (taken.every(p => dist(x, y, p.x, p.y) >= p.r + r + gap)) return { x, y };
-    }
-    return { x: rand(margin, WORLD_W - margin), y: rand(margin, WORLD_H - margin) };
-  };
-  // every map is different: 2-5 gardens, 1-3 tunnel pairs, rocks and puddles
-  const nGardens = randInt(2, 5);
-  for (let i = 0; i < nGardens; i++) {
-    const p = pick(300, GARDEN_R, 500);
-    taken.push({ x: p.x, y: p.y, r: GARDEN_R });
-    const shrooms = [];
-    for (let k = 0; k < 9; k++) {
-      const a = rand(0, TAU), r = rand(20, GARDEN_R - 12);
-      shrooms.push({ dx: Math.cos(a) * r, dy: Math.sin(a) * r, r: rand(6, 11), tone: rand(0, 1) });
-    }
-    gardens.push({ x: p.x, y: p.y, owner: null, contested: false, acc: 0, shrooms });
-  }
-  const nRocks = randInt(6, 14);
-  for (let i = 0; i < nRocks; i++) {
-    const r = rand(30, 72), p = pick(160, r, 120);
-    const pts = [];
-    for (let k = 0; k < 9; k++) { const a = k / 9 * TAU + rand(-0.2, 0.2); pts.push([Math.cos(a) * r * rand(0.85, 1.12), Math.sin(a) * r * rand(0.85, 1.12)]); }
-    rocks.push({ x: p.x, y: p.y, r, pts, tone: randInt(95, 135) });
-    taken.push({ x: p.x, y: p.y, r });
-  }
-  const nPuddles = randInt(3, 6);
-  for (let i = 0; i < nPuddles; i++) {
-    const rx = rand(60, 130), ry = rand(40, 80), p = pick(200, rx, 60);
-    puddles.push({ x: p.x, y: p.y, rx, ry, rot: rand(0, Math.PI) });
-    taken.push({ x: p.x, y: p.y, r: rx });
-  }
-  placeTunnels(randInt(1, 3));
-}
-
-// (re)place tunnel pairs away from gardens, rocks and puddles; earthquakes call this too
-function placeTunnels(pairs) {
-  tunnels = [];
-  const blockers = [...gardens.map(g => ({ x: g.x, y: g.y, r: GARDEN_R })), ...rocks.map(k => ({ x: k.x, y: k.y, r: k.r })), ...puddles.map(p => ({ x: p.x, y: p.y, r: p.rx }))];
-  const pick = () => {
-    for (let t = 0; t < 300; t++) {
-      const x = rand(220, WORLD_W - 220), y = rand(220, WORLD_H - 220);
-      if (blockers.every(p => dist(x, y, p.x, p.y) >= p.r + 120)) return { x, y };
-    }
-    return { x: rand(220, WORLD_W - 220), y: rand(220, WORLD_H - 220) };
-  };
-  for (let pair = 0; pair < pairs; pair++) {
-    let a, b;
-    for (let t = 0; t < 60; t++) { a = pick(); b = pick(); if (dist(a.x, a.y, b.x, b.y) > 1700) break; }
-    blockers.push({ x: a.x, y: a.y, r: 40 }, { x: b.x, y: b.y, r: 40 });
-    const i = tunnels.length;
-    tunnels.push({ x: a.x, y: a.y, pair: i + 1, group: pair }, { x: b.x, y: b.y, pair: i, group: pair });
-  }
-}
-
-// terrain helpers
-function inRock(x, y, pad = 0) { return rocks.some(k => (x - k.x) ** 2 + (y - k.y) ** 2 < (k.r + pad) ** 2); }
-function terrainFactor(x, y) {
-  let f = raining > 0 ? RAIN_SLOW : 1;
-  if (flood && inFlood(x, y)) f *= 0.35;
-  for (const cr of creatures) if (cr.type === 'spider' && (x - cr.x) ** 2 + (y - cr.y) ** 2 < cr.webR * cr.webR) f *= 0.4;
-  for (const p of puddles) {
-    const dx = x - p.x, dy = y - p.y;
-    if (Math.abs(dx) > p.rx || Math.abs(dy) > p.rx) continue;
-    const c = Math.cos(p.rot), sn = Math.sin(p.rot), u = (dx * c + dy * sn) / p.rx, v = (-dx * sn + dy * c) / p.ry;
-    if (u * u + v * v < 1) { f *= PUDDLE_SLOW; break; }
-  }
-  return f;
-}
-function pushOutOfRocks(o, rad) {
-  for (const k of rocks) {
-    const dx = o.x - k.x, dy = o.y - k.y, rr = k.r + rad;
-    if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
-    const d2 = dx * dx + dy * dy;
-    if (d2 >= rr * rr) continue;
-    const d = Math.sqrt(d2) || 0.01, nx = dx / d, ny = dy / d;
-    o.x = k.x + nx * rr; o.y = k.y + ny * rr;
-    const vn = o.vx * nx + o.vy * ny;
-    if (vn < 0) { o.vx -= vn * nx; o.vy -= vn * ny; }
-  }
-}
-
-function spawnPowerup() {
-  for (let t = 0; t < 40; t++) {
-    const x = rand(150, WORLD_W - 150), y = rand(150, WORLD_H - 150);
-    if (tunnels.some(h => dist(x, y, h.x, h.y) < 80) || gardens.some(g => dist(x, y, g.x, g.y) < GARDEN_R + 30) || inRock(x, y, 30)) continue;
-    powerups.push({ x, y, type: Math.random() < 0.5 ? 'frenzy' : 'rush', age: 0, dead: false, bob: rand(0, TAU) });
-    return;
-  }
-}
-
-function applyPower(c, pu) {
-  pu.dead = true;
-  if (c.isPlayer) { playSfx('power'); if (state === 'playing') life[pu.type === 'frenzy' ? 'chili' : 'sugar']++; }
-  const info = POWER_INFO[pu.type];
-  if (pu.type === 'frenzy') c.frenzy = FRENZY_TIME;
-  else { c.rush = RUSH_TIME; if (c.charge <= 0) c.chargeCd = 0; }
-  floaters.push({ type: 'ring', x: pu.x, y: pu.y, color: info.color, life: 0.8, max: 0.8, r: 60 });
-  for (let i = 0; i < 12; i++) {
-    const a = rand(0, TAU), sp = rand(60, 160);
-    particles.push({ type: 'spark', x: pu.x, y: pu.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: info.color, life: 0.6, max: 0.6, r: 2 });
-  }
-  if (c.isPlayer) floaters.push({ type: 'text', text: info.msg, x: c.queen.x, y: c.queen.y - 50, color: info.color, life: 2, max: 2, size: 18 });
-  else if (state === 'playing') floaters.push({ type: 'text', text: `${c.name} took ${info.name}`, x: pu.x, y: pu.y - 20, color: info.color, life: 1.6, max: 1.6, size: 13 });
-}
-
-function teleport(c, from, to) {
-  if (c.isPlayer) { playSfx('tunnel'); if (state === 'playing') life.tunnels++; }
-  const q = c.queen, s = Math.hypot(q.vx, q.vy);
-  // come out the far side, a little past the hole, in the direction she was heading
-  const hx = s > 5 ? q.vx / s : Math.cos(q.ang), hy = s > 5 ? q.vy / s : Math.sin(q.ang);
-  const ex = clamp(to.x + hx * (HOLE_R + 16), 40, WORLD_W - 40), ey = clamp(to.y + hy * (HOLE_R + 16), 40, WORLD_H - 40);
-  const dx = ex - q.x, dy = ey - q.y;
-  q.x = ex; q.y = ey;
-  for (const w of c.workers) { w.x = clamp(w.x + dx, 3, WORLD_W - 3); w.y = clamp(w.y + dy, 3, WORLD_H - 3); }
-  c.tunnelCd = TUNNEL_CD;
-  if (c.charge > 0) { c.charge = 0; c.chargeCd = Math.max(c.chargeCd, 0.5); }
-  for (const h of [from, to]) {
-    floaters.push({ type: 'ring', x: h.x, y: h.y, color: TUNNEL_COLORS[h.group], life: 0.7, max: 0.7, r: 50 });
-    for (let i = 0; i < 10; i++) {
-      const a = rand(0, TAU), sp = rand(40, 120);
-      particles.push({ type: 'fleck', x: h.x, y: h.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: '#8a6440', life: 0.6, max: 0.6, r: 2 });
-    }
-  }
-  if (c.isPlayer) { cam.x += dx; cam.y += dy; }
-}
 
 // ---- more map events ----
 function floodCov() {
@@ -2285,97 +714,6 @@ function inFlood(x, y) {
     case 'right': return x > WORLD_W * (1 - c);
     case 'top': return y < WORLD_H * c;
     default: return y > WORLD_H * (1 - c);
-  }
-}
-const COMPASS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
-function startExtraEvent(type) {
-  if (type === 'glass') {
-    const lead = biggestColony(), p = lead ? { x: lead.queen.x + rand(-400, 400), y: lead.queen.y + rand(-300, 300) } : openSpot(0);
-    magnifier = { x: clamp(p.x, 100, WORLD_W - 100), y: clamp(p.y, 100, WORLD_H - 100), t: 20, burnT: 0.5 };
-    addBanner('MAGNIFYING GLASS!', 'A burning sunbeam hunts the biggest colony', '#fff2a0', 3, 44);
-    playSfx('event');
-  } else if (type === 'flood') {
-    flood = { side: ['left', 'right', 'top', 'bottom'][randInt(0, 3)], t: 0, dur: 20 };
-    addBanner('FLOOD!', `Water is rising from the ${flood.side} - everything in it is slowed`, '#7fc4ff', 3, 46);
-    playSfx('thunder');
-  } else if (type === 'migration') {
-    const a = rand(0, TAU);
-    migration = { dx: Math.cos(a), dy: Math.sin(a), t: 25 };
-    addBanner('MIGRATION!', `All the food is drifting ${COMPASS[Math.round(((a % TAU) + TAU) % TAU / (TAU / 8)) % 8]} - follow it`, '#b8ff8c', 3, 44);
-    playSfx('event');
-  } else if (type === 'night') {
-    nightT = 30;
-    addBanner('NIGHT FALLS', 'You can only see around your colony - watch the minimap', '#b0b8ff', 3, 44);
-    playSfx('event');
-  } else if (type === 'blood') {
-    bloodMoon = 20;
-    addBanner('BLOOD MOON!', 'Charges recharge instantly and every fight is deadlier', '#ff5a5a', 3, 46);
-    playSfx('thunder'); addShake(5);
-  } else if (type === 'sugar') {
-    sugarRain = 15; sugarRainT = 0;
-    addBanner('SUGAR RAIN!', 'Sugar cubes are falling everywhere - grab them!', '#8fd8ff', 3, 46);
-    playSfx('event');
-  } else if (type === 'golden') {
-    const p = openSpot(350, 350);
-    golden = { x: p.x, y: p.y, progress: 0, t: 60, lead: null, dead: false };
-    addBanner('GOLDEN CRUMB!', 'Worth 25 ants to whoever takes the last bite - see the minimap', '#ffd54a', 3, 44);
-    playSfx('event');
-  }
-}
-function updateExtraEvents(dt) {
-  if (magnifier) {
-    if ((magnifier.t -= dt) <= 0) magnifier = null;
-    else {
-      const lead = biggestColony();
-      if (lead) {
-        const dx = lead.queen.x - magnifier.x, dy = lead.queen.y - magnifier.y, d = Math.hypot(dx, dy);
-        if (d > 5) { magnifier.x += dx / d * Math.min(95 * dt, d); magnifier.y += dy / d * Math.min(95 * dt, d); }
-      }
-      if ((magnifier.burnT -= dt) <= 0) {
-        magnifier.burnT = 0.35;
-        const hit = workersNear(magnifier.x, magnifier.y, 48);
-        if (hit.length) killWorker(hit[randInt(0, hit.length - 1)]);
-        particles.push({ type: 'spark', x: magnifier.x + rand(-20, 20), y: magnifier.y + rand(-20, 20), vx: rand(-10, 10), vy: rand(-60, -30), color: 'rgba(90,80,70,0.8)', life: 0.9, max: 0.9, r: 2.5 });
-      }
-    }
-  }
-  if (flood && (flood.t += dt) >= flood.dur) flood = null;
-  if (migration) {
-    for (const f of food) { f.x = clamp(f.x + migration.dx * 22 * dt, 12, WORLD_W - 12); f.y = clamp(f.y + migration.dy * 22 * dt, 12, WORLD_H - 12); }
-    if ((migration.t -= dt) <= 0) migration = null;
-  }
-  if (nightT > 0) nightT -= dt;
-  if (bloodMoon > 0) {
-    bloodMoon -= dt;
-    for (const c of colonies) if (c.alive && c.charge <= 0) c.chargeCd = 0;
-  }
-  if (sugarRain > 0) {
-    sugarRain -= dt;
-    if ((sugarRainT -= dt) <= 0 && powerups.length < 30) {
-      sugarRainT = 0.3;
-      const p = openSpot(0, 120);
-      powerups.push({ x: p.x, y: p.y, type: 'rush', age: 0, dead: false, bob: rand(0, TAU), rain: true });
-    }
-    if (sugarRain <= 0) powerups = powerups.filter(p => !p.rain);   // the rest melts away
-  }
-  if (golden) {
-    const con = crContacts(golden.x, golden.y, 16);
-    for (const c of colonies) if (c.alive && dist(c.queen.x, c.queen.y, golden.x, golden.y) < QUEEN_R + 16) { con.res.set(c, (con.res.get(c) || 0) + 3); con.total += 3; }
-    if (con.total > 0) {
-      golden.progress += Math.min(0.25, con.total * 0.012) * dt;
-      let lead = null, lw = 0;
-      for (const [c, w] of con.res) if (w > lw) { lw = w; lead = c; }
-      golden.lead = lead;
-    }
-    if (golden.progress >= 1 && golden.lead) {
-      const w = golden.lead;
-      w.births += 25;
-      golden.dead = true;
-      floaters.push({ type: 'ring', x: golden.x, y: golden.y, color: '#ffd54a', life: 1.2, max: 1.2, r: 150 });
-      floaters.push({ type: 'text', text: `${w.isPlayer ? 'You' : w.name} took the Golden Crumb! +25`, x: golden.x, y: golden.y - 40, color: '#ffe27a', life: 2.5, max: 2.5, size: 20 });
-      if (w.isPlayer && state === 'playing') { life.goldenWins++; addBanner('GOLDEN CRUMB!', '+25 ants - you took the last bite', '#ffd54a', 2.6, 42); playSfx('combo'); addShake(6); }
-      golden = null;
-    } else if ((golden.t -= dt) <= 0) { golden.dead = true; golden = null; }
   }
 }
 function drawGolden() {
@@ -2478,224 +816,6 @@ function drawNightAndMoon() {
 // ============================================================
 //  Roaming creatures: spider, ladybug, wasp scout, queen bee boss (+ drones)
 // ============================================================
-function openSpot(minFromPlayer = 500, margin = 200) {
-  for (let t = 0; t < 60; t++) {
-    const x = rand(margin, WORLD_W - margin), y = rand(margin, WORLD_H - margin);
-    if (inRock(x, y, 70)) continue;
-    if (player && player.alive && dist(x, y, player.queen.x, player.queen.y) < minFromPlayer) continue;
-    return { x, y };
-  }
-  return { x: rand(margin, WORLD_W - margin), y: rand(margin, WORLD_H - margin) };
-}
-function edgeSpot() {
-  const side = randInt(0, 3);
-  return side === 0 ? { x: -60, y: rand(200, WORLD_H - 200) } : side === 1 ? { x: WORLD_W + 60, y: rand(200, WORLD_H - 200) }
-       : side === 2 ? { x: rand(200, WORLD_W - 200), y: -60 } : { x: rand(200, WORLD_W - 200), y: WORLD_H + 60 };
-}
-function biggestColony() {
-  let best = null;
-  for (const c of colonies) if (c.alive && (!best || c.workers.length > best.workers.length)) best = c;
-  return best;
-}
-// workers touching a point: weight per colony (charging ants hit 3x harder)
-function crContacts(x, y, rad) {
-  const res = new Map(); let total = 0;
-  const rr = rad + WORKER_R, cr = Math.ceil(rr / CELL);
-  const gx = clamp((x / CELL) | 0, 0, GCOLS - 1), gy = clamp((y / CELL) | 0, 0, GROWS - 1);
-  for (let yy = Math.max(0, gy - cr); yy <= Math.min(GROWS - 1, gy + cr); yy++)
-    for (let xx = Math.max(0, gx - cr); xx <= Math.min(GCOLS - 1, gx + cr); xx++)
-      for (const w of antGrid[yy * GCOLS + xx]) {
-        if (w.dead || !w.col.alive || (w.x - x) ** 2 + (w.y - y) ** 2 > rr * rr) continue;
-        const wt = w.col.charge > 0 ? 3 : 1;
-        res.set(w.col, (res.get(w.col) || 0) + wt); total += wt;
-      }
-  return { res, total };
-}
-function workersNear(x, y, rad, filter) {
-  const out = [], cr = Math.ceil(rad / CELL);
-  const gx = clamp((x / CELL) | 0, 0, GCOLS - 1), gy = clamp((y / CELL) | 0, 0, GROWS - 1);
-  for (let yy = Math.max(0, gy - cr); yy <= Math.min(GROWS - 1, gy + cr); yy++)
-    for (let xx = Math.max(0, gx - cr); xx <= Math.min(GCOLS - 1, gx + cr); xx++)
-      for (const w of antGrid[yy * GCOLS + xx])
-        if (!w.dead && (w.x - x) ** 2 + (w.y - y) ** 2 <= rad * rad && (!filter || filter(w))) out.push(w);
-  return out;
-}
-function hurtCreature(cr, con, rate, dt) {
-  for (const [col, wt] of con.res) { const d = wt * rate * dt; cr.hp -= d; cr.dmg.set(col, (cr.dmg.get(col) || 0) + d); }
-  if (con.total > 0) cr.hitFlash = 0.12;
-}
-function rewardCreature(cr, ants, label, lifeKey) {
-  let best = null, bd = 0;
-  for (const [c, d] of cr.dmg) if (c.alive && d > bd) { bd = d; best = c; }
-  for (let i = 0; i < 24; i++) {
-    const a = rand(0, TAU), sp = rand(60, 200);
-    particles.push({ type: 'spark', x: cr.x, y: cr.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: i % 2 ? '#ffe27a' : '#ffffff', life: 0.9, max: 0.9, r: 2 });
-  }
-  if (!best) return;
-  best.births += ants;
-  floaters.push({ type: 'text', text: `${label}! +${ants}`, x: cr.x, y: cr.y - 34, color: '#ffe27a', life: 2, max: 2, size: 20 });
-  if (best.isPlayer && state === 'playing') {
-    life[lifeKey]++;
-    addBanner(label + '!', `+${ants} ants for your colony`, '#ffe27a', 2.4, 40);
-    playSfx('conquer'); addShake(6);
-  }
-}
-
-function spawnCreature(type) {
-  const base = { type, t: 0, hp: 1, max: 1, dmg: new Map(), hitFlash: 0, ang: rand(0, TAU), gone: false, vx: 0, vy: 0 };
-  if (type === 'spider') {
-    const p = openSpot(600);
-    creatures.push({ ...base, x: p.x, y: p.y, r: 16, hp: 140, max: 140, webR: 78, eatT: 1, webSeed: rand(0, 1) });
-  } else if (type === 'ladybug') {
-    const p = openSpot(400);
-    creatures.push({ ...base, x: p.x, y: p.y, r: 20, hp: 160, max: 160, tx: p.x, ty: p.y, state: 'walk', flipT: 0 });
-  } else if (type === 'wasp') {
-    const prey = colonies.filter(c => c.alive && c.workers.length >= 12);
-    if (!prey.length) return;
-    const target = (player && prey.includes(player) && Math.random() < 0.5) ? player : prey[randInt(0, prey.length - 1)];
-    const p = edgeSpot();
-    creatures.push({ ...base, x: p.x, y: p.y, r: 11, hp: 30, max: 30, target, state: 'in', grabT: 1.2, grabs: 0, huntT: 12, orbit: rand(0, TAU) });
-    if (target.isPlayer && state === 'playing') addBanner('WASP SCOUT!', 'It picks off ants at the edge of your ring - keep it tight', '#ffd23a', 2.4, 34);
-  } else if (type === 'bee') {
-    const p = edgeSpot();
-    const boss = { ...base, x: p.x, y: p.y, r: 30, hp: 600, max: 600, target: null, retarget: 0, stingT: 0.4 };
-    creatures.push(boss);
-    for (let i = 0; i < 8; i++) creatures.push({ ...base, dmg: new Map(), type: 'drone', owner: boss, x: p.x, y: p.y, r: 9, hp: 20, max: 20, a: i / 8 * TAU, state: 'orbit', diveT: rand(1, 3), prey: null });
-    addBanner('QUEEN BEE ATTACKS!', 'Defeat her and her drones for a pile of honey', '#ffc23a', 3.2, 44);
-    playSfx('thunder'); addShake(8);
-  }
-}
-
-function releaseWeb(cr) {
-  for (const w of workersNear(cr.x, cr.y, cr.webR + 4)) if (w.stuck > 0) { w.stuck = 0; w.webCd = 2; }
-}
-
-function moveToward(cr, tx, ty, speed, dt) {
-  const dx = tx - cr.x, dy = ty - cr.y, d = Math.hypot(dx, dy);
-  if (d < 1) { cr.vx = cr.vy = 0; return d; }
-  const s = Math.min(speed, d / dt);
-  cr.vx = dx / d * s; cr.vy = dy / d * s;
-  cr.x += cr.vx * dt; cr.y += cr.vy * dt;
-  cr.ang = lerpAngle(cr.ang, Math.atan2(dy, dx), 1 - Math.exp(-6 * dt));
-  return d;
-}
-
-function updateCreatures(dt) {
-  creatureTimer -= dt;
-  if (creatureTimer <= 0) {
-    creatureTimer = rand(35, 60);
-    const count = t => creatures.filter(c => c.type === t && !c.gone).length;
-    const opts = [];
-    if (count('spider') < 2) opts.push('spider');
-    if (count('ladybug') < 3) opts.push('ladybug', 'ladybug');
-    if (count('wasp') < 1) opts.push('wasp');
-    if (opts.length) spawnCreature(opts[randInt(0, opts.length - 1)]);
-  }
-  if (state === 'playing') {
-    bossTimer -= dt;
-    if (bossTimer <= 0) { bossTimer = 300; if (!creatures.some(c => c.type === 'bee' && !c.gone)) spawnCreature('bee'); }
-  }
-  for (const cr of creatures) {
-    cr.t += dt;
-    if (cr.hitFlash > 0) cr.hitFlash -= dt;
-    if (cr.type === 'spider') {
-      // the web traps ants that wander in (a charge tears straight through it)
-      const inWeb = workersNear(cr.x, cr.y, cr.webR);
-      const stuck = [];
-      for (const w of inWeb) {
-        if (w.stuck > 0) { stuck.push(w); continue; }
-        if (!(w.webCd > 0) && w.col.charge <= 0) { w.stuck = 2.5; stuck.push(w); }
-      }
-      if ((cr.eatT -= dt) <= 0) {
-        cr.eatT = 1;
-        if (stuck.length) { killWorker(stuck[randInt(0, stuck.length - 1)]); cr.munch = 0.3; }
-      }
-      if (cr.munch > 0) cr.munch -= dt;
-      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 10), 5, dt);
-      if (cr.hp <= 0) { releaseWeb(cr); rewardCreature(cr, 15, 'Spider defeated', 'spiderKills'); cr.gone = true; }
-    } else if (cr.type === 'ladybug') {
-      if (cr.state === 'flipped') { if ((cr.flipT -= dt) <= 0) cr.gone = true; continue; }
-      if (dist(cr.x, cr.y, cr.tx, cr.ty) < 30 || cr.t > 12) {
-        cr.t = 0;
-        for (let k = 0; k < 20; k++) { const tx = clamp(cr.x + rand(-500, 500), 120, WORLD_W - 120), ty = clamp(cr.y + rand(-500, 500), 120, WORLD_H - 120); if (!inRock(tx, ty, 40)) { cr.tx = tx; cr.ty = ty; break; } }
-      }
-      moveToward(cr, cr.tx, cr.ty, 28 * terrainFactor(cr.x, cr.y), dt);
-      pushOutOfRocks(cr, cr.r);
-      const gx = clamp((cr.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((cr.y / CELL) | 0, 0, GROWS - 1);
-      for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1); yy++)
-        for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1); xx++)
-          for (const f of foodGrid[yy * GCOLS + xx]) if (!f.dead && dist(f.x, f.y, cr.x, cr.y) < cr.r) f.dead = true;   // munches crumbs
-      for (const w of workersNear(cr.x, cr.y, cr.r + WORKER_R)) {   // its shell shoves ants aside
-        const dx = w.x - cr.x, dy = w.y - cr.y, d = Math.hypot(dx, dy) || 0.01, rr = cr.r + WORKER_R;
-        w.x = cr.x + dx / d * rr; w.y = cr.y + dy / d * rr;
-      }
-      const con = crContacts(cr.x, cr.y, cr.r + 4);
-      if (con.total >= 15) hurtCreature(cr, con, 6, dt);   // only a real charge can flip it
-      if (cr.hp <= 0) { cr.state = 'flipped'; cr.flipT = 4; rewardCreature(cr, 10, 'Ladybug flipped', 'ladyFlips'); }
-    } else if (cr.type === 'wasp') {
-      const tg = cr.target;
-      if (cr.state !== 'out' && (!tg || !tg.alive)) cr.state = 'out';
-      if (cr.state === 'in') {
-        if (moveToward(cr, tg.queen.x, tg.queen.y, 170, dt) < tg.outerR + 45) cr.state = 'hunt';
-      } else if (cr.state === 'hunt') {
-        cr.orbit += 1.1 * dt;
-        const rr = tg.outerR + 38;
-        moveToward(cr, tg.queen.x + Math.cos(cr.orbit) * rr, tg.queen.y + Math.sin(cr.orbit) * rr, 220, dt);
-        if ((cr.grabT -= dt) <= 0) {
-          cr.grabT = 1.3;
-          let far = null, fd = 0;   // the most exposed ant: farthest from its queen
-          for (const w of workersNear(cr.x, cr.y, 70, w => w.col === tg)) { const d = dist(w.x, w.y, tg.queen.x, tg.queen.y); if (d > fd) { fd = d; far = w; } }
-          if (far) { killWorker(far); cr.grabs++; floaters.push({ type: 'ring', x: far.x, y: far.y, color: '#ffd23a', life: 0.4, max: 0.4, r: 20 }); }
-        }
-        if ((cr.huntT -= dt) <= 0 || cr.grabs >= 4) cr.state = 'out';
-      } else {
-        const ex = cr.x < WORLD_W / 2 ? -200 : WORLD_W + 200, ey = cr.y;
-        moveToward(cr, ex, ey, 200, dt);
-        if (cr.x < -150 || cr.x > WORLD_W + 150) cr.gone = true;
-      }
-      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 2), 8, dt);
-      if (cr.hp <= 0) { rewardCreature(cr, 4, 'Wasp swatted', 'waspKills'); cr.gone = true; }
-    } else if (cr.type === 'bee') {
-      if ((cr.retarget -= dt) <= 0) { cr.retarget = 4; cr.target = biggestColony(); }
-      if (cr.target && cr.target.alive && dist(cr.x, cr.y, cr.target.queen.x, cr.target.queen.y) > 50) moveToward(cr, cr.target.queen.x, cr.target.queen.y, 45, dt);
-      if ((cr.stingT -= dt) <= 0) {
-        cr.stingT = 0.35;
-        const vic = workersNear(cr.x, cr.y, cr.r + 6);
-        if (vic.length) killWorker(vic[0]);
-      }
-      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 4), 3, dt);
-      if (cr.hp <= 0) {
-        cr.gone = true;
-        const start = food.length;
-        for (let i = 0; i < 70; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * 90; spawnFood(cr.x + Math.cos(a) * r, cr.y + Math.sin(a) * r); }
-        for (let i = start; i < food.length; i++) { food[i].honey = true; food[i].r = rand(3.5, 5); }
-        rewardCreature(cr, 20, 'Queen Bee defeated', 'beeKills');
-        floaters.push({ type: 'ring', x: cr.x, y: cr.y, color: '#ffc23a', life: 1.4, max: 1.4, r: 180 });
-        addShake(10);
-      }
-    } else if (cr.type === 'drone') {
-      const boss = cr.owner;
-      if (!boss || boss.gone) { cr.gone = true; sparks(cr.x, cr.y); continue; }
-      if (cr.state === 'orbit') {
-        cr.a += 1.6 * dt;
-        moveToward(cr, boss.x + Math.cos(cr.a) * 70, boss.y + Math.sin(cr.a) * 70, 230, dt);
-        if ((cr.diveT -= dt) <= 0) {
-          cr.diveT = rand(1.5, 3);
-          let best = null, bd = 1e9;
-          for (const w of workersNear(cr.x, cr.y, 200)) { const d = dist(w.x, w.y, cr.x, cr.y); if (d < bd) { bd = d; best = w; } }
-          if (best) { cr.prey = best; cr.state = 'dive'; }
-        }
-      } else {
-        const p = cr.prey;
-        if (!p || p.dead || dist(p.x, p.y, boss.x, boss.y) > 320) cr.state = 'orbit';
-        else if (moveToward(cr, p.x, p.y, 260, dt) < 10) { killWorker(p); cr.state = 'orbit'; cr.diveT = rand(1.5, 3); }
-      }
-      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 2), 10, dt);
-      if (cr.hp <= 0) { cr.gone = true; sparks(cr.x, cr.y); }
-    }
-  }
-  if (creatures.some(c => c.gone)) creatures = creatures.filter(c => !c.gone);
-}
 
 // ---- creature drawing (world space, camera transform set) ----
 function drawWeb(cr) {
@@ -2787,205 +907,10 @@ function drawCreature(cr) {
 }
 
 // ---- random map events ----
-const EVENT_TYPES = ['rain', 'picnic', 'quake', 'flight', 'glass', 'flood', 'migration', 'night', 'blood', 'sugar', 'golden'];
-function startMapEvent(type) {
-  lastEvent = type;
-  if (state === 'playing') life.events++;
-  if (!['rain', 'picnic', 'quake', 'flight'].includes(type)) return startExtraEvent(type);
-  if (type === 'rain') {
-    raining = RAIN_TIME;
-    addBanner('RAINSTORM!', 'Everyone slows down - food washes toward the edges', '#8fd0ff', 3, 46);
-    playSfx('thunder'); addShake(4);
-  } else if (type === 'picnic') {
-    let x, y;
-    for (let t = 0; t < 40; t++) { x = rand(400, WORLD_W - 400); y = rand(350, WORLD_H - 350); if (!inRock(x, y, 120)) break; }
-    for (let i = 0; i < 90; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * 95; spawnFood(x + Math.cos(a) * r, y + Math.sin(a) * r); }
-    picnic = { x, y, t: 25 };
-    floaters.push({ type: 'ring', x, y, color: '#ff8a8a', life: 1.5, max: 1.5, r: 160 });
-    addBanner('PICNIC DROP!', 'A feast just landed - check the minimap and race for it!', '#ff9a8a', 3, 46);
-    playSfx('event');
-  } else if (type === 'quake') {
-    quakeTime = 2.2;
-    placeTunnels(Math.max(1, tunnels.length / 2));
-    buildBackground(); miniCache.t = -1;
-    for (const c of colonies) c.tunnelCd = Math.max(c.tunnelCd, 1.5);
-    addBanner('EARTHQUAKE!', 'The tunnels have shifted', '#e0b070', 3, 46);
-    playSfx('thunder'); addShake(14);
-  } else if (type === 'flight') {
-    for (let i = 0; i < 4; i++) {
-      const c = spawnEnemy(randInt(3, 6));
-      floaters.push({ type: 'ring', x: c.queen.x, y: c.queen.y, color: '#fff2b0', life: 1.6, max: 1.6, r: 110 });
-    }
-    addBanner('MATING FLIGHT!', 'New queens are settling all over the map', '#fff2b0', 3, 46);
-    playSfx('event');
-  }
-}
-
-function updateMapEvents(dt) {
-  if (state !== 'playing' && state !== 'title') return;
-  eventTimer -= dt;
-  if (eventTimer <= 0) {
-    eventTimer = rand(75, 110);
-    const options = EVENT_TYPES.filter(e => e !== lastEvent);
-    startMapEvent(options[randInt(0, options.length - 1)]);
-  }
-  if (raining > 0) {
-    raining -= dt;
-    for (const f of food) {   // crumbs wash toward the nearest edge
-      if (Math.min(f.x, WORLD_W - f.x) < Math.min(f.y, WORLD_H - f.y)) f.x = clamp(f.x + (f.x < WORLD_W / 2 ? -1 : 1) * 14 * dt, 12, WORLD_W - 12);
-      else f.y = clamp(f.y + (f.y < WORLD_H / 2 ? -1 : 1) * 14 * dt, 12, WORLD_H - 12);
-    }
-  }
-  if (quakeTime > 0) { quakeTime -= dt; addShake(6 * Math.min(1, quakeTime)); }
-  if (picnic && (picnic.t -= dt) <= 0) picnic = null;
-  updateExtraEvents(dt);
-}
-
-function updatePowerAndStructures(dt) {
-  for (const c of colonies) {
-    if (!c.alive) continue;
-    if (c.frenzy > 0) c.frenzy -= dt;
-    if (c.rush > 0) c.rush -= dt;
-    if (c.tunnelCd > 0) c.tunnelCd -= dt;
-  }
-
-  // power-ups: a few on the map at a time
-  powerTimer -= dt;
-  if (powerTimer <= 0) {
-    powerTimer = rand(6, 11);
-    if (powerups.length < POWERUP_MAX) spawnPowerup();
-  }
-  for (const pu of powerups) {
-    pu.age += dt;
-    if (pu.dead) continue;
-    let taker = null;
-    for (const c of colonies) {
-      if (c.alive && dist(c.queen.x, c.queen.y, pu.x, pu.y) < QUEEN_R + 10) { taker = c; break; }
-    }
-    if (!taker) {
-      const gx = clamp((pu.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((pu.y / CELL) | 0, 0, GROWS - 1);
-      for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1) && !taker; yy++)
-        for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1) && !taker; xx++)
-          for (const w of antGrid[yy * GCOLS + xx])
-            if (!w.dead && w.col.alive && dist(w.x, w.y, pu.x, pu.y) < WORKER_R + 9) { taker = w.col; break; }
-    }
-    if (taker) applyPower(taker, pu);
-  }
-  if (powerups.some(p => p.dead)) powerups = powerups.filter(p => !p.dead);
-
-  // fungus gardens feed a queen who holds one alone
-  for (const g of gardens) {
-    const inside = colonies.filter(c => c.alive && dist(c.queen.x, c.queen.y, g.x, g.y) < GARDEN_R);
-    g.contested = inside.length > 1;
-    if (inside.length === 1) {
-      if (g.owner !== inside[0]) g.acc = 0;
-      g.owner = inside[0];
-      g.acc += dt;
-      if (g.acc >= GARDEN_RATE) {
-        g.acc -= GARDEN_RATE;
-        const c = g.owner;
-        c.food++;
-        if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
-        if (c.isPlayer) { playSfx('garden'); if (state === 'playing') life.gardenFood++; }
-        const sh = g.shrooms[randInt(0, g.shrooms.length - 1)];
-        particles.push({ type: 'spark', x: g.x + sh.dx, y: g.y + sh.dy, vx: (c.queen.x - g.x - sh.dx) * 1.6, vy: (c.queen.y - g.y - sh.dy) * 1.6, color: '#b8ff8c', life: 0.5, max: 0.5, r: 2.2 });
-      }
-    } else { g.owner = null; g.acc = 0; }
-  }
-
-  // tunnels: a queen stepping into a hole brings her whole colony out the linked one
-  for (const c of colonies) {
-    if (!c.alive || c.tunnelCd > 0) continue;
-    for (const h of tunnels) {
-      if (dist(c.queen.x, c.queen.y, h.x, h.y) < HOLE_R) { teleport(c, h, tunnels[h.pair]); break; }
-    }
-  }
-}
 
 // ============================================================
 //  Main update
 // ============================================================
-function update(dt) {
-  time += dt;
-
-  for (const c of colonies) {
-    if (!c.alive) continue;
-    if (c.isPlayer) updatePlayer(c, dt); else updateAI(c, dt);
-    if (c.grace > 0) c.grace -= dt;
-    if (c.charge > 0) {
-      c.charge -= dt;
-      if (c.charge <= 0) { c.charge = 0; c.chargeCd = c.isPlayer ? PLAYER_CHARGE_CD : AI_CHARGE_CD * rand(0.8, 1.3); }
-    } else if (c.chargeCd > 0) c.chargeCd -= dt;
-  }
-
-  buildGrids();
-  interactions(dt);
-  for (const c of colonies) if (c.alive) updateWorkers(c, dt);
-  buildGrids();
-  antQueenContacts();
-  queenCollisions();
-  updatePowerAndStructures(dt);
-  updateMapEvents(dt);
-  updateCreatures(dt);
-  colonies = colonies.filter(c => c.alive || c.isPlayer);
-
-  // food respawn
-  if (food.length < FOOD_MAX) {
-    foodAccum += FOOD_RESPAWN_RATE * dt;
-    while (foodAccum >= 1 && food.length < FOOD_MAX) {
-      foodAccum -= 1;
-      if (Math.random() < 0.3) {  // small clusters now and then
-        const x = rand(40, WORLD_W - 40), y = rand(40, WORLD_H - 40);
-        for (let i = 0; i < 4 && food.length < FOOD_MAX; i++) spawnFood(x + rand(-25, 25), y + rand(-25, 25));
-      } else spawnFood();
-    }
-  }
-  for (const f of food) if (f.age < 1) f.age = Math.min(1, f.age + dt * 2);
-
-  // new rival colonies appear over time; the bigger you are, the rarer they get
-  if (state !== 'victory') {
-    spawnTimer -= dt;
-    if (spawnTimer <= 0) {
-      const psize = player && player.alive ? colonySize(player) : 0;
-      spawnTimer = (rand(3, 8) + Math.min(5, psize * 0.02)) * diff().spawn;    // random gaps between new rivals
-      if (enemyCount() < MAX_ENEMIES) spawnEnemy(randInt(3, 10));
-    }
-  }
-
-  if (state === 'playing' && player.alive) {
-    stats.peak = Math.max(stats.peak, colonySize(player));
-    const n = colonySize(player), elapsed = time - stats.start;
-    life.bestPeak = Math.max(life.bestPeak, n);
-    life.longest = Math.max(life.longest, elapsed);
-    if (n >= 50 && elapsed <= 120) life.blitz = 1;
-    if (n >= 30 && stats.charges === 0) life.pacifist = 1;
-    if (stats.diff === 'nightmare') { life.nmPeak = Math.max(life.nmPeak, n); life.nmLongest = Math.max(life.nmLongest, elapsed); }
-    if (!stats.ghostSpawned && best.peak >= 15 && elapsed > 100) spawnGhost();
-    if (prog.trail !== 'none' && (stats.trailT -= dt) <= 0) {
-      const q = player.queen;
-      if (Math.hypot(q.vx, q.vy) > 40) { stats.trailT = 0.03; spawnTrail(q); }
-    }
-    stats.achTimer -= dt;
-    if (stats.achTimer <= 0) { stats.achTimer = 0.5; checkAchievements(); }
-    while (stats.milestone < MILESTONES.length && colonySize(player) >= MILESTONES[stats.milestone].at) {
-      reachMilestone(MILESTONES[stats.milestone]);
-      stats.milestone++;
-      player.crownLevel = stats.milestone;
-    }
-  }
-
-  // particles
-  for (const p of particles) {
-    p.life -= dt;
-    if (p.vx !== undefined) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.9; p.vy *= 0.9; }
-  }
-  particles = particles.filter(p => p.life > 0);
-  if (particles.length > 700) particles.splice(0, particles.length - 700);
-  for (const f of floaters) { f.life -= dt; if (f.type === 'text') f.y -= 22 * dt; }
-  floaters = floaters.filter(f => f.life > 0);
-
-  updateCamera(dt);
-}
 
 let titleFocus = null;
 function updateCamera(dt) {
@@ -3744,6 +1669,12 @@ function render() {
     ctx.fillStyle = fg;
     ctx.fillText(label, q.x, ty + 0.5 / cam.zoom);
 
+    if (c.human && !c.isPlayer) {
+      ctx.font = `bold ${12 / cam.zoom}px "Trebuchet MS", sans-serif`;
+      ctx.lineWidth = 3 / cam.zoom; ctx.strokeStyle = 'rgba(20,20,30,0.85)';
+      ctx.strokeText(c.name, q.x, ty - 16 / cam.zoom);
+      ctx.fillStyle = '#ffffff'; ctx.fillText(c.name, q.x, ty - 16 / cam.zoom);
+    }
     if (c.ghost) {
       ctx.font = `bold ${12 / cam.zoom}px "Trebuchet MS", sans-serif`;
       ctx.lineWidth = 3 / cam.zoom; ctx.strokeStyle = 'rgba(20,30,50,0.85)';
@@ -3986,7 +1917,7 @@ function drawHUD() {
   if (sugarRain > 0) lines.push([`Sugar Rain: ${Math.ceil(sugarRain)}s`, '#8fd8ff']);
   const boss = creatures.find(k => k.type === 'bee');
   if (boss) lines.push([`Queen Bee: ${Math.ceil(boss.hp / boss.max * 100)}% health`, '#ffc23a']);
-  const sinceConquer = time - stats.lastConquer;
+  const sinceConquer = net.serverT - stats.lastConquerSrv;
   if (state === 'playing' && stats.streak >= 1 && sinceConquer <= STREAK_WINDOW) {
     lines.push([`Streak x${stats.streak} - next conquest in ${Math.ceil(STREAK_WINDOW - sinceConquer)}s for bonus!`, '#ffb060']);
   }
@@ -3996,7 +1927,7 @@ function drawHUD() {
   if (TH !== 'default') panel(x, y + h + 4, 300, 38 + lines.length * 18);   // backing so the text reads on a light map
   ctx.fillStyle = 'rgba(245,232,200,0.8)';
   ctx.font = '12px "Trebuchet MS", sans-serif';
-  ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%   ${diff().name}`, x + 4, y + h + 18);
+  ctx.fillText(`Room ${net.room} (${diff().name})   Players: ${humanCount()}   Speed: ${stats.speed || 100}%`, x + 4, y + h + 18);
   ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
   lines.forEach(([t, col], i) => {
     const ly = y + h + 36 + i * 18;
@@ -4078,7 +2009,7 @@ function drawLeaderboard() {
     ctx.beginPath(); ctx.arc(x + 38, ry - 4, 5, 0, TAU); ctx.fill();
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = me ? '#ffe27a' : '#f5e8c8';
-    ctx.fillText(me ? 'You' : c.name, x + 50, ry);
+    ctx.fillText(me ? 'You' : (c.human ? '\u2605 ' : '') + c.name, x + 50, ry);
     ctx.textAlign = 'right';
     ctx.fillText(String(colonySize(c)), x + w - 14, ry);
   };
@@ -4160,8 +2091,8 @@ function drawMinimap() {
     const px = x + c.queen.x * sx, py = y + c.queen.y * sy;
     ctx.beginPath(); ctx.arc(px, py, r, 0, TAU);
     ctx.fillStyle = c.color; ctx.fill();
-    ctx.strokeStyle = c.isPlayer ? '#fff' : 'rgba(0,0,0,0.6)';
-    ctx.lineWidth = c.isPlayer ? 2 : 1;
+    ctx.strokeStyle = c.isPlayer ? '#fff' : c.human ? '#ffe27a' : 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = c.isPlayer || c.human ? 2 : 1;
     ctx.stroke();
   }
 }
@@ -4204,15 +2135,6 @@ const MUSIC_MAX = 0.2, SFX_MAX = 0.55;
 const settings = { music: 0.7, sfx: 0.8, gfx: 'auto', diff: 'normal', theme: 'default' };
 try { Object.assign(settings, JSON.parse(localStorage.getItem('qoth-settings') || '{}')); } catch (e) {}
 // Difficulty presets: AI aggression, reflexes, rival spawn rate and starting sizes, plus XP reward
-const DIFFS = {
-  easy:      { name: 'Easy',      aggro: 0.7,  strike: 1.9, react: 1.4, spawn: 1.5, startSize: 0.7, grace: 30, xp: 0.75, speed: 0.95,
-               hint: 'Calmer rivals, fewer spawns, 30s protection. XP x0.75' },
-  normal:    { name: 'Normal',    aggro: 1,    strike: 1.5, react: 1,   spawn: 1,   startSize: 1,   grace: 20, xp: 1,    speed: 1,
-               hint: 'The standard challenge. XP x1' },
-  nightmare: { name: 'Nightmare', aggro: 1.35, strike: 1.1, react: 0.6, spawn: 0.6, startSize: 1.4, grace: 10, xp: 1.6,  speed: 1.06,
-               hint: 'Ruthless, fast rivals everywhere. XP x1.6 and exclusive achievements' },
-};
-function diff() { return DIFFS[(stats && stats.diff) || settings.diff] || DIFFS.normal; }
 
 function musicLevel() { return music.on ? MUSIC_MAX * settings.music : 0; }
 function applyAudioSettings() {
@@ -4431,10 +2353,11 @@ document.querySelectorAll('input[data-setting]').forEach(el => {
 syncSliders();
 function applyDiffUI() {
   document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('on', b.dataset.diff === settings.diff));
-  document.getElementById('diffHint').textContent = (DIFFS[settings.diff] || DIFFS.normal).hint;
+  document.getElementById('diffHint').textContent = (DIFFS[settings.diff] || DIFFS.normal).hint + ' - each difficulty is a separate world';
 }
 document.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => {
   settings.diff = b.dataset.diff; saveSettings(); applyDiffUI();
+  switchRoom(document.getElementById('roomInput').value, settings.diff);
 }));
 applyDiffUI();
 function applyGfx() {
@@ -4778,17 +2701,18 @@ function closeOptions() {
   state = 'playing';
   document.getElementById('optionsScreen').classList.add('hidden');
 }
-function goToMenu() {
-  if (state === 'paused' && player) {
+function goToMenu(lost = false) {
+  if ((state === 'paused' || state === 'playing') && player && player.alive && !lost) {
     stats.endTime = time - stats.start;
     recordBest(false, stats.endTime); checkAchievements(false); saveLife();
     awardXP(matchXP(false).total);
   }
   for (const id of ['optionsScreen', 'overScreen', 'winScreen']) document.getElementById(id).classList.add('hidden');
   document.getElementById('optionsBtn').classList.add('hidden');
-  resetWorld(false);
+  send({ t: 'leave' });
+  net.myId = 0; net.joining = false; player = null;
   state = 'title';
-  cam.zoom = 0.8;
+  updateNetStatus();
   document.querySelectorAll('.skin').forEach(b => b.classList.toggle('sel', +b.dataset.i === selectedSkin));
   drawLogo();
   document.getElementById('titleScreen').classList.remove('hidden');
@@ -4801,6 +2725,475 @@ document.querySelectorAll('.menuBtn').forEach(b => b.addEventListener('click', g
 document.addEventListener('click', e => { if (e.target.closest('button')) { startMusic(); playSfx('click'); } });
 window.addEventListener('pointerdown', startMusic);
 window.addEventListener('keydown', startMusic);
+
+// ============================================================
+//  Multiplayer: connection, snapshots, interpolation, input
+// ============================================================
+const INTERP = 0.1;   // seconds the view runs behind the server, to smooth over network jitter
+const CR_R = { spider: 16, ladybug: 20, wasp: 11, bee: 30, drone: 9 };
+const qs = new URLSearchParams(location.search);
+const cleanRoom = s => String(s || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24);
+const net = {
+  ws: null, connected: false, room: cleanRoom(qs.get('room')) || 'public',
+  diff: DIFFS[qs.get('diff')] ? qs.get('diff') : (DIFFS[settings.diff] ? settings.diff : 'normal'),
+  myId: 0, joining: false, snaps: [], offset: null, serverT: 0, retry: 0, players: 0,
+  info: new Map(), cols: new Map(), wobj: new Map(), cobj: new Map(), foodSeen: new Map(), puSeen: new Map(),
+  queue: [], lastSend: 0, lastIn: null, mapGardens: [],
+};
+if (qs.get('diff')) settings.diff = net.diff;
+const decoder = new TextDecoder();
+
+function wsUrl() {
+  return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws?room=' + encodeURIComponent(net.room) + '&diff=' + net.diff;
+}
+function connect() {
+  if (net.ws) { net.ws.onclose = null; try { net.ws.close(); } catch (e) {} }
+  net.connected = false; net.snaps = []; net.offset = null; net.myId = 0; net.info.clear(); net.cols.clear();
+  net.wobj.clear(); net.cobj.clear(); net.foodSeen.clear(); net.puSeen.clear(); net.queue = [];
+  colonies = []; food = []; powerups = []; creatures = []; particles = []; floaters = [];
+  updateNetStatus('Connecting...');
+  let ws;
+  try { ws = new WebSocket(wsUrl()); } catch (e) { updateNetStatus('Could not connect to the game server'); return; }
+  ws.binaryType = 'arraybuffer';
+  net.ws = ws;
+  ws.onopen = () => { net.connected = true; net.retry = 0; updateNetStatus(); };
+  ws.onmessage = e => {
+    if (typeof e.data === 'string') onJson(JSON.parse(e.data));
+    else onSnapshot(e.data);
+  };
+  ws.onclose = () => {
+    net.connected = false;
+    if (state === 'playing' || state === 'paused' || state === 'dying') {
+      addBanner('CONNECTION LOST', 'Reconnecting to the server...', '#ff8a7a', 3, 40);
+      goToMenu(true);
+    }
+    updateNetStatus('Disconnected - reconnecting...');
+    setTimeout(connect, Math.min(8000, 1000 * ++net.retry));
+  };
+}
+function send(obj) { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(obj)); }
+
+function onJson(m) {
+  if (m.t === 'hello') { net.players = m.players.length; updateNetStatus(); }
+  else if (m.t === 'map') applyMap(m);
+  else if (m.t === 'joined') {
+    net.myId = m.id; net.joining = false;
+    beginMatch();
+  } else if (m.t === 'full') {
+    net.joining = false;
+    updateNetStatus('This room is full - try another room name');
+  }
+}
+
+function applyMap(m) {
+  rocks = m.rocks; puddles = m.puddles; tunnels = m.tunnels;
+  net.mapGardens = m.gardens.map(g => ({ x: g.x, y: g.y, shrooms: g.shrooms, owner: null, contested: false, acc: 0 }));
+  gardens = net.mapGardens;
+  if (m.diff && m.diff !== net.diff) { net.diff = m.diff; }
+  buildBackground(); miniCache.t = -1;
+}
+
+// ---------- snapshots ----------
+function onSnapshot(buf) {
+  const dv = new DataView(buf);
+  const hl = dv.getUint32(0, true);
+  const h = JSON.parse(decoder.decode(new Uint8Array(buf, 4, hl)));
+  let o = 4 + hl;
+  for (const id in h.info) {
+    const [name, color, skinId, crown, human] = h.info[id];
+    net.info.set(+id, { name, color, skin: SKINS.find(k => k.id === skinId) || null, crown, human: !!human });
+  }
+  const ants = new Map();   // colony id -> array of ants
+  const antIndex = new Map();
+  for (let i = 0; i < h.ac.length; i += 2) {
+    const arr = [];
+    for (let k = 0; k < h.ac[i + 1]; k++) {
+      const a = { id: dv.getUint32(o, true), x: dv.getUint16(o + 4, true) / 16, y: dv.getUint16(o + 6, true) / 16, ang: dv.getUint8(o + 8) / 255 * TAU, col: h.ac[i] };
+      arr.push(a); antIndex.set(a.id, a);
+      o += 9;
+    }
+    ants.set(h.ac[i], arr);
+  }
+  const foods = [];
+  for (let k = 0; k < h.nf; k++) {
+    const r = dv.getUint8(o + 8);
+    foods.push({ id: dv.getUint32(o, true), x: dv.getUint16(o + 4, true) / 16, y: dv.getUint16(o + 6, true) / 16, r: (r & 127) / 20, honey: r >= 128 });
+    o += 9;
+  }
+  const colIndex = new Map();
+  for (const c of h.cols) colIndex.set(c[0], c);
+  const crIndex = new Map();
+  for (const c of h.cr) crIndex.set(c[0], c);
+  const snap = { time: h.time, h, ants, antIndex, foods, colIndex, crIndex };
+  const now = performance.now() / 1000;
+  const off = h.time - now;
+  if (net.offset === null || Math.abs(off - net.offset) > 0.5) net.offset = off;
+  else net.offset += (off - net.offset) * 0.05;
+  // things that vanished inside the view since the last snapshot: fallen ants and eaten crumbs
+  const prev = net.snaps[net.snaps.length - 1];
+  if (prev) {
+    const vw = W / 2 / cam.zoom, vh = H / 2 / cam.zoom;
+    const inView = (x, y) => Math.abs(x - cam.x) < vw && Math.abs(y - cam.y) < vh;
+    for (const a of prev.antIndex.values()) {
+      if (antIndex.has(a.id) || !inView(a.x, a.y)) continue;
+      const info = net.info.get(a.col);
+      if (info) queueFx(h.time, () => splat(a.x, a.y, info.color, info.dark || shade(info.color, -0.5)));
+    }
+    const fIds = new Set(foods.map(f => f.id));
+    for (const f of prev.foods) if (!fIds.has(f.id) && inView(f.x, f.y)) queueFx(h.time, () => crumbFlecks(f.x, f.y));
+  }
+  net.snaps.push(snap);
+  if (net.snaps.length > 12) net.snaps.shift();
+  // events play when the delayed view reaches them
+  if (h.e) for (const e of h.e) queueFx(h.time, () => onEvent(e, false));
+  if (h.p) for (const e of h.p) queueFx(h.time, () => onEvent(e, true));
+  if (h.sfx) queueFx(h.time, () => { for (const n of h.sfx) playSfx(n); });
+  if (h.life) for (const k in h.life) life[k] = (life[k] || 0) + h.life[k];
+  if (h.lifeMax) for (const k in h.lifeMax) life[k] = Math.max(life[k] || 0, h.lifeMax[k]);
+  if (h.st && state !== 'title') {
+    stats.kills = h.st.k; stats.streak = h.st.s; stats.lastConquerSrv = h.st.lc; stats.speed = h.st.sp;
+    stats.bestStreak = Math.max(stats.bestStreak || 0, h.st.s);
+  }
+  if (h.me === 0 && net.myId && state === 'playing' && !net.joining) {
+    // our colony is gone without a death notice (should not happen): back to the menu
+  }
+}
+function queueFx(t, fn) { net.queue.push({ t, fn }); }
+function splat(x, y, color, dark) {
+  particles.push({ type: 'splat', x, y, color, life: 3, max: 3, r: rand(3, 5) });
+  for (let i = 0; i < 3; i++) {
+    const a = rand(0, TAU), s = rand(30, 90);
+    particles.push({ type: 'fleck', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: dark, life: 0.5, max: 0.5, r: 1.3 });
+  }
+}
+function crumbFlecks(x, y) {
+  for (let i = 0; i < 3; i++) {
+    const a = rand(0, TAU), s = rand(20, 60);
+    particles.push({ type: 'fleck', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: '#9dff6e', life: 0.4, max: 0.4, r: 1.4 });
+  }
+}
+
+function onEvent(e, mine) {
+  switch (e.t) {
+    case 'ring': floaters.push({ type: 'ring', x: e.x, y: e.y, color: e.color, life: e.life, max: e.life, r: e.r }); break;
+    case 'text': floaters.push({ type: 'text', text: e.text, x: e.x, y: e.y, color: e.color, life: e.life, max: e.life, size: e.size }); break;
+    case 'banner': addBanner(e.text, e.sub, e.color, e.life, e.size); break;
+    case 'shake': addShake(e.a); break;
+    case 'sfx':
+      if (e.x === undefined) playSfx(e.name);
+      else if (state === 'playing' && onScreen(e.x, e.y)) playSfx(e.name, e.vol || 1);
+      break;
+    case 'smoke':
+      particles.push({ type: 'spark', x: e.x + rand(-20, 20), y: e.y + rand(-20, 20), vx: rand(-10, 10), vy: rand(-60, -30), color: 'rgba(90,80,70,0.8)', life: 0.9, max: 0.9, r: 2.5 });
+      break;
+    case 'burst':
+      for (let i = 0; i < 24; i++) {
+        const a = rand(0, TAU), sp = rand(60, 200);
+        particles.push({ type: 'spark', x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: i % 2 ? '#ffe27a' : '#ffffff', life: 0.9, max: 0.9, r: 2 });
+      }
+      break;
+    case 'conquest': {
+      particles.push({ type: 'splat', x: e.x, y: e.y, color: e.lc, life: 5, max: 5, r: 11 });
+      for (let i = 0; i < 16; i++) {
+        const a = rand(0, TAU), s = rand(60, 180);
+        particles.push({ type: 'fleck', x: e.x, y: e.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: i % 2 ? e.lc : e.wc, life: 0.8, max: 0.8, r: 2 });
+      }
+      floaters.push({ type: 'ring', x: e.x, y: e.y, color: e.wc, life: 0.9, max: 0.9, r: 90 });
+      if (e.win !== net.myId && e.lose !== net.myId && state === 'playing') {
+        if (onScreen(e.x, e.y, 200)) playSfx('rival');
+        if (onScreen(e.x, e.y, 100)) addShake(4);
+      }
+      break;
+    }
+    case 'power': {
+      const info = POWER_INFO[e.type];
+      floaters.push({ type: 'ring', x: e.x, y: e.y, color: info.color, life: 0.8, max: 0.8, r: 60 });
+      for (let i = 0; i < 12; i++) {
+        const a = rand(0, TAU), sp = rand(60, 160);
+        particles.push({ type: 'spark', x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: info.color, life: 0.6, max: 0.6, r: 2 });
+      }
+      if (e.by === net.myId && player) floaters.push({ type: 'text', text: info.msg, x: player.queen.x, y: player.queen.y - 50, color: info.color, life: 2, max: 2, size: 18 });
+      else if (state === 'playing') floaters.push({ type: 'text', text: `${e.name} took ${info.name}`, x: e.x, y: e.y - 20, color: info.color, life: 1.6, max: 1.6, size: 13 });
+      break;
+    }
+    case 'tunnel':
+      for (const [x, y, g] of [[e.ax, e.ay, e.ag], [e.bx, e.by, e.bg]]) {
+        floaters.push({ type: 'ring', x, y, color: TUNNEL_COLORS[g], life: 0.7, max: 0.7, r: 50 });
+        for (let i = 0; i < 10; i++) {
+          const a = rand(0, TAU), sp = rand(40, 120);
+          particles.push({ type: 'fleck', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: '#8a6440', life: 0.6, max: 0.6, r: 2 });
+        }
+      }
+      break;
+    case 'teleport': cam.x += e.dx; cam.y += e.dy; break;
+    case 'milestone': if (player && MILESTONES[e.i]) reachMilestone(MILESTONES[e.i]); break;
+    case 'won': {
+      floaters.push({ type: 'text', text: `Conquered ${e.name}! +${e.size}`, x: e.x, y: e.y - 30, color: '#ffe27a', life: 2, max: 2, size: 22 });
+      playSfx('conquer');
+      if (e.streak >= 2) playSfx('combo');
+      if (e.human) addBanner('PLAYER CONQUERED!', `You took ${e.name}'s colony`, '#ffd54a', 2.4, 40);
+      addShake(9 + Math.min(e.streak, 5) * 2);
+      playKillFx(e.x, e.y);
+      hitStop = Math.max(hitStop, 0.1);
+      break;
+    }
+    case 'died':
+      if (!mine || state !== 'playing' && state !== 'paused') break;
+      stats.finalSize = e.size; stats.killedBy = e.by; stats.peak = Math.max(stats.peak, e.peak);
+      stats.kills = e.kills; stats.bestStreak = Math.max(stats.bestStreak, e.bestStreak);
+      stats.deathX = e.x; stats.deathY = e.y; stats.deathCause = e.cause; stats.endTime = e.time;
+      if (player) player.alive = false;
+      net.myId = 0;
+      document.getElementById('optionsScreen').classList.add('hidden');
+      startDeathCam({ name: e.by });
+      break;
+  }
+}
+
+// ---------- per-frame: rebuild the world from the two snapshots around the view time ----------
+function interpolateWorld(dt) {
+  const snaps = net.snaps;
+  if (!snaps.length) return;
+  const now = performance.now() / 1000;
+  const rt = now + net.offset - INTERP;
+  let a = snaps[0], b = snaps[0];
+  for (let i = 0; i < snaps.length; i++) {
+    if (snaps[i].time <= rt) a = snaps[i];
+    if (snaps[i].time >= rt) { b = snaps[i]; break; }
+    b = snaps[i];
+  }
+  const span = b.time - a.time;
+  const k = span > 0 ? clamp((rt - a.time) / span, 0, 1) : 1;
+  net.serverT = a.time + span * k;
+  while (net.queue.length && net.queue[0].t <= net.serverT) net.queue.shift().fn();
+  if (net.queue.length > 400) net.queue.splice(0, net.queue.length - 400);
+  const lerp = (p, q) => p + (q - p) * k;
+  const near = (ax, ay, bx, by) => Math.abs(ax - bx) < 150 && Math.abs(ay - by) < 150;
+
+  // colonies
+  const list = [];
+  for (const cb of b.h.cols) {
+    const id = cb[0], ca = a.colIndex.get(id) || cb, info = net.info.get(id);
+    if (!info) continue;
+    let c = net.cobj.get(id);
+    if (!c) {
+      c = { id, name: info.name, color: info.color, dark: shade(info.color, info.color === '#26262b' ? -0.6 : -0.5),
+            skin: info.skin, crownColor: info.crown || '#ffd700', human: info.human, alive: true, workers: [], n: 0,
+            queen: { x: cb[1], y: cb[2], vx: 0, vy: 0, ang: 0, walk: 0 }, outerR: RING0, frenzy: 0, rush: 0, grace: 0,
+            tunnelCd: 0, charge: 0, chargeCd: 0, chargeX: cb[1], chargeY: cb[2], crownLevel: 0, food: 0 };
+      info.dark = c.dark;
+      net.cobj.set(id, c);
+    }
+    c.alive = true; c.isPlayer = id === net.myId && net.myId !== 0; c.seen = time;
+    const q = c.queen, jump = !near(ca[1], ca[2], cb[1], cb[2]);
+    const nx = jump ? cb[1] : lerp(ca[1], cb[1]), ny = jump ? cb[2] : lerp(ca[2], cb[2]);
+    if (dt > 0) {
+      const sp = Math.hypot(nx - q.x, ny - q.y) / dt;
+      if (sp < 2000) { q.vx += ((nx - q.x) / dt - q.vx) * 0.3; q.vy += ((ny - q.y) / dt - q.vy) * 0.3; q.walk += Math.min(sp, 400) * dt * 0.13; }
+    }
+    q.x = nx; q.y = ny;
+    c.n = cb[3];
+    if (cb.length > 4) {
+      q.ang = ca.length > 4 ? lerpAngle(ca[4], cb[4], k) : cb[4];
+      c.outerR = cb[5];
+      const f = cb[6];
+      c.frenzy = f & 1 ? 1 : 0; c.rush = f & 2 ? 1 : 0; c.human = !!(f & 8);
+      c.grace = cb[7]; c.tunnelCd = cb[8]; c.chargeX = cb[9]; c.chargeY = cb[10]; c.crownLevel = cb[11];
+      c.charge = cb[12]; c.chargeCd = cb[13];
+    }
+    // workers
+    const arrB = b.ants.get(id);
+    const ws = c.workers; ws.length = 0;
+    if (arrB) {
+      for (const wb of arrB) {
+        const wa = a.antIndex.get(wb.id);
+        let w = net.wobj.get(wb.id);
+        if (!w) { w = { id: wb.id, x: wb.x, y: wb.y, ang: wb.ang, walk: Math.random() * 10, col: c }; net.wobj.set(wb.id, w); }
+        let x = wb.x, y = wb.y, ang = wb.ang;
+        if (wa && near(wa.x, wa.y, wb.x, wb.y)) { x = lerp(wa.x, wb.x); y = lerp(wa.y, wb.y); ang = lerpAngle(wa.ang, wb.ang, k); }
+        const moved = Math.hypot(x - w.x, y - w.y);
+        w.walk += Math.max(moved, 12 * dt) * 0.3;
+        w.x = x; w.y = y; w.ang = ang; w.col = c; w.seen = time;
+        ws.push(w);
+      }
+    }
+    list.push(c);
+  }
+  colonies = list;
+  if (net.wobj.size > 4000 || Math.random() < 0.02) for (const [id, w] of net.wobj) if (w.seen !== time) net.wobj.delete(id);
+  if (Math.random() < 0.01) for (const [id, c] of net.cobj) if (time - c.seen > 5) net.cobj.delete(id);
+  const me = net.myId ? net.cobj.get(net.myId) : null;
+  if (me && me.alive && colonies.includes(me)) player = me;
+
+  // food (static: newest snapshot) with a pop-in when it first appears
+  food = b.foods;
+  for (const f of food) {
+    let s = net.foodSeen.get(f.id);
+    if (s === undefined) { s = time; net.foodSeen.set(f.id, s); }
+    f.age = Math.min(1, (time - s) * 2 + (s === 0 ? 1 : 0));
+    f.ox = ((f.id * 37) % 30) / 10 - 1.5; f.oy = ((f.id * 53) % 30) / 10 - 1.5;
+  }
+  if (net.foodSeen.size > 3000) net.foodSeen.clear();
+  powerups = b.h.pu.map(([id, x, y, t]) => {
+    let s = net.puSeen.get(id);
+    if (s === undefined) { s = time; net.puSeen.set(id, s); }
+    return { id, x, y, type: t === 0 ? 'frenzy' : 'rush', age: time - s, bob: id % 7 };
+  });
+  b.h.gd.forEach(([owner, contested, acc], i) => {
+    const g = gardens[i];
+    if (!g) return;
+    g.owner = owner ? net.cobj.get(owner) || null : null; g.contested = !!contested; g.acc = acc;
+  });
+  // creatures
+  creatures = b.h.cr.map(cb => {
+    const ca = a.crIndex.get(cb[0]) || cb;
+    let cr = net.cobj.get('c' + cb[0]);
+    if (!cr) { cr = { t: 0 }; net.cobj.set('c' + cb[0], cr); }
+    cr.t += dt; cr.seen = time;
+    const jump = !near(ca[2], ca[3], cb[2], cb[3]);
+    Object.assign(cr, { id: cb[0], type: cb[1], x: jump ? cb[2] : lerp(ca[2], cb[2]), y: jump ? cb[3] : lerp(ca[3], cb[3]),
+      ang: lerpAngle(ca[4], cb[4], k), hp: cb[5], max: cb[6], state: cb[7] ? 'flipped' : '', flipT: 4, hitFlash: cb[8] ? 0.1 : 0,
+      munch: cb[9] ? 0.2 : 0, webR: cb[10], webSeed: cb[11], r: CR_R[cb[1]] || 12 });
+    return cr;
+  });
+  // map events
+  const ev = b.h.ev, eva = a.h.ev;
+  raining = ev.rain || 0; quakeTime = ev.quake || 0;
+  picnic = ev.picnic ? { x: ev.picnic[0], y: ev.picnic[1], t: ev.picnic[2] } : null;
+  magnifier = ev.mag ? { x: eva.mag ? lerp(eva.mag[0], ev.mag[0]) : ev.mag[0], y: eva.mag ? lerp(eva.mag[1], ev.mag[1]) : ev.mag[1], t: ev.mag[2] } : null;
+  flood = ev.flood ? { side: ev.flood[0], t: ev.flood[1], dur: ev.flood[2] } : null;
+  migration = ev.mig ? { t: ev.mig } : null;
+  nightT = ev.night || 0; bloodMoon = ev.blood || 0; sugarRain = ev.sugar || 0;
+  golden = ev.golden ? { x: ev.golden[0], y: ev.golden[1], progress: ev.golden[2], lead: net.cobj.get(ev.golden[3]) || null } : null;
+  if (quakeTime > 0) addShake(6 * Math.min(1, quakeTime));
+  if (player && player.isPlayer) player.food = (b.h.st && b.h.st.fd) || 0;
+}
+
+// ---------- input to the server ----------
+function sendInput(now) {
+  if (!net.connected || now - net.lastSend < 33) return;
+  net.lastSend = now;
+  const msg = { t: 'in', cx: Math.round(cam.x), cy: Math.round(cam.y), hw: Math.round(W / 2 / cam.zoom), hh: Math.round(H / 2 / cam.zoom) };
+  if (player && player.alive && (state === 'playing' || state === 'paused')) {
+    // paused (options open): stand still and brace
+    const m = state === 'paused' ? player.queen : screenToWorld(mouse.x, mouse.y);
+    msg.x = Math.round(m.x); msg.y = Math.round(m.y);
+  }
+  send(msg);
+}
+function tryPlayerCharge() {
+  if (state !== 'playing' || !player || !player.alive) return;
+  if (player.chargeCd > 0 || player.charge > 0) return;
+  const m = screenToWorld(mouse.x, mouse.y);
+  send({ t: 'ch', x: Math.round(m.x), y: Math.round(m.y) });
+  player.chargeCd = 0.2;   // don't spam while the server confirms
+}
+function enemyCount() { let n = 0; for (const c of colonies) if (c.alive && c.id !== net.myId) n++; return n; }
+function diff() { return DIFFS[net.diff] || DIFFS.normal; }
+function humanCount() { let n = 0; for (const c of colonies) if (c.human) n++; return n; }
+
+// ---------- joining a match ----------
+function startGame() {
+  startMusic();
+  if (!net.connected) { updateNetStatus('Not connected yet - please wait a moment'); return; }
+  if (net.joining || state === 'playing') return;
+  const nameEl = document.getElementById('nameInput');
+  const name = (nameEl && nameEl.value.trim()) || 'Player';
+  try { localStorage.setItem('coio-name', name); } catch (e) {}
+  net.joining = true;
+  send({ t: 'join', name, skin: SKINS[selectedSkin].id, crown: (COSMETICS.crown.find(o => o.id === prog.crown) || COSMETICS.crown[0]).color });
+}
+function beginMatch() {
+  state = 'playing';
+  player = null;
+  stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0, streak: 0, bestStreak: 0, lastConquerSrv: -99,
+            milestone: 0, deathCause: '', deathX: 0, deathY: 0, charges: 0, newAch: [], achTimer: 0, diff: net.diff, trailT: 0, speed: 100, topDone: false,
+            chargesAtStart: life.charges };
+  life.games++;
+  banners = []; shake = 0; hitStop = 0;
+  checkAchievements();
+  mouse.x = W / 2; mouse.y = H / 2;
+  for (const id of ['titleScreen', 'overScreen', 'winScreen', 'optionsScreen']) document.getElementById(id).classList.add('hidden');
+  document.getElementById('optionsBtn').classList.remove('hidden');
+  const me = net.cobj.get(net.myId);
+  if (me) { cam.x = me.queen.x; cam.y = me.queen.y; }
+}
+
+// ---------- the client's own per-frame update (effects, camera, achievements) ----------
+function clientUpdate(dt) {
+  time += dt;
+  interpolateWorld(dt);
+  if ((state === 'playing' || state === 'paused') && player && player.alive) {
+    const n = colonySize(player), elapsed = time - stats.start;
+    stats.peak = Math.max(stats.peak, n);
+    life.bestPeak = Math.max(life.bestPeak, n);
+    life.longest = Math.max(life.longest, elapsed);
+    if (n >= 50 && elapsed <= 120) life.blitz = 1;
+    if (n >= 30 && life.charges === stats.chargesAtStart) life.pacifist = 1;
+    if (stats.diff === 'nightmare') { life.nmPeak = Math.max(life.nmPeak, n); life.nmLongest = Math.max(life.nmLongest, elapsed); }
+    // top of the hill: #1 on the leaderboard with 100+ ants
+    if (!stats.topDone && n >= 100 && colonies.every(c => c === player || colonySize(c) < n)) {
+      stats.topDone = true; life.wins++; if (stats.diff === 'nightmare') life.nmWins++;
+      addBanner('KING OF THE HILL!', 'Your colony is the biggest on the map', '#ffd54a', 3, 46);
+      playSfx('victory'); addShake(8);
+    }
+    if (prog.trail !== 'none' && (stats.trailT -= dt) <= 0) {
+      const q = player.queen;
+      if (Math.hypot(q.vx, q.vy) > 40) { stats.trailT = 0.03; spawnTrail(q); }
+    }
+    stats.achTimer -= dt;
+    if (stats.achTimer <= 0) { stats.achTimer = 0.5; checkAchievements(); }
+  }
+  for (const p of particles) {
+    p.life -= dt;
+    if (p.vx !== undefined) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.9; p.vy *= 0.9; }
+  }
+  particles = particles.filter(p => p.life > 0);
+  if (particles.length > 700) particles.splice(0, particles.length - 700);
+  for (const f of floaters) { f.life -= dt; if (f.type === 'text') f.y -= 22 * dt; }
+  floaters = floaters.filter(f => f.life > 0);
+  updateCamera(dt);
+}
+
+// ---------- room / name controls on the main menu ----------
+function inviteLink() { return location.origin + '/?room=' + encodeURIComponent(net.room) + '&diff=' + net.diff; }
+function updateNetStatus(msg) {
+  const el = document.getElementById('netStatus');
+  if (!el) return;
+  if (msg) { el.textContent = msg; el.classList.add('warn'); return; }
+  el.classList.remove('warn');
+  const humansIn = humanCount();
+  el.textContent = net.connected
+    ? `Connected to room "${net.room}" (${diff().name})` + (humansIn ? ` - ${humansIn} ${humansIn === 1 ? 'player' : 'players'} in game` : ' - nobody playing yet')
+    : 'Connecting...';
+}
+function switchRoom(room, diffKey) {
+  room = cleanRoom(room) || 'public';
+  if (room === net.room && diffKey === net.diff && net.connected) return;
+  net.room = room; net.diff = diffKey;
+  const url = new URL(location.href);
+  url.searchParams.set('room', room); url.searchParams.set('diff', diffKey);
+  history.replaceState(null, '', url);
+  connect();
+}
+
+// ---------- lobby: name, room and invite link ----------
+function initLobby() {
+  const nameEl = document.getElementById('nameInput'), roomEl = document.getElementById('roomInput');
+  try { nameEl.value = localStorage.getItem('coio-name') || ''; } catch (e) {}
+  roomEl.value = net.room;
+  settings.diff = net.diff; applyDiffUI();
+  const go = () => switchRoom(roomEl.value, settings.diff);
+  roomEl.addEventListener('change', go);
+  roomEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); roomEl.blur(); } });
+  document.getElementById('inviteBtn').addEventListener('click', () => {
+    go();
+    const link = inviteLink(), btn = document.getElementById('inviteBtn');
+    const done = ok => { btn.textContent = ok ? 'Link copied!' : link; setTimeout(() => { btn.textContent = 'Copy invite link'; }, 2500); };
+    if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => done(true), () => done(false)); else done(false);
+  });
+  setInterval(() => { if (state === 'title' && net.connected) updateNetStatus(); }, 1000);
+}
 
 // ============================================================
 //  Loop
@@ -4824,14 +3217,10 @@ function frame(now) {
   last = now;
   adaptQuality(dt);
   if (dt > 0.05) dt = 0.05;
-  // sub-step so fast chargers can't skip past guards during a slow frame
-  const steps = Math.ceil(dt / (1 / 60) - 0.01);
   const realDt = dt;
   if (hitStop > 0) hitStop -= realDt;                           // freeze frame on big hits
-  else if (state !== 'paused') {
-    const scale = state === 'dying' ? 0.3 : 1;                  // slow motion during the death replay
-    for (let i = 0; i < steps; i++) update(dt * scale / steps);
-  }
+  else clientUpdate(dt);
+  sendInput(now);
   if (state === 'dying') { deathTimer -= realDt; if (deathTimer <= 0) endGame(false); }
   if (state === 'title') drawCosPreview(realDt);
   shake = Math.max(0, shake - realDt * 30);
@@ -4975,9 +3364,7 @@ document.getElementById('achBtn').addEventListener('click', openAchievements);
 document.getElementById('achClose').addEventListener('click', () => document.getElementById('achScreen').classList.add('hidden'));
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveLife(); });
 drawLogo();
-resetWorld(false);   // attract-mode simulation behind the title screen
+initLobby();
+connect();   // the live world plays behind the title screen
 cam.zoom = 0.8;
 requestAnimationFrame(frame);
-</script>
-</body>
-</html>
