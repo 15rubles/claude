@@ -293,6 +293,73 @@
     .panel h1 { font-size: 40px; }
     .controls { font-size: 13px; }
   }
+
+  .slider.theme b { display: none; }
+  .slider.theme .seg button { white-space: nowrap; font-size: 11px; }
+  /* ---------- Theme: War Room ---------- */
+  body[data-theme="war"] { background: #15202b; font-family: "Courier New", Courier, monospace; }
+  body[data-theme="war"] .overlay { background: radial-gradient(ellipse at center, rgba(21,32,43,0.35) 0%, rgba(10,16,22,0.8) 100%); }
+  body[data-theme="war"] .panel {
+    background: linear-gradient(180deg, #223344 0%, #15202b 100%);
+    border: 2px solid #c9b98f; border-radius: 4px; color: #f1ead8;
+    box-shadow: 0 14px 50px rgba(0,0,0,0.7), inset 0 0 0 4px rgba(201,185,143,0.12);
+  }
+  body[data-theme="war"] .panel h1, body[data-theme="war"] .panel h2, body[data-theme="war"] .panel h3 {
+    font-family: Impact, "Arial Black", sans-serif; font-weight: normal; color: #f1ead8; letter-spacing: 2px; text-shadow: 3px 3px 0 #b3261e;
+  }
+  body[data-theme="war"] .panel.lose h2 { color: #ff8a7a; text-shadow: 3px 3px 0 #000; }
+  body[data-theme="war"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose) {
+    font-family: Impact, "Arial Black", sans-serif; font-weight: normal; letter-spacing: 3px; text-transform: uppercase;
+    color: #15202b; background: #f1ead8; border-radius: 3px; box-shadow: 0 5px 0 #8d8470, 0 8px 18px rgba(0,0,0,0.5);
+  }
+  body[data-theme="war"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose):active { box-shadow: 0 1px 0 #8d8470, 0 3px 8px rgba(0,0,0,0.5); }
+  body[data-theme="war"] button.secondary, body[data-theme="war"] .seg button, body[data-theme="war"] .chip {
+    font-family: "Courier New", Courier, monospace; color: #f1ead8; background: rgba(241,234,216,0.07); border: 1px solid rgba(201,185,143,0.6); border-radius: 3px;
+  }
+  body[data-theme="war"] .seg button.on, body[data-theme="war"] .chip.on { background: #b3261e; color: #f1ead8; border-color: #b3261e; }
+  body[data-theme="war"] .key { background: #f1ead8; color: #15202b; border-radius: 2px; box-shadow: 0 2px 0 #8d8470; }
+  body[data-theme="war"] :is(.rsec, .best, .stat, .controls, .achcard, .lvlbox, .skin) { background: rgba(241,234,216,0.06); border-radius: 3px; }
+  body[data-theme="war"] :is(.rhead, .skins-label, .best-label, .stat .l) { color: #c9b98f; }
+  body[data-theme="war"] :is(.stat .v, .best-main b, .slider b, .cosrow b) { color: #f1ead8; }
+  body[data-theme="war"] .stat .v { font-family: Impact, "Arial Black", sans-serif; font-weight: normal; letter-spacing: 1px; }
+  body[data-theme="war"] .tagline { color: #c9d3dc; }
+  body[data-theme="war"] .slider input { accent-color: #b3261e; }
+  body[data-theme="war"] .skin.sel { border-color: #b3261e; background: rgba(179,38,30,0.2); }
+  body[data-theme="war"] .newbest { background: #b3261e; color: #f1ead8; box-shadow: 0 0 16px rgba(179,38,30,0.6); }
+  body[data-theme="war"] .cosprev { background: #15202b; border-color: rgba(201,185,143,0.6); border-radius: 3px; }
+  body[data-theme="war"] #optionsBtn { font-family: "Courier New", Courier, monospace; background: rgba(21,32,43,0.88); border-color: #c9b98f; border-radius: 3px; color: #f1ead8; }
+  body[data-theme="war"] #optionsBtn .bars, body[data-theme="war"] #optionsBtn .bars::after { border-color: #f1ead8; }
+
+  /* ---------- Theme: Garden Picnic ---------- */
+  body[data-theme="picnic"] { background: #3f7f33; }
+  body[data-theme="picnic"] .overlay { background: radial-gradient(ellipse at center, rgba(20,60,20,0.25) 0%, rgba(15,45,15,0.65) 100%); }
+  body[data-theme="picnic"] .panel {
+    background: linear-gradient(180deg, #57a444 0%, #2f6b2a 100%);
+    border: 3px solid #ffffff; border-radius: 24px; color: #fbfff3;
+    box-shadow: 0 0 0 6px #e84a4a, 0 14px 44px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.3);
+  }
+  body[data-theme="picnic"] .panel h1, body[data-theme="picnic"] .panel h2 { color: #ffffff; text-shadow: 0 3px 0 #c93636, 0 6px 16px rgba(0,0,0,0.35); }
+  body[data-theme="picnic"] .panel h3 { color: #fff27a; }
+  body[data-theme="picnic"] .panel.lose h2 { color: #ffd0c8; }
+  body[data-theme="picnic"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose) {
+    color: #ffffff; background: linear-gradient(180deg, #ff7070 0%, #e84a4a 100%); border-radius: 18px;
+    box-shadow: 0 5px 0 #a82f2f, 0 8px 18px rgba(0,0,0,0.4); text-shadow: 0 1px 0 rgba(0,0,0,0.25);
+  }
+  body[data-theme="picnic"] :is(#playBtn, #restartBtn, #againBtn, #resumeBtn, #achClose):active { box-shadow: 0 1px 0 #a82f2f, 0 3px 8px rgba(0,0,0,0.4); }
+  body[data-theme="picnic"] button.secondary, body[data-theme="picnic"] .seg button, body[data-theme="picnic"] .chip {
+    color: #ffffff; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.6);
+  }
+  body[data-theme="picnic"] .seg button.on, body[data-theme="picnic"] .chip.on { background: #ffd23f; color: #2f4a1a; border-color: transparent; }
+  body[data-theme="picnic"] .key { background: #ffffff; color: #2f6b2a; box-shadow: 0 2px 0 #9cc48a; }
+  body[data-theme="picnic"] :is(.rsec, .best, .stat, .controls, .achcard, .lvlbox, .skin) { background: rgba(20,60,20,0.25); }
+  body[data-theme="picnic"] :is(.rhead, .best-main b, .stat .v, .slider b, .cosrow b) { color: #fff27a; }
+  body[data-theme="picnic"] :is(.skins-label, .best-label, .stat .l, .tagline) { color: #e4f5d4; }
+  body[data-theme="picnic"] .slider input { accent-color: #e84a4a; }
+  body[data-theme="picnic"] .skin.sel { border-color: #ffd23f; background: rgba(255,210,63,0.2); }
+  body[data-theme="picnic"] .newbest { background: #ffd23f; color: #2f4a1a; }
+  body[data-theme="picnic"] .cosprev { background: #3f7f33; border-color: rgba(255,255,255,0.6); }
+  body[data-theme="picnic"] #optionsBtn { background: rgba(38,84,34,0.85); border-color: #ffffff; border-radius: 14px; color: #ffffff; }
+  body[data-theme="picnic"] #optionsBtn .bars, body[data-theme="picnic"] #optionsBtn .bars::after { border-color: #ffd23f; }
 </style>
 </head>
 <body>
@@ -372,6 +439,7 @@
       <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
       <label class="slider"><span>Sounds</span><input type="range" min="0" max="100" data-setting="sfx"><b class="val"></b></label>
       <div class="slider gfx"><span>Graphics</span><div class="seg"><button data-gfx="auto">Auto</button><button data-gfx="high">High</button><button data-gfx="low">Low</button></div><b></b></div>
+      <div class="slider theme"><span>Theme</span><div class="seg"><button data-theme-opt="default">Classic</button><button data-theme-opt="war">War Room</button><button data-theme-opt="picnic">Picnic</button></div><b></b></div>
     </div>
   </div>
   </div>
@@ -414,6 +482,7 @@
       <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
       <label class="slider"><span>Sounds</span><input type="range" min="0" max="100" data-setting="sfx"><b class="val"></b></label>
       <div class="slider gfx"><span>Graphics</span><div class="seg"><button data-gfx="auto">Auto</button><button data-gfx="high">High</button><button data-gfx="low">Low</button></div><b></b></div>
+      <div class="slider theme"><span>Theme</span><div class="seg"><button data-theme-opt="default">Classic</button><button data-theme-opt="war">War Room</button><button data-theme-opt="picnic">Picnic</button></div><b></b></div>
     </div>
     <button id="resumeBtn">Resume</button>
     <div><button id="quitBtn" class="secondary">End match &amp; main menu</button></div>
@@ -2294,9 +2363,15 @@ function drawGolden() {
   const gl = ctx.createRadialGradient(g.x, g.y, 4, g.x, g.y, 46);
   gl.addColorStop(0, `rgba(255,220,80,${0.55 + 0.2 * pulse})`); gl.addColorStop(1, 'rgba(255,220,80,0)');
   ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(g.x, g.y, 46, 0, TAU); ctx.fill();
+  if (TH === 'war') {   // map objective star
+    ctx.fillStyle = 'rgba(201,162,39,0.25)'; ctx.strokeStyle = TH_GOLD; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(g.x, g.y, 18, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = TH_GOLD; ctx.strokeStyle = TH_INK; ctx.lineWidth = 1.2; warStar(g.x, g.y, 13); ctx.fill(); ctx.stroke();
+  } else {
   ctx.fillStyle = '#ffc93a'; ctx.strokeStyle = '#8a5a00'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(g.x, g.y, 12, 0, TAU); ctx.arc(g.x + 6, g.y - 5, 8, 0, TAU); ctx.fill();
   ctx.fillStyle = '#fff6c0'; ctx.beginPath(); ctx.arc(g.x - 4, g.y - 5, 3.5, 0, TAU); ctx.fill();
+  }
   // eating progress ring
   ctx.lineWidth = 5 / cam.zoom;
   ctx.strokeStyle = 'rgba(20,10,0,0.6)'; ctx.beginPath(); ctx.arc(g.x, g.y, 26, 0, TAU); ctx.stroke();
@@ -2304,7 +2379,7 @@ function drawGolden() {
   ctx.beginPath(); ctx.arc(g.x, g.y, 26, -Math.PI / 2, -Math.PI / 2 + g.progress * TAU); ctx.stroke();
   ctx.font = `bold ${12 / cam.zoom}px "Trebuchet MS", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.lineWidth = 3 / cam.zoom; ctx.strokeStyle = 'rgba(30,15,0,0.85)';
-  const label = `${Math.floor(g.progress * 100)}%`;
+  const label = (TH === 'war' ? 'OBJECTIVE ' : '') + `${Math.floor(g.progress * 100)}%`;
   ctx.strokeText(label, g.x, g.y + 40); ctx.fillStyle = '#ffe27a'; ctx.fillText(label, g.x, g.y + 40);
 }
 function drawFlood(L, R, T, B) {
@@ -2313,8 +2388,18 @@ function drawFlood(L, R, T, B) {
   let x0 = 0, y0 = 0, x1 = WORLD_W, y1 = WORLD_H;
   if (flood.side === 'left') x1 = WORLD_W * c; else if (flood.side === 'right') x0 = WORLD_W * (1 - c);
   else if (flood.side === 'top') y1 = WORLD_H * c; else y0 = WORLD_H * (1 - c);
-  ctx.fillStyle = 'rgba(55,115,175,0.45)';
+  ctx.fillStyle = TH === 'war' ? 'rgba(61,111,147,0.3)' : 'rgba(55,115,175,0.45)';
   ctx.fillRect(Math.max(x0, L), Math.max(y0, T), Math.min(x1, R) - Math.max(x0, L), Math.min(y1, B) - Math.max(y0, T));
+  if (TH === 'war') {   // blue hatching like a flooded zone on a field map
+    const fx0 = Math.max(x0, L), fy0 = Math.max(y0, T), fx1 = Math.min(x1, R), fy1 = Math.min(y1, B);
+    if (fx1 > fx0 && fy1 > fy0) {
+      ctx.save(); ctx.beginPath(); ctx.rect(fx0, fy0, fx1 - fx0, fy1 - fy0); ctx.clip();
+      ctx.strokeStyle = 'rgba(61,111,147,0.55)'; ctx.lineWidth = 2; ctx.beginPath();
+      const hgt = fy1 - fy0, st = Math.floor(fx0 / 24) * 24 - hgt;
+      for (let x = st; x < fx1; x += 24) { ctx.moveTo(x, fy1); ctx.lineTo(x + hgt, fy0); }
+      ctx.stroke(); ctx.restore();
+    }
+  }
   ctx.strokeStyle = 'rgba(200,230,255,0.7)'; ctx.lineWidth = 3 / cam.zoom;
   ctx.beginPath();
   if (flood.side === 'left' || flood.side === 'right') {
@@ -2328,6 +2413,20 @@ function drawFlood(L, R, T, B) {
 }
 function drawMagnifier() {
   const m = magnifier, fade = Math.min(1, m.t / 1.5, (20 - m.t) / 1.5), pulse = 0.5 + 0.5 * Math.sin(time * 10);
+  if (TH === 'war') {   // airstrike target
+    const r = 58;
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = `rgba(179,38,30,${0.1 + pulse * 0.12})`; ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = TH_RED; ctx.lineWidth = 3 / cam.zoom;
+    ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, TAU); ctx.stroke();
+    ctx.lineWidth = 2 / cam.zoom; ctx.beginPath(); ctx.arc(m.x, m.y, r * 0.5, 0, TAU);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.moveTo(m.x + dx * r * 0.2, m.y + dy * r * 0.2); ctx.lineTo(m.x + dx * (r + 14), m.y + dy * (r + 14)); }
+    ctx.stroke();
+    ctx.font = `bold ${13 / cam.zoom}px "Courier New", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = TH_RED; ctx.fillText('AIRSTRIKE', m.x, m.y - r - 12 / cam.zoom);
+    ctx.globalAlpha = 1;
+    return;
+  }
   ctx.globalAlpha = fade;
   ctx.fillStyle = 'rgba(255,255,220,0.07)'; ctx.strokeStyle = 'rgba(255,255,240,0.35)'; ctx.lineWidth = 4 / cam.zoom;
   ctx.beginPath(); ctx.arc(m.x - 20, m.y - 30, 130, 0, TAU); ctx.fill(); ctx.stroke();   // the lens above
@@ -3269,6 +3368,9 @@ function buildBackground() {
   bgCanvas.width = Math.ceil(WORLD_W * BG_SCALE); bgCanvas.height = Math.ceil(WORLD_H * BG_SCALE);
   const g = bgCanvas.getContext('2d', { alpha: false });
   g.setTransform(BG_SCALE, 0, 0, BG_SCALE, 0, 0);
+  if (TH === 'war') warGround(g);
+  else if (TH === 'picnic') picnicGround(g);
+  else {
   g.fillStyle = dirtPattern;
   g.fillRect(0, 0, WORLD_W, WORLD_H);
   // faint grid
@@ -3277,8 +3379,10 @@ function buildBackground() {
   for (let x = 100; x < WORLD_W; x += 100) { g.moveTo(x, 0); g.lineTo(x, WORLD_H); }
   for (let y = 100; y < WORLD_H; y += 100) { g.moveTo(0, y); g.lineTo(WORLD_W, y); }
   g.stroke();
+  }
   // puddles
   for (const pd of puddles) {
+    if (TH === 'war') { warPuddle(g, pd); continue; }
     g.save(); g.translate(pd.x, pd.y); g.rotate(pd.rot);
     g.fillStyle = 'rgba(40,30,20,0.35)'; g.beginPath(); g.ellipse(2, 3, pd.rx + 6, pd.ry + 5, 0, 0, TAU); g.fill();
     const pg = g.createRadialGradient(-pd.rx * 0.3, -pd.ry * 0.3, 4, 0, 0, pd.rx);
@@ -3290,6 +3394,7 @@ function buildBackground() {
   }
   // rocks
   for (const rk of rocks) {
+    if (TH === 'war') { warRock(g, rk); continue; }
     const poly = (ox, oy, sc) => { g.beginPath(); rk.pts.forEach(([px, py], i) => i ? g.lineTo(rk.x + ox + px * sc, rk.y + oy + py * sc) : g.moveTo(rk.x + ox + px * sc, rk.y + oy + py * sc)); g.closePath(); };
     g.fillStyle = 'rgba(25,15,5,0.45)'; poly(6, 8, 1); g.fill();                        // shadow
     g.fillStyle = `rgb(${rk.tone},${rk.tone - 8},${rk.tone - 20})`; poly(0, 0, 1); g.fill();
@@ -3300,6 +3405,7 @@ function buildBackground() {
   }
   // fungus gardens
   for (const gd of gardens) {
+    if (TH === 'war') { warGarden(g, gd); continue; }
     const grd = g.createRadialGradient(gd.x, gd.y, 5, gd.x, gd.y, GARDEN_R);
     grd.addColorStop(0, 'rgba(120,160,70,0.5)'); grd.addColorStop(0.75, 'rgba(95,130,55,0.35)'); grd.addColorStop(1, 'rgba(90,120,50,0)');
     g.fillStyle = grd;
@@ -3317,6 +3423,7 @@ function buildBackground() {
   }
   // tunnel holes
   for (const h of tunnels) {
+    if (TH === 'war') { warTunnel(g, h); continue; }
     g.fillStyle = '#8a6440'; g.beginPath(); g.arc(h.x, h.y, HOLE_R + 12, 0, TAU); g.fill();
     g.fillStyle = '#a07650'; g.beginPath(); g.arc(h.x - 3, h.y - 3, HOLE_R + 8, 0, TAU); g.fill();
     const hg = g.createRadialGradient(h.x, h.y, 2, h.x, h.y, HOLE_R);
@@ -3332,7 +3439,7 @@ function buildBackground() {
 function render() {
   if (!dirtPattern) makeDirtPattern();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#24160a';
+  ctx.fillStyle = look().clear;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   setCameraTransform();
@@ -3346,7 +3453,7 @@ function render() {
     if (x1 > x0 && y1 > y0) ctx.drawImage(bgCanvas, x0 * BG_SCALE, y0 * BG_SCALE, (x1 - x0) * BG_SCALE, (y1 - y0) * BG_SCALE, x0, y0, x1 - x0, y1 - y0);
   }
   // world border
-  ctx.strokeStyle = 'rgba(20,10,3,0.8)';
+  ctx.strokeStyle = look().border;
   ctx.lineWidth = 8;
   ctx.strokeRect(-4, -4, WORLD_W + 8, WORLD_H + 8);
 
@@ -3386,6 +3493,9 @@ function render() {
   ctx.globalAlpha = 1;
 
   // food crumbs (batched)
+  if (TH === 'war') warFood(L, R, T, B);
+  else if (TH === 'picnic') picnicFood(L, R, T, B);
+  else {
   ctx.fillStyle = 'rgba(120,255,90,0.16)';
   ctx.beginPath();
   for (const f of food) {
@@ -3410,6 +3520,7 @@ function render() {
     ctx.moveTo(f.x - r * 0.8 + r, f.y - r); ctx.arc(f.x - r * 0.8, f.y - r, r, 0, TAU);
   }
   ctx.fill();
+  }
 
   // honey drops (worth double)
   ctx.fillStyle = '#ffc23a'; ctx.strokeStyle = '#9a6a00'; ctx.lineWidth = 1;
@@ -3433,7 +3544,11 @@ function render() {
     ctx.beginPath(); ctx.arc(pu.x, by, 26 * pop, 0, TAU); ctx.fill();
     const k = pop * 1.3;
     ctx.lineJoin = 'round';
-    if (pu.type === 'frenzy') drawChili(pu.x, by, k); else drawSugarCube(pu.x, by, k);
+    if (TH === 'war') { if (pu.type === 'frenzy') drawIncendiary(pu.x, by, k); else drawSupplyDrop(pu.x, by, k); }
+    else {
+      if (TH === 'picnic') picnicPlate(pu.x, by, k);
+      if (pu.type === 'frenzy') drawChili(pu.x, by, k); else drawSugarCube(pu.x, by, k);
+    }
     ctx.lineJoin = 'miter';
   }
 
@@ -3531,6 +3646,8 @@ function render() {
     ctx.beginPath(); ctx.ellipse(q.x + 3, q.y + 5, 16, 11, q.ang, 0, TAU); ctx.fill();
   }
 
+  if (TH === 'war') warPerimeters(L, R, T, B);
+
   // workers
   for (const c of colonies) {
     if (!c.alive) continue;
@@ -3544,7 +3661,7 @@ function render() {
   }
   // ground creatures
   setCameraTransform();
-  for (const cr of creatures) if ((cr.type === 'spider' || cr.type === 'ladybug') && cr.x > L - 40 && cr.x < R + 40 && cr.y > T - 40 && cr.y < B + 40) drawCreature(cr);
+  for (const cr of creatures) if ((cr.type === 'spider' || cr.type === 'ladybug') && cr.x > L - 40 && cr.x < R + 40 && cr.y > T - 40 && cr.y < B + 40) { drawCreature(cr); if (TH === 'war') warHostile(cr); }
   // queens on top
   for (const c of colonies) {
     if (!c.alive) continue;
@@ -3554,7 +3671,7 @@ function render() {
   }
   setCameraTransform();
   // flying creatures and the burning sunbeam
-  for (const cr of creatures) if ((cr.type === 'wasp' || cr.type === 'bee' || cr.type === 'drone') && cr.x > L - 90 && cr.x < R + 90 && cr.y > T - 90 && cr.y < B + 90) drawCreature(cr);
+  for (const cr of creatures) if ((cr.type === 'wasp' || cr.type === 'bee' || cr.type === 'drone') && cr.x > L - 90 && cr.x < R + 90 && cr.y > T - 90 && cr.y < B + 90) { drawCreature(cr); if (TH === 'war') warHostile(cr); }
   if (magnifier) drawMagnifier();
 
   // flying particles (little squares: much cheaper than arcs)
@@ -3585,11 +3702,11 @@ function render() {
     ctx.font = `bold ${fs}px "Trebuchet MS", sans-serif`;
     const tw = ctx.measureText(label).width + 12 / cam.zoom, th = 18 / cam.zoom;
     const ty = q.y - (c.workers.length ? c.outerR + 16 : 34);
-    let bg = 'rgba(30,20,10,0.75)', fg = '#fff';
+    let bg = TH === 'war' ? 'rgba(241,234,216,0.92)' : 'rgba(30,20,10,0.75)', fg = TH === 'war' ? TH_INK : '#fff';
     if (c.isPlayer) { bg = player.color; fg = isDarkColor(player.color) ? '#fff6dc' : '#2a1606'; }
     else if (psize >= 0 && state === 'playing') {
-      if (s < psize) { bg = 'rgba(40,120,40,0.85)'; fg = '#e8ffd8'; }
-      else if (s > psize) { bg = 'rgba(150,30,25,0.85)'; fg = '#ffe0da'; }
+      if (s < psize) { bg = TH === 'war' ? 'rgba(61,106,53,0.92)' : 'rgba(40,120,40,0.85)'; fg = '#e8ffd8'; }
+      else if (s > psize) { bg = TH === 'war' ? 'rgba(179,38,30,0.92)' : 'rgba(150,30,25,0.85)'; fg = '#ffe0da'; }
     }
     roundRect(ctx, q.x - tw / 2, ty - th / 2, tw, th, 6 / cam.zoom);
     ctx.fillStyle = bg; ctx.fill();
@@ -3597,7 +3714,13 @@ function render() {
       ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 1.5 / cam.zoom; ctx.stroke();
     }
     ctx.fillStyle = c.color;
-    ctx.beginPath(); ctx.arc(q.x - tw / 2 - 5 / cam.zoom, ty, 4 / cam.zoom, 0, TAU); ctx.fill();
+    if (TH === 'war') {   // map unit marker: box for you, diamond for hostiles
+      const mx = q.x - tw / 2 - 7 / cam.zoom, m = 5 / cam.zoom;
+      ctx.beginPath();
+      if (c.isPlayer) ctx.rect(mx - m, ty - m * 0.7, m * 2, m * 1.4);
+      else { ctx.moveTo(mx, ty - m); ctx.lineTo(mx + m, ty); ctx.lineTo(mx, ty + m); ctx.lineTo(mx - m, ty); ctx.closePath(); }
+      ctx.fill(); ctx.strokeStyle = TH_INK; ctx.lineWidth = 1 / cam.zoom; ctx.stroke();
+    } else { ctx.beginPath(); ctx.arc(q.x - tw / 2 - 5 / cam.zoom, ty, 4 / cam.zoom, 0, TAU); ctx.fill(); }
     ctx.fillStyle = fg;
     ctx.fillText(label, q.x, ty + 0.5 / cam.zoom);
 
@@ -3772,10 +3895,11 @@ function drawSugarCube(x, y, k, g = ctx) {
 }
 
 function panel(x, y, w, h) {
-  roundRect(ctx, x, y, w, h, 12);
-  ctx.fillStyle = 'rgba(30,18,8,0.72)';
+  const lk = look();
+  roundRect(ctx, x, y, w, h, lk.radius);
+  ctx.fillStyle = lk.panel;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(212,168,67,0.55)';
+  ctx.strokeStyle = lk.panelEdge;
   ctx.lineWidth = 1.5;
   ctx.stroke();
 }
@@ -3826,9 +3950,6 @@ function drawHUD() {
   }
 
   // rivals remaining, speed, grace period
-  ctx.fillStyle = 'rgba(245,232,200,0.8)';
-  ctx.font = '12px "Trebuchet MS", sans-serif';
-  ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%   ${diff().name}`, x + 4, y + h + 18);
   const lines = [[`Lv ${prog.level} ${titleFor(prog.level)}`, '#d9c0ff']];
   if (player.alive && player.grace > 0) lines.push([`Protected: ${Math.ceil(player.grace)}s`, '#9fe08a']);
   if (player.frenzy > 0) lines.push([`Fire Chili: ${Math.ceil(player.frenzy)}s`, '#ff7a64']);
@@ -3852,6 +3973,10 @@ function drawHUD() {
   const onGarden = gardens.find(g => g.owner === player);
   if (onGarden) lines.push(['Farming fungus garden', '#b8ff8c']);
   else if (gardens.some(g => g.contested && dist(g.x, g.y, player.queen.x, player.queen.y) < GARDEN_R)) lines.push(['Garden contested!', '#ff8a70']);
+  if (TH !== 'default') panel(x, y + h + 4, 300, 38 + lines.length * 18);   // backing so the text reads on a light map
+  ctx.fillStyle = 'rgba(245,232,200,0.8)';
+  ctx.font = '12px "Trebuchet MS", sans-serif';
+  ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%   ${diff().name}`, x + 4, y + h + 18);
   ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
   lines.forEach(([t, col], i) => {
     const ly = y + h + 36 + i * 18;
@@ -3885,8 +4010,8 @@ function drawBanners() {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(W / 2, y); ctx.scale(pop, pop);
-    ctx.font = `900 ${b.size}px "Trebuchet MS", sans-serif`;
-    ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(40,18,4,0.9)'; ctx.lineJoin = 'round';
+    ctx.font = `900 ${b.size}px ${look().bannerFont}`;
+    ctx.lineWidth = 7; ctx.strokeStyle = look().bannerEdge; ctx.lineJoin = 'round';
     ctx.strokeText(b.text, 0, 0);
     ctx.fillStyle = b.color; ctx.fillText(b.text, 0, 0);
     if (b.sub) {
@@ -3901,7 +4026,7 @@ function drawBanners() {
 function drawMusicHint() {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.font = '12px "Trebuchet MS", sans-serif';
-  ctx.fillStyle = 'rgba(245,232,200,0.65)';
+  ctx.fillStyle = TH === 'war' ? 'rgba(31,29,24,0.75)' : 'rgba(245,232,200,0.65)';
   ctx.fillText(`Music: ${music.on ? 'on' : 'off'} [M]   Options [Esc]`, 14, H - 14);
 }
 
@@ -3954,9 +4079,15 @@ function drawMinimap() {
     cv.width = Math.ceil(mw * DPR); cv.height = Math.ceil(mh * DPR);
     const m = cv.getContext('2d');
     m.setTransform(DPR, 0, 0, DPR, 0, 0);
-    m.fillStyle = '#4a3019';
+    m.fillStyle = look().mini;
     m.fillRect(0, 0, mw, mh);
-    m.fillStyle = 'rgba(120,230,90,0.35)';
+    if (TH === 'war') {
+      m.strokeStyle = 'rgba(93,126,163,0.45)'; m.lineWidth = 1; m.beginPath();
+      for (let gx = 400; gx < WORLD_W; gx += 400) { m.moveTo(gx * sx, 0); m.lineTo(gx * sx, mh); }
+      for (let gy = 400; gy < WORLD_H; gy += 400) { m.moveTo(0, gy * sy); m.lineTo(mw, gy * sy); }
+      m.stroke();
+    }
+    m.fillStyle = TH === 'war' ? 'rgba(90,100,40,0.6)' : TH === 'picnic' ? 'rgba(210,255,150,0.6)' : 'rgba(120,230,90,0.35)';
     for (let i = 0; i < food.length; i += 2) m.fillRect(food[i].x * sx, food[i].y * sy, 1, 1);
     m.fillStyle = 'rgba(140,200,90,0.5)';
     for (const g of gardens) { m.beginPath(); m.arc(g.x * sx, g.y * sy, Math.max(3, GARDEN_R * sx), 0, TAU); m.fill(); }
@@ -3999,7 +4130,7 @@ function drawMinimap() {
 
   // viewport
   const vw = W / cam.zoom, vh = H / cam.zoom;
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.strokeStyle = TH === 'war' ? 'rgba(31,29,24,0.6)' : 'rgba(255,255,255,0.45)';
   ctx.lineWidth = 1;
   ctx.strokeRect(x + (cam.x - vw / 2) * sx, y + (cam.y - vh / 2) * sy, vw * sx, vh * sy);
 
@@ -4047,7 +4178,7 @@ function drawLogo(sk = SKINS[selectedSkin]) {
 // ============================================================
 const music = { ctx: null, master: null, sfxBus: null, noise: null, on: true, next: 0, step: 0 };
 const MUSIC_MAX = 0.2, SFX_MAX = 0.55;
-const settings = { music: 0.7, sfx: 0.8, gfx: 'auto', diff: 'normal' };
+const settings = { music: 0.7, sfx: 0.8, gfx: 'auto', diff: 'normal', theme: 'default' };
 try { Object.assign(settings, JSON.parse(localStorage.getItem('qoth-settings') || '{}')); } catch (e) {}
 // Difficulty presets: AI aggression, reflexes, rival spawn rate and starting sizes, plus XP reward
 const DIFFS = {
@@ -4294,6 +4425,295 @@ document.querySelectorAll('[data-gfx]').forEach(b => b.addEventListener('click',
   settings.gfx = b.dataset.gfx; saveSettings(); applyGfx();
 }));
 
+// ============================================================
+//  Visual themes (looks only: nothing here changes gameplay)
+// ============================================================
+let TH = 'default';   // cached copy of settings.theme, set by applyTheme()
+const TH_INK = '#1f1d18', TH_RED = '#b3261e', TH_GOLD = '#c9a227', TH_GREEN = '#3d6a35';
+function thRng(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+
+// ---------- War Room: a paper field map on a commander's table ----------
+function warGround(g) {
+  const r = thRng(1234);
+  g.fillStyle = '#efe6cf'; g.fillRect(0, 0, WORLD_W, WORLD_H);
+  g.fillStyle = 'rgba(180,160,120,0.35)';
+  for (let i = 0; i < 9000; i++) g.fillRect(r() * WORLD_W, r() * WORLD_H, 2, 2);
+  // coffee-ring stains and pencil smudges
+  for (let i = 0; i < 6; i++) {
+    const x = r() * WORLD_W, y = r() * WORLD_H, rr = 50 + r() * 60;
+    g.strokeStyle = 'rgba(150,110,60,0.12)'; g.lineWidth = 6;
+    g.beginPath(); g.arc(x, y, rr, r() * TAU, r() * TAU + 5); g.stroke();
+  }
+  // contour lines (hills)
+  g.lineWidth = 2;
+  for (let h = 0; h < 16; h++) {
+    const hx = r() * WORLD_W, hy = r() * WORLD_H, R = 120 + r() * 200, n = 3 + Math.floor(r() * 4), sd = r() * 10;
+    g.strokeStyle = 'rgba(160,120,74,0.42)';
+    for (let k = 1; k <= n; k++) {
+      const rad = R * k / n;
+      g.beginPath();
+      for (let i = 0; i <= 72; i++) {
+        const a = i / 72 * TAU, rr = rad * (1 + 0.13 * Math.sin(3 * a + sd + k * 0.3) + 0.07 * Math.sin(5 * a + sd * 2));
+        const px = hx + Math.cos(a) * rr, py = hy + Math.sin(a) * rr * 0.8;
+        i ? g.lineTo(px, py) : g.moveTo(px, py);
+      }
+      g.stroke();
+    }
+    g.fillStyle = 'rgba(160,120,74,0.7)'; g.font = '20px "Courier New", monospace'; g.textAlign = 'center';
+    g.fillText(String(40 + n * 20), hx, hy + 6);
+  }
+  // dirt roads
+  g.strokeStyle = 'rgba(138,106,58,0.45)'; g.lineWidth = 5; g.setLineDash([26, 14]);
+  for (let i = 0; i < 3; i++) {
+    g.beginPath(); g.moveTo(0, r() * WORLD_H);
+    g.bezierCurveTo(WORLD_W * 0.3, r() * WORLD_H, WORLD_W * 0.6, r() * WORLD_H, WORLD_W, r() * WORLD_H); g.stroke();
+  }
+  g.setLineDash([]);
+  // map grid with coordinates
+  g.strokeStyle = 'rgba(93,126,163,0.2)'; g.lineWidth = 1.5; g.beginPath();
+  for (let x = 100; x < WORLD_W; x += 100) { g.moveTo(x, 0); g.lineTo(x, WORLD_H); }
+  for (let y = 100; y < WORLD_H; y += 100) { g.moveTo(0, y); g.lineTo(WORLD_W, y); }
+  g.stroke();
+  g.strokeStyle = 'rgba(93,126,163,0.45)'; g.lineWidth = 3; g.beginPath();
+  for (let x = 400; x < WORLD_W; x += 400) { g.moveTo(x, 0); g.lineTo(x, WORLD_H); }
+  for (let y = 400; y < WORLD_H; y += 400) { g.moveTo(0, y); g.lineTo(WORLD_W, y); }
+  g.stroke();
+  g.fillStyle = 'rgba(93,126,163,0.6)'; g.font = 'bold 22px "Courier New", monospace'; g.textAlign = 'left';
+  for (let x = 0; x < WORLD_W; x += 400) for (let y = 0; y < WORLD_H; y += 400) {
+    g.fillText('ABCDEFGHIJ'[x / 400] + (y / 400 + 1), x + 10, y + 28);
+  }
+}
+function warPuddle(g, pd) {
+  g.save(); g.translate(pd.x, pd.y); g.rotate(pd.rot);
+  g.fillStyle = '#a9c8dc'; g.strokeStyle = '#3d6f93'; g.lineWidth = 3;
+  g.beginPath(); g.ellipse(0, 0, pd.rx, pd.ry, 0, 0, TAU); g.fill(); g.stroke();
+  g.strokeStyle = 'rgba(61,111,147,0.5)'; g.lineWidth = 2;
+  for (let k = -2; k <= 2; k++) {
+    g.beginPath();
+    for (let i = -pd.rx * 0.6; i <= pd.rx * 0.6; i += 6) { const py = k * pd.ry * 0.28 + Math.sin(i * 0.12) * 3; i === -pd.rx * 0.6 ? g.moveTo(i, py) : g.lineTo(i, py); }
+    g.stroke();
+  }
+  g.restore();
+  g.fillStyle = '#2c5878'; g.font = 'italic bold 18px "Courier New", monospace'; g.textAlign = 'center';
+  g.fillText('WATER', pd.x, pd.y + Math.max(pd.rx, pd.ry) * 0.5 + 34);
+}
+function warRock(g, rk) {
+  const pts = rk.pts.map(([px, py]) => [rk.x + px, rk.y + py]);
+  g.fillStyle = '#d3c9ad'; g.strokeStyle = TH_INK; g.lineWidth = 2.5;
+  g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fill(); g.stroke();
+  g.strokeStyle = '#3b3a36'; g.lineWidth = 1.6; g.beginPath();   // hachures: short strokes pointing into the high ground
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length];
+    for (let t = 0.12; t < 1; t += 0.2) {
+      const px = ax + (bx - ax) * t, py = ay + (by - ay) * t, dx = px - rk.x, dy = py - rk.y, d = Math.hypot(dx, dy) || 1;
+      g.moveTo(px, py); g.lineTo(px - dx / d * rk.r * 0.28, py - dy / d * rk.r * 0.28);
+    }
+  }
+  g.stroke();
+}
+function warGarden(g, gd) {
+  g.save(); g.beginPath(); g.arc(gd.x, gd.y, GARDEN_R, 0, TAU); g.fillStyle = 'rgba(61,106,53,0.14)'; g.fill(); g.clip();
+  g.strokeStyle = 'rgba(61,106,53,0.35)'; g.lineWidth = 2; g.beginPath();
+  for (let i = -GARDEN_R * 2; i < GARDEN_R * 2; i += 12) { g.moveTo(gd.x + i, gd.y - GARDEN_R); g.lineTo(gd.x + i + GARDEN_R * 2, gd.y + GARDEN_R); }
+  g.stroke(); g.restore();
+  g.strokeStyle = TH_GREEN; g.lineWidth = 3; g.beginPath(); g.arc(gd.x, gd.y, GARDEN_R, 0, TAU); g.stroke();
+  // tent symbol and a few supply crates
+  g.fillStyle = '#f6f0df'; g.lineWidth = 2.5;
+  g.beginPath(); g.moveTo(gd.x - 22, gd.y + 12); g.lineTo(gd.x, gd.y - 18); g.lineTo(gd.x + 22, gd.y + 12); g.closePath(); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(gd.x, gd.y - 18); g.lineTo(gd.x, gd.y + 12); g.stroke();
+  for (const [dx, dy] of [[-42, 28], [38, 30], [-4, 46]]) warCrate(g, gd.x + dx, gd.y + dy, 7, '#b08850');
+  g.fillStyle = TH_GREEN; g.font = 'bold 17px "Courier New", monospace'; g.textAlign = 'center';
+  g.fillText('SUPPLY DEPOT', gd.x, gd.y - GARDEN_R - 10);
+}
+function warCrate(g, x, y, h, fill) {
+  g.fillStyle = fill; g.strokeStyle = TH_INK; g.lineWidth = 1.6;
+  g.fillRect(x - h, y - h, h * 2, h * 2); g.strokeRect(x - h, y - h, h * 2, h * 2);
+  g.beginPath(); g.moveTo(x - h, y - h); g.lineTo(x + h, y + h); g.moveTo(x + h, y - h); g.lineTo(x - h, y + h); g.stroke();
+}
+function warTunnel(g, h) {
+  const col = TUNNEL_COLORS[h.group];
+  g.fillStyle = 'rgba(239,230,207,0.9)'; g.beginPath(); g.arc(h.x, h.y, HOLE_R + 14, 0, TAU); g.fill();
+  g.fillStyle = '#2a2620'; g.beginPath(); g.arc(h.x, h.y, HOLE_R, 0, TAU); g.fill();
+  g.strokeStyle = TH_INK; g.lineWidth = 3; g.beginPath(); g.arc(h.x, h.y, HOLE_R + 12, 0, TAU); g.stroke();
+  g.strokeStyle = col; g.lineWidth = 3; g.beginPath(); g.arc(h.x, h.y, HOLE_R + 17, 0, TAU); g.stroke();
+  g.strokeStyle = TH_INK; g.lineWidth = 3; g.beginPath();   // four arrows pointing in
+  for (let k = 0; k < 4; k++) {
+    const a = k * Math.PI / 2 + Math.PI / 4, c = Math.cos(a), s = Math.sin(a), o = HOLE_R + 30, i = HOLE_R + 20;
+    g.moveTo(h.x + c * o, h.y + s * o); g.lineTo(h.x + c * i, h.y + s * i);
+    g.moveTo(h.x + c * (i + 6) - s * 5, h.y + s * (i + 6) + c * 5); g.lineTo(h.x + c * i, h.y + s * i); g.lineTo(h.x + c * (i + 6) + s * 5, h.y + s * (i + 6) - c * 5);
+  }
+  g.stroke();
+  g.fillStyle = TH_INK; g.font = 'bold 16px "Courier New", monospace'; g.textAlign = 'center';
+  g.fillText('TUNNEL ' + 'ABC'[h.group], h.x, h.y + HOLE_R + 48);
+}
+function warFood(L, R, T, B) {
+  ctx.beginPath();
+  for (const f of food) {
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    const h = f.r * f.age;
+    ctx.rect(f.x - h, f.y - h, h * 2, h * 2);
+  }
+  ctx.fillStyle = '#7d8a3a'; ctx.fill();
+  ctx.strokeStyle = TH_INK; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath();
+  for (const f of food) {
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    const h = f.r * f.age;
+    ctx.moveTo(f.x - h, f.y - h); ctx.lineTo(f.x + h, f.y + h); ctx.moveTo(f.x + h, f.y - h); ctx.lineTo(f.x - h, f.y + h);
+  }
+  ctx.lineWidth = 0.7; ctx.stroke();
+}
+// Fire Chili as an incendiary canister
+function drawIncendiary(x, y, k, g = ctx) {
+  const s = k * 1.3;
+  g.save(); g.translate(x, y); g.scale(s, s);
+  g.fillStyle = '#c8281c'; g.strokeStyle = TH_INK; g.lineWidth = 1.1;
+  roundRect(g, -6, -9, 12, 17, 3); g.fill(); g.stroke();
+  g.fillStyle = '#555'; g.fillRect(-3, -12, 6, 3); g.strokeRect(-3, -12, 6, 3);
+  g.fillStyle = '#f1ead8';
+  g.beginPath(); g.moveTo(0, -5); g.quadraticCurveTo(4, 0, 1.5, 4); g.quadraticCurveTo(0, 1, -1.5, 4); g.quadraticCurveTo(-4, 0, 0, -5); g.fill();
+  const f = 0.6 + 0.4 * Math.sin(time * 12 + x);
+  g.fillStyle = `rgba(255,170,40,${0.7 * f})`;
+  g.beginPath(); g.moveTo(-2, -12); g.quadraticCurveTo(0, -12 - 6 * f, 2, -12); g.fill();
+  g.restore();
+}
+// Sugar Rush as a parachute supply drop
+function drawSupplyDrop(x, y, k, g = ctx) {
+  const s = k * 1.1;
+  g.save(); g.translate(x, y + Math.sin(time * 2 + x) * 1.5); g.scale(s, s);
+  g.fillStyle = '#f8f5ec'; g.strokeStyle = TH_INK; g.lineWidth = 1.1;
+  g.beginPath(); g.arc(0, -8, 11, Math.PI, 0); g.quadraticCurveTo(5.5, -10, 0, -8); g.quadraticCurveTo(-5.5, -10, -11, -8); g.fill(); g.stroke();
+  g.lineWidth = 0.7; g.beginPath(); g.moveTo(-11, -8); g.lineTo(-3, 4); g.moveTo(11, -8); g.lineTo(3, 4); g.moveTo(0, -8); g.lineTo(0, 4); g.stroke();
+  g.fillStyle = '#fbfbf8'; g.lineWidth = 1; g.fillRect(-4.5, 3, 9, 8); g.strokeRect(-4.5, 3, 9, 8);
+  g.fillStyle = TH_RED; g.fillRect(-0.8, 4.5, 1.6, 5); g.fillRect(-2.5, 6.2, 5, 1.6);
+  g.restore();
+}
+// dashed perimeter around each colony's guard ring
+function warPerimeters(L, R, T, B) {
+  ctx.lineWidth = 1.6 / cam.zoom;
+  ctx.setLineDash([8 / cam.zoom, 6 / cam.zoom]); ctx.lineDashOffset = -time * 12 / cam.zoom;
+  for (const c of colonies) {
+    if (!c.alive || !c.workers.length) continue;
+    const q = c.queen, rr = c.outerR + 6;
+    if (q.x + rr < L || q.x - rr > R || q.y + rr < T || q.y - rr > B) continue;
+    ctx.strokeStyle = c.color; ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.arc(q.x, q.y, rr, 0, TAU); ctx.stroke();
+  }
+  ctx.globalAlpha = 1; ctx.setLineDash([]); ctx.lineDashOffset = 0;
+}
+// red hostile diamond around creatures
+function warHostile(cr) {
+  if (cr.type === 'drone') return;
+  const R = cr.r + (cr.type === 'bee' ? 18 : 12);
+  ctx.strokeStyle = TH_RED; ctx.lineWidth = 2.5 / cam.zoom;
+  ctx.beginPath(); ctx.moveTo(cr.x, cr.y - R); ctx.lineTo(cr.x + R, cr.y); ctx.lineTo(cr.x, cr.y + R); ctx.lineTo(cr.x - R, cr.y); ctx.closePath(); ctx.stroke();
+  if (cr.type === 'bee') {
+    const R2 = R + 7;
+    ctx.lineWidth = 1.2 / cam.zoom;
+    ctx.beginPath(); ctx.moveTo(cr.x, cr.y - R2); ctx.lineTo(cr.x + R2, cr.y); ctx.lineTo(cr.x, cr.y + R2); ctx.lineTo(cr.x - R2, cr.y); ctx.closePath(); ctx.stroke();
+  }
+  const label = { spider: 'HOSTILE', ladybug: 'HOSTILE', wasp: 'RECON', bee: 'HVT' }[cr.type] || 'HOSTILE';
+  ctx.font = `bold ${11 / cam.zoom}px "Courier New", monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = TH_RED; ctx.fillText(label, cr.x, cr.y + R + 9 / cam.zoom);
+}
+function warStar(x, y, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.43 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  ctx.closePath();
+}
+
+// ---------- Garden Picnic: grass, gingham blankets and flowers ----------
+function picnicGround(g) {
+  const r = thRng(777);
+  g.fillStyle = '#6cbb4c'; g.fillRect(0, 0, WORLD_W, WORLD_H);
+  for (let i = 0; i < 140; i++) {   // soft light and dark patches
+    const x = r() * WORLD_W, y = r() * WORLD_H, rr = 80 + r() * 220;
+    const gr = g.createRadialGradient(x, y, 0, x, y, rr);
+    gr.addColorStop(0, r() < 0.5 ? 'rgba(40,110,40,0.22)' : 'rgba(170,220,110,0.22)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill();
+  }
+  g.lineWidth = 2; g.lineCap = 'round';   // grass blades, batched by colour
+  for (const col of ['rgba(60,140,50,0.55)', 'rgba(130,200,90,0.5)', 'rgba(40,110,40,0.45)']) {
+    g.strokeStyle = col; g.beginPath();
+    for (let i = 0; i < 5000; i++) { const x = r() * WORLD_W, y = r() * WORLD_H; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 6, y - 6 - r() * 6); }
+    g.stroke();
+  }
+  // gingham picnic blankets
+  for (let i = 0; i < 6; i++) {
+    const x = 300 + r() * (WORLD_W - 600), y = 300 + r() * (WORLD_H - 600), w = 300 + r() * 180, h = 220 + r() * 120, rot = (r() - 0.5) * 0.7;
+    g.save(); g.translate(x, y); g.rotate(rot);
+    g.fillStyle = 'rgba(20,60,20,0.25)'; g.fillRect(-w / 2 + 8, -h / 2 + 10, w, h);
+    g.fillStyle = '#fbf7ee'; g.fillRect(-w / 2, -h / 2, w, h);
+    g.fillStyle = 'rgba(226,64,64,0.45)';
+    for (let sx = -w / 2; sx < w / 2; sx += 40) g.fillRect(sx, -h / 2, 20, h);
+    for (let sy = -h / 2; sy < h / 2; sy += 40) g.fillRect(-w / 2, sy, w, 20);
+    g.strokeStyle = 'rgba(160,40,40,0.5)'; g.lineWidth = 3; g.strokeRect(-w / 2, -h / 2, w, h);
+    g.restore();
+  }
+  // flowers
+  for (let i = 0; i < 420; i++) {
+    const x = r() * WORLD_W, y = r() * WORLD_H, s = 4 + r() * 4;
+    g.fillStyle = ['#ffffff', '#fff27a', '#ffb3d1', '#c9b3ff'][Math.floor(r() * 4)];
+    for (let p = 0; p < 5; p++) { const a = p / 5 * TAU; g.beginPath(); g.arc(x + Math.cos(a) * s * 0.7, y + Math.sin(a) * s * 0.7, s * 0.5, 0, TAU); g.fill(); }
+    g.fillStyle = '#f5b021'; g.beginPath(); g.arc(x, y, s * 0.35, 0, TAU); g.fill();
+  }
+  g.strokeStyle = 'rgba(30,80,30,0.14)'; g.lineWidth = 1.2; g.beginPath();   // faint mowing lines
+  for (let x = 100; x < WORLD_W; x += 100) { g.moveTo(x, 0); g.lineTo(x, WORLD_H); }
+  for (let y = 100; y < WORLD_H; y += 100) { g.moveTo(0, y); g.lineTo(WORLD_W, y); }
+  g.stroke();
+}
+// food as little green grapes
+function picnicFood(L, R, T, B) {
+  ctx.beginPath();
+  for (const f of food) {
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    const r = f.r * f.age * 1.05;
+    ctx.moveTo(f.x + r, f.y); ctx.arc(f.x, f.y, r, 0, TAU);
+    ctx.moveTo(f.x + f.ox + r * 0.8, f.y + f.oy); ctx.arc(f.x + f.ox, f.y + f.oy, r * 0.8, 0, TAU);
+  }
+  ctx.fillStyle = '#9fd84a'; ctx.fill();
+  ctx.strokeStyle = '#3f7a1e'; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.beginPath();
+  for (const f of food) {
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    const r = f.r * f.age;
+    ctx.moveTo(f.x, f.y - r); ctx.lineTo(f.x + r * 0.6, f.y - r * 1.9);
+  }
+  ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath();
+  for (const f of food) {
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    const r = f.r * f.age * 0.3;
+    ctx.moveTo(f.x - r + r, f.y - r * 1.2); ctx.arc(f.x - r, f.y - r * 1.2, r, 0, TAU);
+  }
+  ctx.fill();
+}
+// a paper plate under each picnic power-up
+function picnicPlate(x, y, k) {
+  ctx.fillStyle = 'rgba(20,60,20,0.25)'; ctx.beginPath(); ctx.ellipse(x + 2, y + 4, 17 * k, 12 * k, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#d9d2c2'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.ellipse(x, y + 2, 16 * k, 11 * k, 0, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(x, y + 2, 11 * k, 7.5 * k, 0, 0, TAU); ctx.stroke();
+}
+
+// ---------- shared hooks ----------
+const TH_LOOK = {
+  default: { clear: '#24160a', border: 'rgba(20,10,3,0.8)', panel: 'rgba(30,18,8,0.72)', panelEdge: 'rgba(212,168,67,0.55)', radius: 12, mini: '#4a3019', bannerFont: '"Trebuchet MS", sans-serif', bannerEdge: 'rgba(40,18,4,0.9)' },
+  war: { clear: '#15202b', border: 'rgba(31,29,24,0.9)', panel: 'rgba(21,32,43,0.86)', panelEdge: 'rgba(201,185,143,0.8)', radius: 3, mini: '#e6dcc2', bannerFont: 'Impact, "Arial Black", sans-serif', bannerEdge: 'rgba(21,32,43,0.95)' },
+  picnic: { clear: '#3f7f33', border: 'rgba(47,93,42,0.9)', panel: 'rgba(38,84,34,0.8)', panelEdge: 'rgba(255,255,255,0.75)', radius: 16, mini: '#5aa643', bannerFont: '"Trebuchet MS", sans-serif', bannerEdge: 'rgba(150,30,30,0.9)' },
+};
+function look() { return TH_LOOK[TH] || TH_LOOK.default; }
+function applyTheme() {
+  TH = TH_LOOK[settings.theme] ? settings.theme : 'default';
+  document.body.dataset.theme = TH;
+  document.querySelectorAll('[data-theme-opt]').forEach(b => b.classList.toggle('on', b.dataset.themeOpt === TH));
+  if (bgCanvas) buildBackground();
+  miniCache.t = -1;
+}
+document.querySelectorAll('[data-theme-opt]').forEach(b => b.addEventListener('click', () => {
+  settings.theme = b.dataset.themeOpt; saveSettings(); applyTheme();
+}));
+
 function openOptions() {
   if (state !== 'playing') return;
   state = 'paused';
@@ -4488,6 +4908,7 @@ function drawSkinPreview(cv, sk, d) {
 }
 
 applyGfx();
+applyTheme();
 renderProfile();
 checkAchievements(false);
 if (!skinUnlocked(SKINS[selectedSkin])) selectedSkin = 0;
