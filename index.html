@@ -161,6 +161,12 @@
     .title-layout .panel.main { order: -1; }
   }
   .skins-label { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #d8c090; margin: -8px 0 8px; }
+  .deathtip {
+    margin: -4px auto 14px; padding: 8px 14px; max-width: 420px; border-radius: 10px;
+    background: rgba(255,210,80,0.12); border: 1px solid rgba(255,210,80,0.4); color: #ffe7a8; font-size: 14px;
+  }
+  .deathtip:empty, .streakline:empty { display: none; }
+  .streakline { margin: -6px 0 12px; color: #ff9a5a; font-weight: bold; }
   .best {
     margin: -4px auto 20px; padding: 8px 16px; max-width: 380px;
     background: rgba(0,0,0,0.28); border: 1px solid rgba(212,168,67,0.45); border-radius: 12px;
@@ -187,6 +193,8 @@
   .skin:active { transform: none; box-shadow: none; }
   .skin.sel { border-color: #ffd54a; background: rgba(255,213,74,0.18); }
   .skin canvas { width: 56px; height: 48px; }
+  .skin.locked { cursor: not-allowed; color: #b8a27a; }
+  .skin.locked canvas { filter: grayscale(1) brightness(0.45); }
   .hint { margin-top: 14px; font-size: 12px; color: #c8ae7a; }
   @media (max-width: 480px) {
     .panel { padding: 20px 18px 24px; }
@@ -236,6 +244,7 @@
   <div class="panel lose">
     <h2>Your Queen Has Fallen</h2>
     <p class="tagline" id="overBy">Your colony was absorbed.</p>
+    <p class="deathtip" id="overTip"></p>
     <div class="newbest hidden">New high score!</div>
     <div class="stats">
       <div class="stat"><div class="v" id="overSize">0</div><div class="l">Final size</div></div>
@@ -245,6 +254,7 @@
     </div>
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
+    <p class="streakline" id="overStreak"></p>
     <button id="restartBtn">Restart</button>
     <div><button class="secondary menuBtn">Main menu</button></div>
   </div>
@@ -278,6 +288,7 @@
     </div>
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
+    <p class="streakline" id="winStreak"></p>
     <button id="againBtn">Play Again</button>
     <div><button class="secondary menuBtn">Main menu</button></div>
   </div>
@@ -316,9 +327,19 @@ const SKINS = [
   { id: 'robot',   name: 'Robot',    color: '#a3adb7', glow: '120,230,255', head: '#56606a', stripes: '#5f6973', visor: '#3ff0ff' },
   { id: 'lava',    name: 'Lava',     color: '#2d1a14', glow: '255,120,30', head: '#1a0d08', cracks: '#ff8a1e' },
   { id: 'candy',   name: 'Candy',    color: '#ff8fc4', glow: '255,170,210', stripes: '#ffffff' },
+  // unlocked by growth milestones
+  { id: 'royal',   name: 'Royal',    color: '#7b3fbf', glow: '190,130,255', head: '#3a1a66', stripes: '#ffd54a', req: 25 },
+  { id: 'diamond', name: 'Diamond',  color: '#bff4ff', glow: '200,250,255', head: '#f2feff', stars: '#ffffff', alpha: 0.8, req: 50 },
+  { id: 'emperor', name: 'Emperor',  color: '#1d1d24', glow: '255,210,80', head: '#0d0d10', stripes: '#ffd54a', visor: '#ffd54a', req: 100 },
+  { id: 'legend',  name: 'Legend',   color: '#ffcf3a', glow: '255,230,120', head: '#fff2a8', stars: '#ffffff', embers: true, workerWings: true, req: 200 },
 ];
+// biggest colony ever reached (live, so skins unlock mid-match)
+let unlockPeak = 0;
+try { unlockPeak = +localStorage.getItem('qoth-unlock') || 0; } catch (e) {}
+try { unlockPeak = Math.max(unlockPeak, JSON.parse(localStorage.getItem('qoth-best') || '{}').peak || 0); } catch (e) {}
+const skinUnlocked = sk => !sk.req || unlockPeak >= sk.req;
 let selectedSkin = 0;
-try { const i = SKINS.findIndex(k => k.id === localStorage.getItem('qoth-skin')); if (i >= 0) selectedSkin = i; } catch (e) {}
+try { const i = SKINS.findIndex(k => k.id === localStorage.getItem('qoth-skin')); if (i >= 0 && skinUnlocked(SKINS[i])) selectedSkin = i; } catch (e) {}
 const SEP_DIST = 10, FIGHT_DIST = 10;
 const CELL = 40;
 // power-ups & structures
@@ -440,6 +461,22 @@ let time = 0;
 let spawnTimer = 10;
 let foodAccum = 0;
 let powerups = [], gardens = [], tunnels = [];
+// game feel
+let shake = 0, shakeX = 0, shakeY = 0, hitStop = 0, deathTimer = 0;
+let banners = [];   // big screen-space announcements
+const STREAK_WINDOW = 6;
+const STREAK_NAMES = ['', '', 'Double Conquest!', 'Triple Conquest!', 'Rampage!', 'Unstoppable!'];
+const MILESTONES = [
+  { at: 25,  title: '25 ANTS!',  perk: 'Your crown grows' },
+  { at: 50,  title: '50 ANTS!',  perk: 'Jewels set in your crown' },
+  { at: 100, title: '100 ANTS!', perk: 'A royal aura surrounds your queen' },
+  { at: 200, title: '200 ANTS!', perk: 'Your crown blazes with gold' },
+];
+function addShake(a) { shake = Math.max(shake, a); }
+function addBanner(text, sub, color, life = 2.2, size = 44) {
+  banners.push({ text, sub, color, life, max: life, size });
+  if (banners.length > 4) banners.shift();
+}
 let powerTimer = 5;
 let stats = { start: 0, kills: 0, peak: 0, finalSize: 0, killedBy: '', endTime: 0 };
 const cam = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.8 };
@@ -569,7 +606,9 @@ function startGame() {
   document.getElementById('optionsBtn').classList.remove('hidden');
   resetWorld(true);
   state = 'playing';
-  stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0 };
+  stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0,
+            streak: 0, bestStreak: 0, lastConquer: -99, milestone: 0, deathCause: '', deathX: 0, deathY: 0 };
+  banners = []; shake = 0; hitStop = 0;
   mouse.x = W / 2; mouse.y = H / 2;
   document.getElementById('titleScreen').classList.add('hidden');
   document.getElementById('overScreen').classList.add('hidden');
@@ -584,6 +623,7 @@ function tryPlayerCharge() {
 }
 
 function startCharge(c, x, y) {
+  c.chargeHit = false;
   if (c.isPlayer) playSfx('charge');
   else if (state === 'playing' && onScreen(c.queen.x, c.queen.y)) playSfx('charge', 0.5);
   c.charge = CHARGE_TIME;
@@ -863,6 +903,9 @@ function fight(a, b) {
   a.vx += dx / d * 120; a.vy += dy / d * 120;
   b.vx -= dx / d * 120; b.vy -= dy / d * 120;
   sparks((a.x + b.x) / 2, (a.y + b.y) / 2);
+  for (const side of [a, b]) {   // first crunch of the player's charge
+    if (side.col.isPlayer && side.col.charge > 0 && !side.col.chargeHit) { side.col.chargeHit = true; addShake(6); }
+  }
   if (state === 'playing' && (a.col.isPlayer || b.col.isPlayer || onScreen(a.x, a.y))) playSfx('fight', a.col.isPlayer || b.col.isPlayer ? 1 : 0.5);
   if (Math.random() < Math.min(0.95, aDie)) killWorker(a, b.col);
   if (Math.random() < Math.min(0.95, bDie)) killWorker(b, a.col);
@@ -1150,7 +1193,7 @@ function antQueenContacts() {
         }
       }
     }
-    if (hit && c.grace <= 0) conquer(hit.col, c);   // colonies in their grace period can't be taken
+    if (hit && c.grace <= 0) conquer(hit.col, c, { via: 'ant', x: hit.x, y: hit.y, attackerCharging: hit.col.charge > 0 });   // colonies in their grace period can't be taken
   }
 }
 
@@ -1167,8 +1210,8 @@ function queenCollisions() {
       const dx = a.queen.x - b.queen.x, dy = a.queen.y - b.queen.y, d = Math.hypot(dx, dy);
       if (d >= QUEEN_R * 2) continue;
       const sa = colonySize(a), sb = colonySize(b);
-      if (sa > sb && b.grace <= 0) conquer(a, b);
-      else if (sb > sa && a.grace <= 0) conquer(b, a);
+      if (sa > sb && b.grace <= 0) conquer(a, b, { via: 'queen' });
+      else if (sb > sa && a.grace <= 0) conquer(b, a, { via: 'queen' });
       else {  // evenly matched: bump apart
         const nx = dx / (d || 1), ny = dy / (d || 1), push = (QUEEN_R * 2 - d) / 2 + 0.5;
         a.queen.x += nx * push; a.queen.y += ny * push;
@@ -1180,7 +1223,7 @@ function queenCollisions() {
   }
 }
 
-function conquer(win, lose) {
+function conquer(win, lose, how = { via: 'ant' }) {
   const loseSize = colonySize(lose);
   lose.alive = false;
   const lq = lose.queen;
@@ -1200,15 +1243,73 @@ function conquer(win, lose) {
 
   if (win.isPlayer) playSfx('conquer');
   else if (!lose.isPlayer && state === 'playing' && onScreen(lq.x, lq.y, 200)) playSfx('rival');
-  if (win.isPlayer) {
+  if (win.isPlayer && state === 'playing') {
     stats.kills++;
     floaters.push({ type: 'text', text: `Conquered ${lose.name}! +${loseSize}`, x: lq.x, y: lq.y - 30, color: '#ffe27a', life: 2, max: 2, size: 22 });
-    if (state === 'playing' && enemyCount() === 0) endGame(true);
-  } else if (lose.isPlayer) {
+    // kill streak: conquer again quickly for escalating bonuses
+    stats.streak = time - stats.lastConquer <= STREAK_WINDOW ? stats.streak + 1 : 1;
+    stats.lastConquer = time;
+    stats.bestStreak = Math.max(stats.bestStreak, stats.streak);
+    if (stats.streak >= 2) {
+      const bonus = 3 * (stats.streak - 1);
+      win.births += bonus;
+      addBanner(STREAK_NAMES[Math.min(stats.streak, 5)], `Streak x${stats.streak}  +${bonus} bonus ants`, stats.streak >= 4 ? '#ff6a3d' : '#ffd54a', 2.2, 40 + Math.min(stats.streak, 5) * 4);
+      playSfx('combo');
+    }
+    addShake(9 + Math.min(stats.streak, 5) * 2);
+    hitStop = Math.max(hitStop, 0.12);
+    if (enemyCount() === 0) endGame(true);
+  } else if (lose.isPlayer && state === 'playing') {
     stats.finalSize = loseSize;
     stats.killedBy = win.name;
-    if (state === 'playing') endGame(false);
+    stats.deathX = how.x ?? lq.x; stats.deathY = how.y ?? lq.y;
+    stats.deathCause = how.via === 'queen' ? 'queen'
+      : lose.charge > 0 ? 'selfCharge'
+      : how.attackerCharging ? 'charged'
+      : Math.hypot(lq.vx, lq.vy) > 90 ? 'running' : 'overrun';
+    startDeathCam(win);
+  } else if (state === 'playing' && onScreen(lq.x, lq.y, 100)) {
+    addShake(4);
   }
+}
+
+// ---- growth milestones: celebration, crown upgrade, permanent skin unlock ----
+function reachMilestone(m) {
+  let sub = m.perk;
+  if (unlockPeak < m.at) {
+    unlockPeak = m.at;
+    try { localStorage.setItem('qoth-unlock', unlockPeak); } catch (e) {}
+    const sk = SKINS.find(k => k.req === m.at);
+    if (sk) { sub += `  \u2022  New skin unlocked: ${sk.name}`; buildSkinPicker(); }
+  }
+  addBanner(m.title, sub, '#9fe08a', 2.6, 46);
+  addShake(5);
+  playSfx('milestone');
+  const q = player.queen, cols = ['#ffd54a', '#ff6a8a', '#6ad0ff', '#9fe08a', '#ffffff', player.color];
+  for (let i = 0; i < 60; i++) {   // confetti burst
+    const a = rand(0, TAU), sp = rand(120, 360);
+    particles.push({ type: 'spark', x: q.x, y: q.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: cols[i % cols.length], life: rand(0.8, 1.4), max: 1.4, r: rand(1.8, 3.2) });
+  }
+  floaters.push({ type: 'ring', x: q.x, y: q.y, color: '#9fe08a', life: 1, max: 1, r: 140 });
+}
+
+// ---- death replay: slow-motion zoom on whoever got you, then Game Over ----
+const DEATH_TIPS = {
+  queen: 'Tip: never touch a queen whose colony is bigger - red size tags mean danger.',
+  selfCharge: 'Tip: charging sends your guards away. Only charge when no rival is close enough to strike back.',
+  charged: 'Tip: stand still when a colony charges you - a braced guard ring holds the wall.',
+  running: 'Tip: a running ring is thin. Keep your distance from rivals, or stop and brace.',
+  overrun: 'Tip: grab Fire Chili before a big fight, and use tunnels to escape bigger colonies.',
+};
+function startDeathCam(killer) {
+  state = 'dying';
+  deathTimer = 2.3;
+  stats.endTime = time - stats.start;
+  hitStop = 0.25;
+  addShake(14);
+  addBanner('CONQUERED!', `by ${killer.name}`, '#ff6a5a', 2.3, 52);
+  document.getElementById('optionsBtn').classList.add('hidden');
+  playSfx('lose');
 }
 
 // ---- high score (kept in this browser) ----
@@ -1233,11 +1334,14 @@ function renderBest() {
 }
 
 function endGame(won) {
-  stats.endTime = time - stats.start;
+  if (won) stats.endTime = time - stats.start;
   const isRecord = recordBest(won, stats.endTime);
   document.querySelectorAll('.newbest').forEach(el => el.classList.toggle('hidden', !isRecord));
   document.getElementById('optionsBtn').classList.add('hidden');
-  playSfx(won ? 'victory' : 'lose');
+  if (won) { playSfx('victory'); addShake(8); }
+  document.getElementById('overTip').textContent = DEATH_TIPS[stats.deathCause] || '';
+  document.getElementById('overStreak').textContent = stats.bestStreak > 1 ? `Best streak: x${stats.bestStreak}` : '';
+  document.getElementById('winStreak').textContent = stats.bestStreak > 1 ? `Best streak: x${stats.bestStreak}` : '';
   if (won) {
     state = 'victory';
     document.getElementById('winSize').textContent = colonySize(player);
@@ -1445,7 +1549,14 @@ function update(dt) {
     }
   }
 
-  if (state === 'playing' && player.alive) stats.peak = Math.max(stats.peak, colonySize(player));
+  if (state === 'playing' && player.alive) {
+    stats.peak = Math.max(stats.peak, colonySize(player));
+    while (stats.milestone < MILESTONES.length && colonySize(player) >= MILESTONES[stats.milestone].at) {
+      reachMilestone(MILESTONES[stats.milestone]);
+      stats.milestone++;
+      player.crownLevel = stats.milestone;
+    }
+  }
 
   // particles
   for (const p of particles) {
@@ -1464,7 +1575,9 @@ let titleFocus = null;
 function updateCamera(dt) {
   let tx, ty, tz;
   const base = clamp(Math.min(W, H) / 760, 0.6, 1.05);
-  if (player && (state === 'playing' || state === 'victory' || state === 'over')) {
+  if (state === 'dying') {
+    tx = stats.deathX; ty = stats.deathY; tz = base * 1.7;
+  } else if (player && (state === 'playing' || state === 'victory' || state === 'over')) {
     tx = player.queen.x; ty = player.queen.y;
     tz = base * (1 - 0.35 * Math.min(1, colonySize(player) / 250));
   } else {
@@ -1531,8 +1644,8 @@ function makeDirtPattern() {
 let TZ = 1, TEX = 0, TEY = 0;
 function setCameraTransform() {
   TZ = DPR * cam.zoom;
-  TEX = DPR * (W / 2 - cam.x * cam.zoom);
-  TEY = DPR * (H / 2 - cam.y * cam.zoom);
+  TEX = DPR * (W / 2 - cam.x * cam.zoom + shakeX);
+  TEY = DPR * (H / 2 - cam.y * cam.zoom + shakeY);
   ctx.setTransform(TZ, 0, 0, TZ, TEX, TEY);
 }
 
@@ -1669,22 +1782,34 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
   ctx.ellipse(3.9, -0.6, 0.6, 0.35, 0, 0, TAU);
   ctx.fill();
 
-  if (isQueen) {  // crown on the head
+  if (isQueen) {  // crown on the head; grows with the colony's milestones
+    const lvl = c.crownLevel || 0, cs = 1 + 0.2 * lvl;
+    if (lvl >= 4) {   // legendary glow behind the crown
+      ctx.fillStyle = `rgba(255,220,90,${0.35 + 0.2 * Math.sin(time * 6)})`;
+      ctx.beginPath(); ctx.arc(4, 0, 3.6 * cs, 0, TAU); ctx.fill();
+    }
     ctx.fillStyle = '#ffd700';
     ctx.strokeStyle = '#7a5200';
     ctx.lineWidth = 0.35;
     ctx.beginPath();
-    ctx.moveTo(2.4, -2.1);
-    ctx.lineTo(5.2, -2.5);
-    ctx.lineTo(3.9, -1.0);
-    ctx.lineTo(5.9, 0);
-    ctx.lineTo(3.9, 1.0);
-    ctx.lineTo(5.2, 2.5);
-    ctx.lineTo(2.4, 2.1);
+    const P = (px, py) => [2.4 + (px - 2.4) * cs, py * cs];
+    ctx.moveTo(...P(2.4, -2.1));
+    ctx.lineTo(...P(5.2, -2.5));
+    ctx.lineTo(...P(3.9, -1.0));
+    ctx.lineTo(...P(5.9, 0));
+    ctx.lineTo(...P(3.9, 1.0));
+    ctx.lineTo(...P(5.2, 2.5));
+    ctx.lineTo(...P(2.4, 2.1));
     ctx.closePath();
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = c.isPlayer ? '#e0283c' : '#3de0ff';
-    ctx.beginPath(); ctx.arc(3.2, 0, 0.55, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.2, 0, 0.55 * cs, 0, TAU); ctx.fill();
+    if (lvl >= 2) {   // side gems
+      ctx.fillStyle = '#3de0ff';
+      ctx.beginPath();
+      ctx.arc(...P(4.6, -1.9), 0.4 * cs, 0, TAU); ctx.moveTo(...P(5.0, 1.9)); ctx.arc(...P(4.6, 1.9), 0.4 * cs, 0, TAU);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = 1;
 }
@@ -1916,6 +2041,17 @@ function render() {
     ctx.beginPath(); ctx.arc(q.x, q.y, 24, 0, TAU); ctx.fill(); ctx.stroke();
   }
 
+  // royal aura for high milestone queens
+  for (const c of colonies) {
+    if (!c.alive || (c.crownLevel || 0) < 3) continue;
+    const q = c.queen, pulse = 0.5 + 0.5 * Math.sin(time * 3);
+    ctx.strokeStyle = `rgba(255,215,90,${0.25 + 0.2 * pulse})`;
+    ctx.lineWidth = 3 / cam.zoom;
+    ctx.beginPath(); ctx.arc(q.x, q.y, 24 + pulse * 4, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,240,170,${0.15 + 0.15 * (1 - pulse)})`;
+    ctx.beginPath(); ctx.arc(q.x, q.y, 30 + (1 - pulse) * 5, 0, TAU); ctx.stroke();
+  }
+
   // queen shadows / glows
   for (const c of colonies) {
     if (!c.alive) continue;
@@ -2021,6 +2157,12 @@ function render() {
 
   // screen space UI
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (state === 'dying') {   // dark red vignette during the replay
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.7);
+    g.addColorStop(0, 'rgba(60,0,0,0)'); g.addColorStop(1, 'rgba(60,0,0,0.65)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  drawBanners();
   if (state === 'playing' || state === 'paused' || state === 'over' || state === 'victory') {
     drawHUD();
     drawMusicHint();
@@ -2211,11 +2353,38 @@ function drawHUD() {
   if (player.frenzy > 0) lines.push([`Fire Chili: ${Math.ceil(player.frenzy)}s`, '#ff7a64']);
   if (player.rush > 0) lines.push([`Sugar Rush: ${Math.ceil(player.rush)}s`, '#7fd4ff']);
   lines.push(player.tunnelCd > 0 ? [`Tunnels: ${Math.ceil(player.tunnelCd)}s`, 'rgba(245,232,200,0.6)'] : ['Tunnels: ready', 'rgba(245,232,200,0.8)']);
+  const sinceConquer = time - stats.lastConquer;
+  if (state === 'playing' && stats.streak >= 1 && sinceConquer <= STREAK_WINDOW) {
+    lines.push([`Streak x${stats.streak} - next conquest in ${Math.ceil(STREAK_WINDOW - sinceConquer)}s for bonus!`, '#ffb060']);
+  }
   const onGarden = gardens.find(g => g.owner === player);
   if (onGarden) lines.push(['Farming fungus garden', '#b8ff8c']);
   else if (gardens.some(g => g.contested && dist(g.x, g.y, player.queen.x, player.queen.y) < GARDEN_R)) lines.push(['Garden contested!', '#ff8a70']);
   ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
   lines.forEach(([t, col], i) => { ctx.fillStyle = col; ctx.fillText(t, x + 4, y + h + 36 + i * 18); });
+}
+
+function drawBanners() {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  banners.forEach((b, i) => {
+    const age = b.max - b.life;
+    const pop = age < 0.18 ? 1 + 0.6 * (1 - age / 0.18) : 1;     // punch in
+    const alpha = Math.min(1, b.life / 0.4);
+    const y = H * 0.16 + 20 + i * 76;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(W / 2, y); ctx.scale(pop, pop);
+    ctx.font = `900 ${b.size}px "Trebuchet MS", sans-serif`;
+    ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(40,18,4,0.9)'; ctx.lineJoin = 'round';
+    ctx.strokeText(b.text, 0, 0);
+    ctx.fillStyle = b.color; ctx.fillText(b.text, 0, 0);
+    if (b.sub) {
+      ctx.font = 'bold 17px "Trebuchet MS", sans-serif';
+      ctx.lineWidth = 4; ctx.strokeText(b.sub, 0, b.size * 0.62);
+      ctx.fillStyle = '#fff4d6'; ctx.fillText(b.sub, 0, b.size * 0.62);
+    }
+    ctx.restore();
+  });
 }
 
 function drawMusicHint() {
@@ -2510,7 +2679,7 @@ function noiseBurst(t, dur, vol, freq, type = 'highpass') {
   src.start(t); src.stop(t + dur + 0.03);
 }
 // minimum gap (ms) between repeats of each sound, so swarms don't turn into noise
-const SFX_GAP = { eat: 70, hatch: 110, fight: 80, charge: 150, power: 200, tunnel: 200, conquer: 300, rival: 400, lose: 500, victory: 500, click: 40, garden: 350 };
+const SFX_GAP = { combo: 300, milestone: 400, eat: 70, hatch: 110, fight: 80, charge: 150, power: 200, tunnel: 200, conquer: 300, rival: 400, lose: 500, victory: 500, click: 40, garden: 350 };
 function playSfx(name, vol = 1) {
   if (!music.ctx || settings.sfx <= 0 || music.ctx.state !== 'running') return;
   const nowMs = performance.now();
@@ -2529,6 +2698,8 @@ function playSfx(name, vol = 1) {
     case 'lose':    [67, 64, 60, 55].forEach((m, i) => tone(midi(m), t + i * 0.18, 0.45, 'triangle', 0.16 * vol)); break;
     case 'victory': [60, 64, 67, 72, 67, 72, 76, 79].forEach((m, i) => tone(midi(m + 12), t + i * 0.11, 0.35, 'triangle', 0.15 * vol)); break;
     case 'garden':  tone(1500, t, 0.08, 'sine', 0.05 * vol, 1900); break;
+    case 'combo':     [72, 76, 79, 84, 88].forEach((m, i) => tone(midi(m), t + i * 0.05, 0.25, 'square', 0.07 * vol)); tone(midi(96), t + 0.25, 0.4, 'triangle', 0.1 * vol); break;
+    case 'milestone': [60, 67, 72, 76, 79, 84].forEach((m, i) => tone(midi(m + 12), t + i * 0.07, 0.5, 'triangle', 0.13 * vol)); noiseBurst(t, 0.6, 0.05 * vol, 6000); break;
     case 'click':   tone(1100, t, 0.04, 'triangle', 0.08 * vol, 800); break;
   }
 }
@@ -2598,7 +2769,17 @@ function frame(now) {
   if (dt > 0.05) dt = 0.05;
   // sub-step so fast chargers can't skip past guards during a slow frame
   const steps = Math.ceil(dt / (1 / 60) - 0.01);
-  if (state !== 'paused') for (let i = 0; i < steps; i++) update(dt / steps);
+  const realDt = dt;
+  if (hitStop > 0) hitStop -= realDt;                           // freeze frame on big hits
+  else if (state !== 'paused') {
+    const scale = state === 'dying' ? 0.3 : 1;                  // slow motion during the death replay
+    for (let i = 0; i < steps; i++) update(dt * scale / steps);
+  }
+  if (state === 'dying') { deathTimer -= realDt; if (deathTimer <= 0) endGame(false); }
+  shake = Math.max(0, shake - realDt * 30);
+  shakeX = (Math.random() * 2 - 1) * shake; shakeY = (Math.random() * 2 - 1) * shake;
+  for (const b of banners) b.life -= realDt;
+  banners = banners.filter(b => b.life > 0);
   render();
   requestAnimationFrame(frame);
 }
@@ -2615,14 +2796,17 @@ function fillSkinPicker(box) {
   box.innerHTML = '';
   SKINS.forEach((sk, i) => {
     const btn = document.createElement('button');
-    btn.className = 'skin' + (i === selectedSkin ? ' sel' : '');
+    const locked = !skinUnlocked(sk);
+    btn.className = 'skin' + (i === selectedSkin ? ' sel' : '') + (locked ? ' locked' : '');
     btn.dataset.i = i;
+    if (locked) btn.title = `Reach ${sk.req} ants in a match to unlock`;
     const cv = document.createElement('canvas');
     const d = Math.min(2, window.devicePixelRatio || 1);
     cv.width = 56 * d; cv.height = 48 * d;
     btn.appendChild(cv);
-    btn.appendChild(document.createTextNode(sk.name));
+    btn.appendChild(document.createTextNode(locked ? `Reach ${sk.req}` : sk.name));
     btn.addEventListener('click', () => {
+      if (!skinUnlocked(sk)) return;
       selectedSkin = i;
       try { localStorage.setItem('qoth-skin', sk.id); } catch (e) {}
       document.querySelectorAll('.skin').forEach(b => b.classList.toggle('sel', +b.dataset.i === i));
