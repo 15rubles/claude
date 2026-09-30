@@ -144,7 +144,7 @@
       <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
     <button id="playBtn">Play</button>
-    <div class="hint">Tip: charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
+    <div class="hint">Tip: stand still to brace your guards. Charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
   </div>
 </div>
 
@@ -188,9 +188,8 @@ const QUEEN_R = 13, WORKER_R = 5, FOOD_R = 3.5;
 const PLAYER_SPEED = 220;
 const AI_SPEED = 185, AI_FLEE_SPEED = 180;
 const WORKER_SPEED = 270, CHARGE_SPEED = 380;
-const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 5;
-const RING0 = 30, RING_GAP = 11, RING_SPACING = 10.5;   // guard ring layout around the queen
-const GUARD_REACH = 40;                                  // how far guards step out to intercept intruders
+const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 3;
+const RING0 = 36, RING_GAP = 11, RING_SPACING = 10.5;   // guard ring layout around the queen
 const FOOD_MAX = 420, FOOD_RESPAWN_RATE = 9;   // crumbs per second while below max
 const FOOD_PER_WORKER = 3, MAX_WORKERS = 400;
 const START_ENEMIES = 8, MAX_ENEMIES = 14;
@@ -312,7 +311,8 @@ function makeColony(x, y, workers, name, color, isPlayer) {
     charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
     workers: [],
     queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 }, outerR: RING0,
-    ai: { mode: 'wander', target: null, food: null, think: 0, wx: x, wy: y },
+    ai: { mode: 'wander', target: null, food: null, think: 0, react: rand(0, 0.2), wx: x, wy: y,
+          chargeTarget: null, aggro: rand(0.85, 1.3), orbit: Math.random() < 0.5 ? -1 : 1 },
   };
   for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
   return c;
@@ -461,23 +461,75 @@ function updatePlayer(c, dt) {
 // ============================================================
 //  AI
 // ============================================================
+const STRIKE_RANGE = 340;   // how far an AI will launch a charge from (charge covers ~760px)
+
+// Count enemy workers that stand between an attacker's queen and a target queen,
+// plus the inner guard hugging the target. These are what a charge must break through.
+function blockersOnPath(fromQ, o) {
+  const tq = o.queen;
+  const sx = tq.x - fromQ.x, sy = tq.y - fromQ.y, L2 = sx * sx + sy * sy || 1;
+  let n = 0;
+  for (const w of o.workers) {
+    const dq = (w.x - tq.x) ** 2 + (w.y - tq.y) ** 2;
+    if (dq < 28 * 28) { n++; continue; }
+    const t = clamp(((w.x - fromQ.x) * sx + (w.y - fromQ.y) * sy) / L2, 0, 1);
+    const px = fromQ.x + sx * t, py = fromQ.y + sy * t;
+    if ((w.x - px) ** 2 + (w.y - py) ** 2 < 18 * 18) n++;
+  }
+  return n;
+}
+
+// Look for a chance to charge an enemy queen, regardless of relative colony size.
+function aiStrike(c) {
+  if (c.charge > 0 || c.chargeCd > 0 || c.workers.length < 2) return false;
+  const q = c.queen, my = c.workers.length;
+  let best = null, bestOdds = 0;
+  for (const o of colonies) {
+    if (o === c || !o.alive) continue;
+    const tq = o.queen, d = dist(q.x, q.y, tq.x, tq.y);
+    if (d > STRIKE_RANGE) continue;
+    const blockers = blockersOnPath(q, o);
+    let odds = my * c.ai.aggro * (1.5 - d / STRIKE_RANGE) / (2.5 * blockers + 2);
+    if (o.charge > 0) odds *= 1.5;                                        // her guard is away: she's exposed
+    if (colonySize(o) > my && d < 220) odds *= 1.6;                       // cornered: strike first
+    if (o.charge > 0 && dist(o.chargeX, o.chargeY, q.x, q.y) < 200) odds *= 1.5; // counter-attack
+    if (odds > bestOdds) { bestOdds = odds; best = o; }
+  }
+  if (best && bestOdds > 1) {
+    c.ai.chargeTarget = best;
+    startCharge(c, best.queen.x, best.queen.y);
+    return true;
+  }
+  return false;
+}
+
 function aiThink(c) {
   const q = c.queen, ai = c.ai, my = colonySize(c);
+  ai.target = null;
+
+  // 1) an enemy charge is coming at us: back away and let the guard ring absorb it
+  for (const o of colonies) {
+    if (o === c || !o.alive || o.charge <= 0) continue;
+    if (dist(o.chargeX, o.chargeY, q.x, q.y) < 220) { ai.mode = 'evade'; ai.target = o; return; }
+  }
+
   let threat = null, threatD = Infinity, prey = null, preyScore = -Infinity;
   for (const o of colonies) {
     if (o === c || !o.alive) continue;
     const d = dist(q.x, q.y, o.queen.x, o.queen.y);
     const os = colonySize(o);
-    if (os > my && d < 380 && d < threatD) { threat = o; threatD = d; }
-    if (os < my && d < 520) {
-      const score = (my - os) / (my + 1) - d / 520;
+    if (os > my * 1.4 * ai.aggro && d < 360 && d < threatD) { threat = o; threatD = d; }
+    if (os <= my * 1.4 * ai.aggro && d < 650) {
+      const score = (my + 5) / (os + 5) - d / 650 + (o.isPlayer ? 0.15 : 0);
       if (score > preyScore) { preyScore = score; prey = o; }
     }
   }
-  if (threat && (!prey || threatD < 260)) { ai.mode = 'flee'; ai.target = threat; return; }
-  if (prey) { ai.mode = 'chase'; ai.target = prey; return; }
+  // 2) a much bigger colony is close: run, unless we are already hunting something closer
+  if (threat && (!prey || threatD < 240)) { ai.mode = 'flee'; ai.target = threat; return; }
+  // 3) hunt: overwhelm smaller colonies, stalk comparable ones and wait for an opening
+  if (prey) { ai.mode = colonySize(prey) < my * 0.7 ? 'chase' : 'stalk'; ai.target = prey; return; }
 
-  // look for food
+  // 4) food
   let best = null, bestD = 340;
   const gx = (q.x / CELL) | 0, gy = (q.y / CELL) | 0;
   for (let yy = gy - 8; yy <= gy + 8; yy++) {
@@ -493,6 +545,7 @@ function aiThink(c) {
   }
   if (best) { ai.mode = 'food'; ai.food = best; return; }
 
+  // 5) wander
   if (ai.mode !== 'wander' || dist(q.x, q.y, ai.wx, ai.wy) < 60) {
     ai.wx = clamp(q.x + rand(-700, 700), 150, WORLD_W - 150);
     ai.wy = clamp(q.y + rand(-700, 700), 150, WORLD_H - 150);
@@ -500,37 +553,68 @@ function aiThink(c) {
   ai.mode = 'wander';
 }
 
+function wallAvoid(q, v) {
+  const m = 260;
+  if (q.x < m) v.x += (m - q.x) / m * 1.6;
+  if (q.x > WORLD_W - m) v.x -= (q.x - (WORLD_W - m)) / m * 1.6;
+  if (q.y < m) v.y += (m - q.y) / m * 1.6;
+  if (q.y > WORLD_H - m) v.y -= (q.y - (WORLD_H - m)) / m * 1.6;
+}
+
 function updateAI(c, dt) {
   const q = c.queen, ai = c.ai;
   ai.think -= dt;
-  if (ai.think <= 0) { ai.think = rand(0.2, 0.45); aiThink(c); }
-  let tx = 0, ty = 0, sp = AI_SPEED * 0.6;
+  if (ai.think <= 0) { ai.think = rand(0.2, 0.4); aiThink(c); }
+  // quick reflexes: check for openings several times a second
+  ai.react -= dt;
+  if (ai.react <= 0) { ai.react = rand(0.08, 0.16); if (aiStrike(c)) ai.think = 0; }
 
-  if (ai.mode === 'flee' && ai.target && ai.target.alive) {
-    const tq = ai.target.queen;
+  // steer our charge onto where the target queen is heading
+  if (c.charge > 0 && ai.chargeTarget && ai.chargeTarget.alive) {
+    const tq = ai.chargeTarget.queen;
+    c.chargeX = tq.x + tq.vx * 0.15; c.chargeY = tq.y + tq.vy * 0.15;
+  }
+
+  const v = { x: 0, y: 0 };
+  let sp = AI_SPEED * 0.6;
+  const tgt = ai.target && ai.target.alive ? ai.target : null;
+
+  if (c.charge > 0 && ai.chargeTarget && ai.chargeTarget.alive) {
+    // our guard is out attacking: keep the queen back out of reach
+    const tq = ai.chargeTarget.queen;
     const dx = q.x - tq.x, dy = q.y - tq.y, d = Math.hypot(dx, dy) || 1;
-    tx = dx / d; ty = dy / d;
-    const m = 260;   // steer away from walls so fleeing queens don't pin themselves
-    if (q.x < m) tx += (m - q.x) / m * 1.6;
-    if (q.x > WORLD_W - m) tx -= (q.x - (WORLD_W - m)) / m * 1.6;
-    if (q.y < m) ty += (m - q.y) / m * 1.6;
-    if (q.y > WORLD_H - m) ty -= (q.y - (WORLD_H - m)) / m * 1.6;
-    sp = AI_FLEE_SPEED;
-  } else if (ai.mode === 'chase' && ai.target && ai.target.alive) {
-    const tq = ai.target.queen;
+    if (d < 300) { v.x = dx / d; v.y = dy / d; sp = AI_FLEE_SPEED * 0.8; }
+    wallAvoid(q, v);
+  } else if (ai.mode === 'evade' && tgt) {
+    const dx = q.x - tgt.chargeX, dy = q.y - tgt.chargeY, d = Math.hypot(dx, dy) || 1;
+    v.x = dx / d; v.y = dy / d; sp = AI_FLEE_SPEED;
+    wallAvoid(q, v);
+  } else if (ai.mode === 'flee' && tgt) {
+    const dx = q.x - tgt.queen.x, dy = q.y - tgt.queen.y, d = Math.hypot(dx, dy) || 1;
+    v.x = dx / d; v.y = dy / d; sp = AI_FLEE_SPEED;
+    wallAvoid(q, v);
+  } else if (ai.mode === 'chase' && tgt) {
+    const tq = tgt.queen;
+    v.x = tq.x + tq.vx * 0.3 - q.x; v.y = tq.y + tq.vy * 0.3 - q.y; sp = AI_SPEED;
+  } else if (ai.mode === 'stalk' && tgt) {
+    // circle the target just inside strike range, closing in when she is exposed
+    const tq = tgt.queen;
     const dx = tq.x - q.x, dy = tq.y - q.y, d = Math.hypot(dx, dy) || 1;
-    tx = dx / d; ty = dy / d; sp = AI_SPEED;
-    if (d < 220 && c.charge <= 0 && c.chargeCd <= 0) startCharge(c, tq.x, tq.y);
-    if (c.charge > 0) { c.chargeX = tq.x; c.chargeY = tq.y; }
+    const want = tgt.charge > 0 ? 120 : 230;
+    const radial = clamp((d - want) / 80, -1, 1);
+    v.x = dx / d * radial - dy / d * ai.orbit * 0.8;
+    v.y = dy / d * radial + dx / d * ai.orbit * 0.8;
+    sp = AI_SPEED;
+    wallAvoid(q, v);
   } else if (ai.mode === 'food' && ai.food && !ai.food.dead) {
-    tx = ai.food.x - q.x; ty = ai.food.y - q.y; sp = AI_SPEED * 0.8;
+    v.x = ai.food.x - q.x; v.y = ai.food.y - q.y; sp = AI_SPEED * 0.8;
   } else {
     if (ai.mode !== 'wander') { ai.mode = 'wander'; ai.think = 0; }
-    tx = ai.wx - q.x; ty = ai.wy - q.y; sp = AI_SPEED * 0.6;
-    if (Math.hypot(tx, ty) < 50) ai.think = 0;
+    v.x = ai.wx - q.x; v.y = ai.wy - q.y; sp = AI_SPEED * 0.6;
+    if (Math.hypot(v.x, v.y) < 50) ai.think = 0;
   }
-  const n = Math.hypot(tx, ty) || 1;
-  steerQueen(q, tx / n * sp, ty / n * sp, dt, 4);
+  const n = Math.hypot(v.x, v.y);
+  steerQueen(q, n > 0.001 ? v.x / n * sp : 0, n > 0.001 ? v.y / n * sp : 0, dt, 4);
 }
 
 // ============================================================
@@ -554,12 +638,14 @@ function buildGrids() {
 
 function fight(a, b) {
   if (a.fightCd > 0 || b.fightCd > 0) return;
-  a.fightCd = b.fightCd = 0.35;
+  a.fightCd = b.fightCd = 0.2;
   const sa = colonySize(a.col), sb = colonySize(b.col);
   const pa = (sa + 1) / (sa + sb + 2);  // share of strength for a's side
   let aDie = 0.9 * (1 - pa), bDie = 0.9 * pa;
-  if (a.col.charge > 0) bDie *= 1.3;
-  if (b.col.charge > 0) aDie *= 1.3;
+  // guards holding their ring fight better than chargers crashing into it
+  const ac = a.col.charge > 0, bc = b.col.charge > 0;
+  if (ac && !bc) { aDie *= 1.25; bDie *= 0.75; }
+  if (bc && !ac) { bDie *= 1.25; aDie *= 0.75; }
   // knock apart
   const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1;
   a.vx += dx / d * 120; a.vy += dy / d * 120;
@@ -625,10 +711,19 @@ function interactions(dt) {
             } else {
               if (d2 < 38 * 38 && d2 < w.ed * w.ed) { w.ed = Math.sqrt(d2); w.ex = o.x; w.ey = o.y; }
               if (d2 < FIGHT2 && w.id < o.id) {
-                // enemy ants can't pass through each other, so a guard ring actually blocks
-                const d = Math.sqrt(d2) || 0.01, push = (FIGHT_DIST - d) / 2;
-                w.x += dx / d * push; w.y += dy / d * push;
-                o.x -= dx / d * push; o.y -= dy / d * push;
+                // enemy ants can't pass through each other, so a guard ring actually blocks.
+                // Guards holding formation brace against chargers and give far less ground.
+                const d = Math.sqrt(d2) || 0.01, nx = dx / d, ny = dy / d, overlap = FIGHT_DIST - d;
+                const wa = w.col.charge > 0, oa = o.col.charge > 0;
+                const ww = wa === oa ? 0.5 : wa ? 0.85 : 0.15;   // share of the correction w takes
+                w.x += nx * overlap * ww; w.y += ny * overlap * ww;
+                o.x -= nx * overlap * (1 - ww); o.y -= ny * overlap * (1 - ww);
+                // inelastic: cancel the closing speed so chargers stop at the wall instead of tunnelling
+                const rv = (w.vx - o.vx) * nx + (w.vy - o.vy) * ny;
+                if (rv < 0) {
+                  w.vx -= rv * nx * ww; w.vy -= rv * ny * ww;
+                  o.vx += rv * nx * (1 - ww); o.vy += rv * ny * (1 - ww);
+                }
                 fight(w, o);
               }
               if (w.dead) break;
@@ -698,6 +793,27 @@ function updateWorkers(c, dt) {
   const charging = c.charge > 0;
   const Rc = 8 + 3.5 * Math.sqrt(n);   // tight attack cluster around the charge point
 
+  // which side is the enemy pressing from? guards bunch up on that side of the ring
+  let tvx = 0, tvy = 0, tcount = 0;
+  const scan = outerR + 70, cr = Math.ceil(scan / CELL);
+  const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
+  for (let yy = Math.max(0, gy - cr); yy <= Math.min(GROWS - 1, gy + cr); yy++) {
+    for (let xx = Math.max(0, gx - cr); xx <= Math.min(GCOLS - 1, gx + cr); xx++) {
+      for (const e of antGrid[yy * GCOLS + xx]) {
+        if (e.col === c || e.dead) continue;
+        const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy);
+        if (d > scan || d < 0.01) continue;
+        tvx += dx / d; tvy += dy / d; tcount++;
+      }
+    }
+  }
+  const tmag = Math.hypot(tvx, tvy);
+  // a braced (slow) queen lets the guards reorganise fully; a running ring can only shift a little
+  const shift = Math.hypot(q.vx, q.vy) < 90 ? 0.55 : 0.25;
+  const squeeze = tcount >= 2 && !charging ? shift * Math.min(1, tcount / 8) * Math.min(1, tmag / tcount + 0.2) : 0;
+  const threatAng = Math.atan2(tvy, tvx);
+  c.threatSqueeze = squeeze;
+
   let idx = 0;
   for (let ring = 0; idx < n; ring++) {
     const r = RING0 + ring * RING_GAP;
@@ -705,13 +821,19 @@ function updateWorkers(c, dt) {
     const rot = time * 0.22 * (ring % 2 ? -1 : 1) + ring * 0.7 + c.id;
     for (let j = 0; j < cnt; j++) {
       const w = c.workers[idx + j];
-      const a = rot + j / cnt * TAU;
+      let a = rot + j / cnt * TAU;
+      if (squeeze > 0) {
+        const rel = ((a - threatAng + Math.PI) % TAU + TAU) % TAU - Math.PI;
+        a = threatAng + rel * (1 - squeeze);
+      }
       let tx = q.x + Math.cos(a) * r, ty = q.y + Math.sin(a) * r;
       let maxS = WORKER_SPEED, guarding = false;
       if (charging) {
         tx = c.chargeX + w.ox * Rc; ty = c.chargeY + w.oy * Rc; maxS = CHARGE_SPEED;
-      } else if (w.ed < 38 && dist(w.ex, w.ey, q.x, q.y) < outerR + GUARD_REACH) {
-        // guards step out to intercept enemy ants that come close to the queen
+        if (w.ed < 13) maxS = 25;   // locked in melee: must kill the blocker to push on
+      } else if (w.ed < 38 && dist(w.ex, w.ey, q.x, q.y) < r + 3) {
+        // hold the wall against ants outside the ring; only break formation to
+        // run down an intruder that has already slipped inside this guard's ring
         tx = w.ex; ty = w.ey; maxS = WORKER_SPEED * 1.15;
       } else guarding = true;
       const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
@@ -745,7 +867,51 @@ function updateWorkers(c, dt) {
 // ============================================================
 //  Enemy ant touches a queen: that queen's colony is conquered
 // ============================================================
+// Count ants of colony `col` within `r` of (x, y) using the ant grid,
+// optionally only those within `maxQ` of the point (qx, qy).
+function countNear(col, x, y, r, qx = 0, qy = 0, maxQ = Infinity) {
+  const gx = clamp((x / CELL) | 0, 0, GCOLS - 1), gy = clamp((y / CELL) | 0, 0, GROWS - 1), r2 = r * r;
+  let n = 0;
+  for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1); yy++)
+    for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1); xx++)
+      for (const w of antGrid[yy * GCOLS + xx])
+        if (w.col === col && !w.dead && (w.x - x) ** 2 + (w.y - y) ** 2 < r2 &&
+            (maxQ === Infinity || (w.x - qx) ** 2 + (w.y - qy) ** 2 < maxQ * maxQ)) n++;
+  return n;
+}
+
+// The guard ring as a wall: an enemy ant can only slip past a queen's inner ring
+// where its side locally outnumbers her guards. Otherwise it is shoved back out.
+function guardWalls() {
+  const wallR = RING0 + 2;
+  for (const c of colonies) {
+    if (!c.alive || !c.workers.length) continue;
+    const q = c.queen;
+    // a queen standing her ground lets the guards brace; a running ring is looser
+    const brace = Math.hypot(q.vx, q.vy) < 90 ? 2.2 : 1.3;
+    const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
+    for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1); yy++) {
+      for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1); xx++) {
+        for (const e of antGrid[yy * GCOLS + xx]) {
+          if (e.dead || e.col === c) continue;
+          const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy);
+          if (d >= wallR) continue;
+          const defenders = countNear(c, e.x, e.y, 32);
+          const attackers = countNear(e.col, e.x, e.y, 32, q.x, q.y, wallR + 10);   // only the front line
+          if (defenders * brace >= attackers) {
+            const nx = d > 0.01 ? dx / d : 1, ny = d > 0.01 ? dy / d : 0;
+            e.x = q.x + nx * wallR; e.y = q.y + ny * wallR;
+            const vin = e.vx * nx + e.vy * ny;
+            if (vin < 0) { e.vx -= vin * nx; e.vy -= vin * ny; }
+          }
+        }
+      }
+    }
+  }
+}
+
 function antQueenContacts() {
+  guardWalls();
   for (const c of colonies) {
     if (!c.alive) continue;
     const q = c.queen;
@@ -1413,7 +1579,9 @@ function frame(now) {
   let dt = (now - last) / 1000;
   last = now;
   if (dt > 0.05) dt = 0.05;
-  if (dt > 0) update(dt);
+  // sub-step so fast chargers can't skip past guards during a slow frame
+  const steps = Math.ceil(dt / (1 / 60) - 0.01);
+  for (let i = 0; i < steps; i++) update(dt / steps);
   render();
   requestAnimationFrame(frame);
 }
