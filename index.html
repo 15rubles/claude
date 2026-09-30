@@ -164,7 +164,12 @@
   .title-layout .panel.rules { max-width: 410px; text-align: left; padding: 22px 22px; }
   .title-layout .panel.profile { max-width: 340px; padding: 22px 22px; }
   .lvlbox { display: flex; gap: 12px; align-items: center; background: rgba(0,0,0,0.28); border: 1px solid rgba(201,160,255,0.45); border-radius: 12px; padding: 10px 12px; text-align: left; }
-  .lvlbadge { width: 58px; height: 58px; border-radius: 50%; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  .lvlbadge { width: 64px; height: 64px; flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  }
+  .badgerow { display: flex; justify-content: space-between; margin: 8px 2px 0; }
+  .badgerow canvas { cursor: help; }
+  .xpbadge { vertical-align: middle; flex-shrink: 0; }
+  .oldbadge {
     background: radial-gradient(circle at 35% 30%, #d9c0ff, #7a4ad0); box-shadow: 0 0 14px rgba(170,120,255,0.5); color: #fff; }
   .lvlbadge small { font-size: 9px; letter-spacing: 1px; }
   .lvlbadge b { font-size: 24px; line-height: 1; }
@@ -315,13 +320,14 @@
   <div class="panel profile">
     <h3>Your Colony</h3>
     <div class="lvlbox">
-      <div class="lvlbadge"><small>LEVEL</small><b id="lvlNum">1</b></div>
+      <canvas id="lvlBadge" class="lvlbadge"></canvas>
       <div class="lvlinfo">
         <div class="lvltitle" id="lvlTitle">Larva</div>
         <div class="xpbar"><i id="lvlBar"></i></div>
         <div class="xpsmall" id="lvlXp"></div>
       </div>
     </div>
+    <div class="badgerow" id="badgeRow"></div>
     <div class="xpsmall next" id="lvlNext"></div>
     <div id="bestBox" class="best"></div>
     <div class="skins-label">Cosmetics</div>
@@ -1506,8 +1512,10 @@ function recordBest(won, survived) {
 const prog = { xp: 0, level: 1, crown: 'gold', trail: 'none', kfx: 'none' };
 try { Object.assign(prog, JSON.parse(localStorage.getItem('qoth-prog') || '{}')); } catch (e) {}
 function saveProg() { try { localStorage.setItem('qoth-prog', JSON.stringify(prog)); } catch (e) {} }
-function xpNeeded(l) { return 150 + (l - 1) * 90; }
-const TITLES = [[1, 'Larva'], [2, 'Egg Carrier'], [3, 'Forager'], [5, 'Soldier'], [7, 'Hive Mother'], [10, 'Swarm Lord'], [14, 'Empress'], [18, 'Queen of Queens']];
+function xpNeeded(l) { return Math.min(1000, 150 + (l - 1) * 90); }   // ramps up, then 1000 XP per level to 100
+while (prog.xp >= xpNeeded(prog.level)) { prog.xp -= xpNeeded(prog.level); prog.level++; }   // settle saved progress
+const TITLES = [[1, 'Larva'], [2, 'Egg Carrier'], [3, 'Forager'], [5, 'Soldier'], [7, 'Hive Mother'], [10, 'Swarm Lord'], [14, 'Empress'], [18, 'Queen of Queens'],
+  [25, 'Warlord'], [35, 'Matriarch'], [50, 'Grand Matriarch'], [70, 'Hive Deity'], [90, 'Living Legend'], [100, 'Eternal Queen']];
 function titleFor(l) { let t = TITLES[0][1]; for (const [lv, n] of TITLES) if (l >= lv) t = n; return t; }
 const COSMETICS = {
   crown: [
@@ -1537,6 +1545,7 @@ const COSMETICS = {
 const COS_LABEL = { crown: 'Crown', trail: 'Trail', kfx: 'Conquest FX' };
 function levelRewards(l) {
   const out = [];
+  if (l === 100 || (l % 10 === 0 && l <= 90)) out.push(`Badge: ${BADGE_NAMES[badgeTier(l)]}`);
   for (const [lv, n] of TITLES) if (lv === l) out.push(`Title: ${n}`);
   for (const k of Object.keys(COSMETICS)) for (const o of COSMETICS[k]) if (o.level === l) out.push(`${COS_LABEL[k]}: ${o.name}`);
   return out;
@@ -1564,7 +1573,17 @@ function trailSwatch(id) {
 }
 function renderProfile() {
   const need = xpNeeded(prog.level);
-  document.getElementById('lvlNum').textContent = prog.level;
+  const bc = document.getElementById('lvlBadge');
+  paintBadge(bc, 64, prog.level);
+  bc.title = `${BADGE_NAMES[badgeTier(prog.level)]} badge - level ${prog.level}`;
+  const row = document.getElementById('badgeRow');
+  row.innerHTML = '';
+  [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].forEach(l => {
+    const cv = document.createElement('canvas');
+    paintBadge(cv, 24, l, prog.level < l, false);
+    cv.title = `${BADGE_NAMES[badgeTier(l)]} - ${prog.level >= l ? 'earned' : 'level ' + l}`;
+    row.appendChild(cv);
+  });
   document.getElementById('lvlTitle').textContent = titleFor(prog.level);
   document.getElementById('lvlBar').style.width = (prog.xp / need * 100) + '%';
   document.getElementById('lvlXp').textContent = `${prog.xp} / ${need} XP to level ${prog.level + 1}`;
@@ -1605,11 +1624,121 @@ function showXP(boxId, x, res) {
   const detail = x.parts.filter(p => p[1] > 0).map(p => `${p[0]} ${p[1]}`).join(' · ') + (x.mult !== 1 ? ` · ${diff().name} x${x.mult}` : '');
   const startPct = res.to > res.from ? 0 : (res.fromXp / need * 100);
   box.innerHTML = `<div class="xphead">+${x.total} XP <small>${detail}</small></div>
-    <div class="xprow"><b>Lv ${prog.level}</b><div class="xpbar"><i style="width:${startPct}%"></i></div></div>
+    <div class="xprow"><canvas class="xpbadge"></canvas><b>Lv ${prog.level}</b><div class="xpbar"><i style="width:${startPct}%"></i></div></div>
     ${res.to > res.from ? `<div class="lvlup">LEVEL UP! Level ${res.to} - ${titleFor(res.to)}${res.rewards.length ? '<br><small>Unlocked: ' + res.rewards.join(', ') + '</small>' : ''}</div>` : ''}`;
+  paintBadge(box.querySelector('.xpbadge'), 34, prog.level);
   const bar = box.querySelector('.xpbar i');
   requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = (prog.xp / need * 100) + '%'; }));
   if (res.to > res.from) setTimeout(() => playSfx('milestone'), 500);
+}
+
+// ---- level badges: a new emblem every 10 levels up to 100 (ribbons from the 5th level of each tier) ----
+const BADGE_NAMES = ['Egg', 'Bronze Shield', 'Silver Honeycomb', 'Gold Star', 'Winged Crest', 'Royal Crown', 'Crystal', 'Flame', 'Sunburst', 'Laurel Wreath', 'Eternal'];
+function badgeTier(l) { return l >= 100 ? 10 : Math.floor(l / 10); }
+function drawLevelBadge(g, cx, cy, R, level, dim = false, showNum = true) {
+  const t = badgeTier(level);
+  g.save();
+  g.translate(cx, cy); g.scale(R / 30, R / 30);
+  if (dim) g.globalAlpha = 0.3;
+  g.lineJoin = 'round';
+  const grad = (a, b, y0 = -30, y1 = 30) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, a); gr.addColorStop(1, b); return gr; };
+  const poly = pts => { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); };
+  const edge = (c, w = 2.4) => { g.lineWidth = w; g.strokeStyle = c; g.stroke(); };
+  const crown = (y, sc, fill = '#ffd54a') => {
+    poly([[-11 * sc, y + 5 * sc], [-12 * sc, y - 5 * sc], [-6 * sc, y], [0, y - 8 * sc], [6 * sc, y], [12 * sc, y - 5 * sc], [11 * sc, y + 5 * sc]]);
+    g.fillStyle = fill; g.fill(); edge('#7a5200', 1.4);
+  };
+  const laurel = (col) => {
+    g.fillStyle = col;
+    for (let side = -1; side <= 1; side += 2) for (let i = 0; i < 7; i++) {
+      const a = Math.PI / 2 + side * (0.35 + i * 0.36), x = Math.cos(a) * 27, y = Math.sin(a) * 27;
+      g.save(); g.translate(x, y); g.rotate(a + side * 0.9); g.beginPath(); g.ellipse(0, 0, 6, 2.6, 0, 0, TAU); g.fill(); g.restore();
+    }
+  };
+  // ribbon tails for the upper half of each tier
+  if (t < 10 && level % 10 >= 5) {
+    const rc = ['#c9a0ff', '#e07a3a', '#8aa0b8', '#e0b020', '#6ab0ff', '#9a5ae0', '#2ac0e0', '#e0401a', '#f0a020', '#3aa060'][t];
+    g.fillStyle = rc;
+    poly([[-14, 14], [-6, 16], [-12, 34], [-15, 29], [-19, 33]]); g.fill();
+    poly([[14, 14], [6, 16], [12, 34], [15, 29], [19, 33]]); g.fill();
+  }
+  let numY = 1, numCol = '#ffffff';
+  switch (t) {
+    case 0:   // egg
+      g.beginPath(); g.ellipse(0, 2, 21, 27, 0, 0, TAU); g.fillStyle = grad('#fffaf0', '#e2d2a8'); g.fill(); edge('#8a7650');
+      g.fillStyle = 'rgba(150,120,70,0.35)';
+      for (const [x, y, r] of [[-9, -12, 2.2], [8, -6, 1.8], [-4, 14, 2], [11, 12, 1.6], [-13, 4, 1.4]]) { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
+      numCol = '#5a4020'; numY = 4; break;
+    case 1:   // bronze shield
+      g.beginPath(); g.moveTo(-23, -25); g.lineTo(23, -25); g.lineTo(23, -2); g.quadraticCurveTo(22, 20, 0, 30); g.quadraticCurveTo(-22, 20, -23, -2); g.closePath();
+      g.fillStyle = grad('#f2b878', '#8a4a1a'); g.fill(); edge('#5a2a08');
+      g.beginPath(); g.moveTo(-17, -19); g.lineTo(17, -19); g.lineTo(17, -3); g.quadraticCurveTo(16, 14, 0, 23); g.quadraticCurveTo(-16, 14, -17, -3); g.closePath(); edge('rgba(255,230,190,0.55)', 1.5);
+      break;
+    case 2: { // silver honeycomb
+      const hex = r => poly([...Array(6)].map((_, i) => [Math.cos(i * Math.PI / 3 + Math.PI / 6) * r, Math.sin(i * Math.PI / 3 + Math.PI / 6) * r]));
+      hex(29); g.fillStyle = grad('#f6f9fc', '#8494a6'); g.fill(); edge('#44525f');
+      hex(21); edge('rgba(255,255,255,0.7)', 1.6);
+      numCol = '#2a3440'; break;
+    }
+    case 3: { // gold star
+      poly([...Array(10)].map((_, i) => { const r = i % 2 ? 14 : 31, a = -Math.PI / 2 + i * Math.PI / 5; return [Math.cos(a) * r, Math.sin(a) * r]; }));
+      g.fillStyle = grad('#fff2a0', '#c08a10'); g.fill(); edge('#7a5200');
+      numCol = '#5a3a00'; numY = 3; break;
+    }
+    case 4:   // winged crest
+      g.fillStyle = grad('#ffffff', '#a8d4ff');
+      for (let side = -1; side <= 1; side += 2) {
+        g.beginPath(); g.moveTo(side * 8, -6);
+        g.quadraticCurveTo(side * 36, -30, side * 34, -4); g.quadraticCurveTo(side * 30, 10, side * 8, 10); g.closePath(); g.fill(); edge('#4a78a8', 1.6);
+      }
+      g.beginPath(); g.moveTo(-15, -18); g.lineTo(15, -18); g.lineTo(15, 0); g.quadraticCurveTo(14, 16, 0, 24); g.quadraticCurveTo(-14, 16, -15, 0); g.closePath();
+      g.fillStyle = grad('#ffe27a', '#c08a10'); g.fill(); edge('#7a5200');
+      numCol = '#5a3a00'; break;
+    case 5:   // royal crown on purple
+      g.beginPath(); g.arc(0, 3, 26, 0, TAU); g.fillStyle = grad('#c8a0ff', '#4a1a90'); g.fill(); edge('#ffd54a', 3);
+      crown(-15, 1.3); numY = 7; break;
+    case 6:   // crystal gem
+      poly([[-17, -24], [17, -24], [29, -9], [0, 30], [-29, -9]]); g.fillStyle = grad('#e2fdff', '#1a9ad0'); g.fill(); edge('#0a5a80');
+      g.strokeStyle = 'rgba(255,255,255,0.65)'; g.lineWidth = 1.2; g.beginPath();
+      g.moveTo(-29, -9); g.lineTo(29, -9); g.moveTo(-17, -24); g.lineTo(-8, -9); g.lineTo(0, 30); g.lineTo(8, -9); g.lineTo(17, -24); g.stroke();
+      numY = -1; numCol = '#08384f'; break;
+    case 7:   // flame
+      g.beginPath(); g.moveTo(0, 30); g.bezierCurveTo(-28, 26, -26, -2, -12, -12); g.bezierCurveTo(-12, -2, -6, 0, -4, -4);
+      g.bezierCurveTo(-8, -18, 0, -26, 4, -32); g.bezierCurveTo(6, -18, 26, -12, 24, 8); g.bezierCurveTo(22, 24, 12, 30, 0, 30); g.closePath();
+      g.fillStyle = grad('#ffe070', '#e0301a', -32, 30); g.fill(); edge('#7a1a08');
+      g.beginPath(); g.ellipse(0, 14, 9, 12, 0, 0, TAU); g.fillStyle = 'rgba(255,240,170,0.8)'; g.fill();
+      numY = 11; numCol = '#7a1a08'; break;
+    case 8:   // sunburst
+      g.fillStyle = '#ffc93a';
+      for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; poly([[Math.cos(a - 0.12) * 18, Math.sin(a - 0.12) * 18], [Math.cos(a) * 32, Math.sin(a) * 32], [Math.cos(a + 0.12) * 18, Math.sin(a + 0.12) * 18]]); g.fill(); }
+      g.beginPath(); g.arc(0, 0, 20, 0, TAU); g.fillStyle = grad('#fff2a0', '#f07a10'); g.fill(); edge('#9a4a00');
+      numCol = '#7a3000'; break;
+    case 9:   // laurel wreath
+      laurel('#4aa040');
+      g.beginPath(); g.arc(0, 2, 19, 0, TAU); g.fillStyle = grad('#b890ff', '#4a1a90'); g.fill(); edge('#ffd54a', 2);
+      crown(-22, 0.9); numY = 4; break;
+    default: { // 100: eternal - prismatic rays, laurel and crown
+      for (let i = 0; i < 20; i++) { const a = i / 20 * TAU; g.fillStyle = `hsl(${i * 18},90%,65%)`; poly([[Math.cos(a - 0.1) * 16, Math.sin(a - 0.1) * 16], [Math.cos(a) * 33, Math.sin(a) * 33], [Math.cos(a + 0.1) * 16, Math.sin(a + 0.1) * 16]]); g.fill(); }
+      laurel('#ffd54a');
+      g.beginPath(); g.arc(0, 2, 18, 0, TAU); g.fillStyle = grad('#fff6c8', '#e0a010'); g.fill(); edge('#7a5200', 2);
+      crown(-21, 0.95, '#ffffff'); numY = 4; numCol = '#5a3a00';
+    }
+  }
+  if (showNum) {
+    const txt = String(level);
+    g.font = `900 ${txt.length > 2 ? 15 : 19}px "Trebuchet MS", sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (numCol === '#ffffff') { g.lineWidth = 3.5; g.strokeStyle = 'rgba(0,0,0,0.55)'; g.strokeText(txt, 0, numY); }
+    g.fillStyle = numCol; g.fillText(txt, 0, numY);
+  }
+  g.restore();
+}
+function paintBadge(cv, size, level, dim = false, showNum = true) {
+  const d = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = size * d; cv.height = size * d; cv.style.width = size + 'px'; cv.style.height = size + 'px';
+  const g = cv.getContext('2d');
+  g.setTransform(d, 0, 0, d, 0, 0);
+  drawLevelBadge(g, size / 2, size / 2, size * 0.42, level, dim, showNum);
 }
 
 // cosmetic effects in play
@@ -3146,7 +3275,11 @@ function drawHUD() {
   if (onGarden) lines.push(['Farming fungus garden', '#b8ff8c']);
   else if (gardens.some(g => g.contested && dist(g.x, g.y, player.queen.x, player.queen.y) < GARDEN_R)) lines.push(['Garden contested!', '#ff8a70']);
   ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
-  lines.forEach(([t, col], i) => { ctx.fillStyle = col; ctx.fillText(t, x + 4, y + h + 36 + i * 18); });
+  lines.forEach(([t, col], i) => {
+    const ly = y + h + 36 + i * 18;
+    if (i === 0) { drawLevelBadge(ctx, x + 12, ly - 4, 9, prog.level, false, false); ctx.fillStyle = col; ctx.fillText(t, x + 26, ly); }
+    else { ctx.fillStyle = col; ctx.fillText(t, x + 4, ly); }
+  });
 }
 
 function drawRain() {
