@@ -2183,26 +2183,35 @@ function drawLogo() {
 // ============================================================
 //  Background music (Web Audio, generated on the fly - no audio files)
 // ============================================================
-const music = { ctx: null, master: null, on: true, next: 0, step: 0 };
-const STEP = 60 / 72 / 2;   // eighth notes at a relaxed 72 BPM
+const music = { ctx: null, master: null, noise: null, on: true, next: 0, step: 0 };
+const STEP = 60 / 116 / 2;   // eighth notes at a bouncy 116 BPM
+const SWING = 0.2;           // off-beat eighths land late for a light swing
 const midi = m => 440 * Math.pow(2, (m - 69) / 12);
-// 8-bar progression: Am7 - Fmaj7 - C - G - Am - Em - F - G  (bass root, pad voicing)
+// Whimsical C-major tune: [bass root, chord tones] per bar, 8 bars
 const CHORDS = [
-  [45, [57, 60, 64, 67]], [41, [57, 60, 64, 65]], [48, [55, 60, 64, 67]], [43, [55, 59, 62, 67]],
-  [45, [57, 60, 64, 69]], [40, [55, 59, 64, 67]], [41, [53, 57, 60, 64]], [43, [55, 59, 62, 65]],
+  [48, [64, 67, 72]], [45, [64, 69, 72]], [50, [65, 69, 72]], [43, [65, 71, 74]],
+  [48, [64, 67, 72]], [45, [61, 64, 69]], [50, [65, 69, 74]], [48, [64, 67, 72]],
 ];
-const SCALE = [69, 72, 74, 76, 79, 81, 84];   // A minor pentatonic for the melody
-let melodyIdx = 3;
+const TUNE = [
+  67, -1, 72, -1, 71, 72, 74, -1,   76, -1, 74, 72, 69, -1, -1, -1,
+  65, -1, 69, -1, 72, -1, 74, 72,   71, -1, 67, -1, -1, 69, 71, -1,
+  72, -1, 76, -1, 79, -1, 76, -1,   77, -1, 76, -1, 73, -1, 69, -1,
+  74, 72, 74, 76, 77, -1, 71, -1,   72, -1, -1, -1, -1, -1, -1, -1,
+];
 function startMusic() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
   if (!music.ctx) {
     music.ctx = new AC();
     music.master = music.ctx.createGain();
-    music.master.gain.value = music.on ? 0.16 : 0;
+    music.master.gain.value = music.on ? 0.26 : 0;
     const lp = music.ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 1800;
+    lp.type = 'lowpass'; lp.frequency.value = 3200;
     music.master.connect(lp); lp.connect(music.ctx.destination);
+    const len = Math.floor(music.ctx.sampleRate * 0.05);
+    music.noise = music.ctx.createBuffer(1, len, music.ctx.sampleRate);
+    const nd = music.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / len);
     music.next = music.ctx.currentTime + 0.1;
     setInterval(scheduleMusic, 40);
   }
@@ -2211,12 +2220,18 @@ function startMusic() {
 
 function toggleMusic() {
   music.on = !music.on;
-  if (music.master) music.master.gain.setTargetAtTime(music.on ? 0.16 : 0, music.ctx.currentTime, 0.05);
+  if (music.master) music.master.gain.setTargetAtTime(music.on ? 0.26 : 0, music.ctx.currentTime, 0.05);
 }
 
-function note(freq, t, dur, type, vol, attack = 0.012) {
+function note(freq, t, dur, type, vol, attack = 0.012, vibrato = 0) {
   const o = music.ctx.createOscillator(), g = music.ctx.createGain();
   o.type = type; o.frequency.value = freq;
+  if (vibrato) {   // gentle woodwind-style vibrato
+    const lfo = music.ctx.createOscillator(), lg = music.ctx.createGain();
+    lfo.frequency.value = 5.2; lg.gain.value = freq * vibrato;
+    lfo.connect(lg); lg.connect(o.frequency);
+    lfo.start(t); lfo.stop(t + dur + 0.05);
+  }
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol, t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -2224,27 +2239,63 @@ function note(freq, t, dur, type, vol, attack = 0.012) {
   o.start(t); o.stop(t + dur + 0.05);
 }
 
+// soft brush tick
+function tick(t, vol) {
+  const src = music.ctx.createBufferSource(), hp = music.ctx.createBiquadFilter(), g = music.ctx.createGain();
+  src.buffer = music.noise; hp.type = 'highpass'; hp.frequency.value = 7000;
+  g.gain.value = vol;
+  src.connect(hp); hp.connect(g); g.connect(music.master);
+  src.start(t);
+}
+
+// a little bee flying past: a buzzy tone that wobbles and swoops
+function buzz(t, dur) {
+  const o = music.ctx.createOscillator(), bp = music.ctx.createBiquadFilter(), g = music.ctx.createGain();
+  const lfo = music.ctx.createOscillator(), lg = music.ctx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(190, t);
+  o.frequency.linearRampToValueAtTime(260, t + dur * 0.4);
+  o.frequency.linearRampToValueAtTime(170, t + dur);
+  lfo.frequency.value = 11; lg.gain.value = 14;
+  lfo.connect(lg); lg.connect(o.frequency);
+  bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 1.4;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.05, t + 0.12);
+  g.gain.setValueAtTime(0.05, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(bp); bp.connect(g); g.connect(music.master);
+  o.start(t); lfo.start(t); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05);
+}
+
 function scheduleMusic() {
   if (!music.ctx) return;
   const now = music.ctx.currentTime;
   if (music.next < now) music.next = now + 0.05;   // catch up after a stalled tab
   while (music.next < now + 0.3) {
-    const i = music.step, t = music.next;
-    const [root, tones] = CHORDS[Math.floor(i / 8) % CHORDS.length];
-    const beat = i % 8;
-    if (beat === 0) {
-      // soft pad swelling in over the bar
-      for (const m of tones) note(midi(m), t, STEP * 8.5, 'sine', 0.045, 0.9);
-      note(midi(root), t, STEP * 5, 'sine', 0.22, 0.05);
+    const i = music.step;
+    const t = music.next + (i % 2 ? SWING * STEP : 0);
+    const bar = Math.floor(i / 8) % CHORDS.length, beat = i % 8;
+    const second = Math.floor(i / 64) % 2 === 1;   // second time through: flute + glockenspiel
+    const [root, tones] = CHORDS[bar];
+    // plucked "oom-pah" bass with short chord stabs
+    if (beat === 0) note(midi(root), t, 0.3, 'triangle', 0.3, 0.005);
+    if (beat === 4) note(midi(root + 7), t, 0.25, 'triangle', 0.24, 0.005);
+    if (beat === 7 && bar !== 7) note(midi(root + 11), t, 0.14, 'triangle', 0.14, 0.005);
+    if (beat === 2 || beat === 6) for (const m of tones) note(midi(m), t, 0.14, 'triangle', 0.045, 0.005);
+    if (beat % 2 === 1) tick(t, 0.035);
+    // melody
+    const m = TUNE[i % TUNE.length];
+    if (m > 0) {
+      if (!second) note(midi(m), t, STEP * 1.1, 'triangle', 0.1, 0.02, 0.004);          // clarinet-ish
+      else {
+        note(midi(m + 12), t, STEP * 1.3, 'sine', 0.08, 0.03, 0.005);                    // flute-ish
+        if (beat % 4 === 0) note(midi(m + 24), t, 0.5, 'sine', 0.025, 0.003);            // glockenspiel sparkle
+      }
     }
-    if (beat === 4) note(midi(root + 7), t, STEP * 3.5, 'sine', 0.12, 0.05);
-    // a sparse melody that wanders by small steps and rests often
-    if (state !== 'title' && beat % 2 === 0 && Math.random() < 0.45) {
-      melodyIdx = clamp(melodyIdx + randInt(-2, 2), 0, SCALE.length - 1);
-      note(midi(SCALE[melodyIdx]), t, STEP * rand(2.5, 4), 'triangle', 0.06, 0.04);
-    }
+    // end of each phrase: a bee buzzes by
+    if (bar === 7 && beat === 2) buzz(t, STEP * 5);
     music.next += STEP;
-    music.step = (i + 1) % (CHORDS.length * 8);
+    music.step = (i + 1) % 128;
   }
 }
 
