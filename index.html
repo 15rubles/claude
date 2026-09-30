@@ -161,7 +161,7 @@
       <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
     <div class="skins-label">Choose your colony</div>
-    <div id="skinPicker" class="skins"></div>
+    <div class="skins"></div>
     <button id="playBtn">Play</button>
     <div class="hint">Tip: stand still to brace your guards. Charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
   </div>
@@ -177,6 +177,8 @@
       <div class="stat"><div class="v" id="overKills">0</div><div class="l">Colonies conquered</div></div>
       <div class="stat"><div class="v" id="overTime">0:00</div><div class="l">Time survived</div></div>
     </div>
+    <div class="skins-label">Change skin</div>
+    <div class="skins"></div>
     <button id="restartBtn">Restart</button>
   </div>
 </div>
@@ -191,6 +193,8 @@
       <div class="stat"><div class="v" id="winKills">0</div><div class="l">Colonies conquered</div></div>
       <div class="stat"><div class="v" id="winTime">0:00</div><div class="l">Time</div></div>
     </div>
+    <div class="skins-label">Change skin</div>
+    <div class="skins"></div>
     <button id="againBtn">Play Again</button>
   </div>
 </div>
@@ -431,6 +435,7 @@ function colonySize(c) { return c.workers.length; }
 //  World setup
 // ============================================================
 function resetWorld(withPlayer) {
+  miniCache.t = -1;
   colonies = []; food = []; particles = []; floaters = [];
   player = null; time = 0; foodAccum = 0;
   placeStructures();
@@ -713,19 +718,26 @@ function updateAI(c, dt) {
 // ============================================================
 //  Grids, fights, food
 // ============================================================
+const usedAntCells = [], usedFoodCells = [];
 function buildGrids() {
-  for (let i = 0; i < antGrid.length; i++) { antGrid[i].length = 0; foodGrid[i].length = 0; }
+  for (const i of usedAntCells) antGrid[i].length = 0;
+  for (const i of usedFoodCells) foodGrid[i].length = 0;
+  usedAntCells.length = 0; usedFoodCells.length = 0;
   for (const c of colonies) {
     if (!c.alive) continue;
     for (const w of c.workers) {
       const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
-      antGrid[gy * GCOLS + gx].push(w);
+      const cell = antGrid[gy * GCOLS + gx];
+      if (!cell.length) usedAntCells.push(gy * GCOLS + gx);
+      cell.push(w);
     }
   }
   for (const f of food) {
     if (f.dead) continue;
     const gx = clamp((f.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((f.y / CELL) | 0, 0, GROWS - 1);
-    foodGrid[gy * GCOLS + gx].push(f);
+    const cell = foodGrid[gy * GCOLS + gx];
+    if (!cell.length) usedFoodCells.push(gy * GCOLS + gx);
+    cell.push(f);
   }
 }
 
@@ -1513,6 +1525,35 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
   ctx.globalAlpha = 1;
 }
 
+// Workers are stamped from cached pre-rendered sprites (one per colour / skin /
+// leg frame) instead of redrawing every body part of every ant each frame.
+const SPR_RES = 5, SPR_OX = 9, SPR_OY = 7, SPR_FRAMES = 6;
+const SPR_W = SPR_OX * 2 * SPR_RES, SPR_H = SPR_OY * 2 * SPR_RES;
+const spriteCache = new Map();
+function antSprite(col, walk, seed) {
+  const frame = Math.floor((((walk % TAU) + TAU) % TAU) / TAU * SPR_FRAMES) % SPR_FRAMES;
+  const skin = col.skin;
+  let hue = -1;
+  if (skin && skin.rainbow) hue = Math.floor(((time * 70 + seed * 23) % 360) / 20) * 20;
+  const key = col.color + '|' + (skin ? skin.id : '') + '|' + frame + '|' + hue;
+  let spr = spriteCache.get(key);
+  if (spr) return spr;
+  if (spriteCache.size > 800) spriteCache.clear();   // safety valve
+  spr = document.createElement('canvas');
+  spr.width = SPR_W; spr.height = SPR_H;
+  let look = col;
+  if (hue >= 0) {
+    look = { color: `hsl(${hue},85%,62%)`, dark: `hsl(${hue},70%,28%)`, isPlayer: col.isPlayer, skin: { ...skin, rainbow: false } };
+  }
+  const saved = [TZ, TEX, TEY, time];
+  antCtx = spr.getContext('2d');
+  TZ = SPR_RES; TEX = SPR_OX * SPR_RES; TEY = SPR_OY * SPR_RES; time = 0;
+  drawAnt(0, 0, 0, 1, look, frame / SPR_FRAMES * TAU, false, 0);
+  antCtx = ctx; [TZ, TEX, TEY, time] = saved;
+  spriteCache.set(key, spr);
+  return spr;
+}
+
 function render() {
   if (!dirtPattern) makeDirtPattern();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1733,7 +1774,10 @@ function render() {
     if (!c.alive) continue;
     for (const w of c.workers) {
       if (w.x < L || w.x > R || w.y < T || w.y > B) continue;
-      drawAnt(w.x, w.y, w.ang, 0.95, w.col, w.walk, false, w.id);
+      const spr = antSprite(w.col, w.walk, w.id);
+      const k = 0.95 * TZ / SPR_RES, co = Math.cos(w.ang) * k, si = Math.sin(w.ang) * k;
+      ctx.setTransform(co, si, -si, co, w.x * TZ + TEX, w.y * TZ + TEY);
+      ctx.drawImage(spr, -SPR_OX * SPR_RES, -SPR_OY * SPR_RES);
     }
   }
   // queens on top
@@ -2039,27 +2083,33 @@ function drawLeaderboard() {
   if (extra) row(player, pRank + 1, y + 44 + top.length * rowH);
 }
 
+const miniCache = { cv: null, w: 0, dpr: 0, t: -1 };
 function drawMinimap() {
   const mw = Math.min(220, W * 0.32), mh = mw * WORLD_H / WORLD_W;
   const x = W - mw - 14, y = H - mh - 14;
   panel(x - 4, y - 4, mw + 8, mh + 8);
-  ctx.fillStyle = '#4a3019';
-  ctx.fillRect(x, y, mw, mh);
   const sx = mw / WORLD_W, sy = mh / WORLD_H;
 
-  // food as faint specks
-  ctx.fillStyle = 'rgba(120,230,90,0.35)';
-  for (let i = 0; i < food.length; i += 2) ctx.fillRect(x + food[i].x * sx, y + food[i].y * sy, 1, 1);
-
-  // structures and power-ups
-  for (const g of gardens) {
-    ctx.fillStyle = 'rgba(140,200,90,0.5)';
-    ctx.beginPath(); ctx.arc(x + g.x * sx, y + g.y * sy, Math.max(3, GARDEN_R * sx), 0, TAU); ctx.fill();
+  // background, food specks and structures change slowly: redraw them a few times a second
+  if (!miniCache.cv || miniCache.w !== mw || miniCache.dpr !== DPR || time - miniCache.t > 0.4 || time < miniCache.t) {
+    const cv = miniCache.cv || document.createElement('canvas');
+    cv.width = Math.ceil(mw * DPR); cv.height = Math.ceil(mh * DPR);
+    const m = cv.getContext('2d');
+    m.setTransform(DPR, 0, 0, DPR, 0, 0);
+    m.fillStyle = '#4a3019';
+    m.fillRect(0, 0, mw, mh);
+    m.fillStyle = 'rgba(120,230,90,0.35)';
+    for (let i = 0; i < food.length; i += 2) m.fillRect(food[i].x * sx, food[i].y * sy, 1, 1);
+    m.fillStyle = 'rgba(140,200,90,0.5)';
+    for (const g of gardens) { m.beginPath(); m.arc(g.x * sx, g.y * sy, Math.max(3, GARDEN_R * sx), 0, TAU); m.fill(); }
+    m.lineWidth = 1.5;
+    for (const h of tunnels) {
+      m.fillStyle = '#120a04'; m.strokeStyle = TUNNEL_COLORS[h.group];
+      m.beginPath(); m.arc(h.x * sx, h.y * sy, 3, 0, TAU); m.fill(); m.stroke();
+    }
+    Object.assign(miniCache, { cv, w: mw, dpr: DPR, t: time });
   }
-  for (const h of tunnels) {
-    ctx.fillStyle = '#120a04'; ctx.strokeStyle = TUNNEL_COLORS[h.group]; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(x + h.x * sx, y + h.y * sy, 3, 0, TAU); ctx.fill(); ctx.stroke();
-  }
+  ctx.drawImage(miniCache.cv, x, y, mw, mh);
   for (const pu of powerups) {
     ctx.fillStyle = POWER_INFO[pu.type].color;
     ctx.fillRect(x + pu.x * sx - 1.5, y + pu.y * sy - 1.5, 3, 3);
@@ -2114,19 +2164,16 @@ function drawLogo() {
 // ============================================================
 //  Background music (Web Audio, generated on the fly - no audio files)
 // ============================================================
-const music = { ctx: null, master: null, noise: null, on: true, next: 0, step: 0 };
-const STEP = 60 / 100 / 2;   // eighth notes at 100 BPM
+const music = { ctx: null, master: null, on: true, next: 0, step: 0 };
+const STEP = 60 / 72 / 2;   // eighth notes at a relaxed 72 BPM
 const midi = m => 440 * Math.pow(2, (m - 69) / 12);
-// A minor: Am - F - C - G, one bar (8 eighths) each
-const CHORDS = [[45, [57, 60, 64]], [41, [53, 57, 60]], [48, [55, 60, 64]], [43, [55, 59, 62]]];
-const ARP = [0, 1, 2, 1, 0, 1, 2, 1];
-const MELODY = [
-  76, -1, 74, 72, 69, -1, 72, -1,   72, -1, 69, -1, 65, -1, 69, 72,
-  72, -1, 76, -1, 79, -1, 76, 74,   74, -1, 71, -1, 67, -1, -1, -1,
-  76, -1, 74, 72, 69, -1, 72, 76,   77, -1, 76, -1, 72, -1, 69, -1,
-  67, -1, 72, -1, 76, -1, 79, 76,   74, -1, 72, -1, 71, -1, -1, -1,
+// 8-bar progression: Am7 - Fmaj7 - C - G - Am - Em - F - G  (bass root, pad voicing)
+const CHORDS = [
+  [45, [57, 60, 64, 67]], [41, [57, 60, 64, 65]], [48, [55, 60, 64, 67]], [43, [55, 59, 62, 67]],
+  [45, [57, 60, 64, 69]], [40, [55, 59, 64, 67]], [41, [53, 57, 60, 64]], [43, [55, 59, 62, 65]],
 ];
-
+const SCALE = [69, 72, 74, 76, 79, 81, 84];   // A minor pentatonic for the melody
+let melodyIdx = 3;
 function startMusic() {
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return;
@@ -2135,12 +2182,8 @@ function startMusic() {
     music.master = music.ctx.createGain();
     music.master.gain.value = music.on ? 0.16 : 0;
     const lp = music.ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 2400;
+    lp.type = 'lowpass'; lp.frequency.value = 1800;
     music.master.connect(lp); lp.connect(music.ctx.destination);
-    const len = Math.floor(music.ctx.sampleRate * 0.06);
-    music.noise = music.ctx.createBuffer(1, len, music.ctx.sampleRate);
-    const d = music.noise.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
     music.next = music.ctx.currentTime + 0.1;
     setInterval(scheduleMusic, 40);
   }
@@ -2152,50 +2195,37 @@ function toggleMusic() {
   if (music.master) music.master.gain.setTargetAtTime(music.on ? 0.16 : 0, music.ctx.currentTime, 0.05);
 }
 
-function note(freq, t, dur, type, vol) {
+function note(freq, t, dur, type, vol, attack = 0.012) {
   const o = music.ctx.createOscillator(), g = music.ctx.createGain();
   o.type = type; o.frequency.value = freq;
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(vol, t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(music.master);
-  o.start(t); o.stop(t + dur + 0.02);
-}
-
-function kick(t) {
-  const o = music.ctx.createOscillator(), g = music.ctx.createGain();
-  o.frequency.setValueAtTime(130, t);
-  o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
-  g.gain.setValueAtTime(0.55, t);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-  o.connect(g); g.connect(music.master);
-  o.start(t); o.stop(t + 0.2);
-}
-
-function shaker(t, vol) {
-  const src = music.ctx.createBufferSource(), hp = music.ctx.createBiquadFilter(), g = music.ctx.createGain();
-  src.buffer = music.noise; hp.type = 'highpass'; hp.frequency.value = 6000;
-  g.gain.value = vol;
-  src.connect(hp); hp.connect(g); g.connect(music.master);
-  src.start(t);
+  o.start(t); o.stop(t + dur + 0.05);
 }
 
 function scheduleMusic() {
   if (!music.ctx) return;
   const now = music.ctx.currentTime;
   if (music.next < now) music.next = now + 0.05;   // catch up after a stalled tab
-  while (music.next < now + 0.25) {
+  while (music.next < now + 0.3) {
     const i = music.step, t = music.next;
-    const [root, tones] = CHORDS[Math.floor(i / 8) % 4];
+    const [root, tones] = CHORDS[Math.floor(i / 8) % CHORDS.length];
     const beat = i % 8;
-    if (beat === 0 || beat === 4) { note(midi(root), t, STEP * 3.5, 'triangle', 0.32); kick(t); }
-    if (beat === 6) note(midi(root + 12), t, STEP * 1.5, 'triangle', 0.18);
-    note(midi(tones[ARP[beat]] + 12), t, STEP * 0.9, 'square', 0.035);
-    if (beat % 2 === 1) shaker(t, 0.05); else if (beat === 2 || beat === 6) shaker(t, 0.08);
-    const m = MELODY[i % MELODY.length];
-    if (m > 0 && state !== 'title') note(midi(m), t, STEP * 1.8, 'triangle', 0.13);
+    if (beat === 0) {
+      // soft pad swelling in over the bar
+      for (const m of tones) note(midi(m), t, STEP * 8.5, 'sine', 0.045, 0.9);
+      note(midi(root), t, STEP * 5, 'sine', 0.22, 0.05);
+    }
+    if (beat === 4) note(midi(root + 7), t, STEP * 3.5, 'sine', 0.12, 0.05);
+    // a sparse melody that wanders by small steps and rests often
+    if (state !== 'title' && beat % 2 === 0 && Math.random() < 0.45) {
+      melodyIdx = clamp(melodyIdx + randInt(-2, 2), 0, SCALE.length - 1);
+      note(midi(SCALE[melodyIdx]), t, STEP * rand(2.5, 4), 'triangle', 0.06, 0.04);
+    }
     music.next += STEP;
-    music.step = (i + 1) % 64;
+    music.step = (i + 1) % (CHORDS.length * 8);
   }
 }
 
@@ -2220,11 +2250,14 @@ document.getElementById('againBtn').addEventListener('click', startGame);
 
 // Title-screen skin picker: each option shows its queen and two workers
 function buildSkinPicker() {
-  const box = document.getElementById('skinPicker');
+  document.querySelectorAll('.skins').forEach(fillSkinPicker);
+}
+function fillSkinPicker(box) {
   box.innerHTML = '';
   SKINS.forEach((sk, i) => {
     const btn = document.createElement('button');
     btn.className = 'skin' + (i === selectedSkin ? ' sel' : '');
+    btn.dataset.i = i;
     const cv = document.createElement('canvas');
     const d = Math.min(2, window.devicePixelRatio || 1);
     cv.width = 56 * d; cv.height = 48 * d;
@@ -2233,7 +2266,7 @@ function buildSkinPicker() {
     btn.addEventListener('click', () => {
       selectedSkin = i;
       try { localStorage.setItem('qoth-skin', sk.id); } catch (e) {}
-      document.querySelectorAll('.skin').forEach((b, j) => b.classList.toggle('sel', j === i));
+      document.querySelectorAll('.skin').forEach(b => b.classList.toggle('sel', +b.dataset.i === i));
       drawLogo();
     });
     box.appendChild(btn);
