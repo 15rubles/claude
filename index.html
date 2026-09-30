@@ -193,7 +193,7 @@ const RING0 = 30, RING_GAP = 11, RING_SPACING = 10.5;   // guard ring layout aro
 const GUARD_REACH = 40;                                  // how far guards step out to intercept intruders
 const FOOD_MAX = 420, FOOD_RESPAWN_RATE = 9;   // crumbs per second while below max
 const FOOD_PER_WORKER = 3, MAX_WORKERS = 400;
-const START_ENEMIES = 8, MAX_ENEMIES = 10;
+const START_ENEMIES = 8, MAX_ENEMIES = 14;
 const PLAYER_COLOR = '#f5c542';
 const SEP_DIST = 10, FIGHT_DIST = 10;
 const CELL = 40;
@@ -311,7 +311,7 @@ function makeColony(x, y, workers, name, color, isPlayer) {
     alive: true, food: 0, births: 0,
     charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
     workers: [],
-    queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 },
+    queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 }, outerR: RING0,
     ai: { mode: 'wander', target: null, food: null, think: 0, wx: x, wy: y },
   };
   for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
@@ -366,7 +366,10 @@ function spawnEnemy(size) {
   const pal = pickPalette();
   const c = makeColony(p.x, p.y, size, pal.name, pal.color, false);
   colonies.push(c);
-  if (state === 'playing') floaters.push({ type: 'ring', x: p.x, y: p.y, color: pal.color, life: 1, max: 1, r: 60 });
+  if (state === 'playing') {
+    floaters.push({ type: 'ring', x: p.x, y: p.y, color: pal.color, life: 1.5, max: 1.5, r: 80 });
+    floaters.push({ type: 'text', text: `${pal.name} has emerged!`, x: p.x, y: p.y - 40, color: pal.color, life: 2.5, max: 2.5, size: 18 });
+  }
   return c;
 }
 
@@ -399,7 +402,7 @@ function resetWorld(withPlayer) {
     const pal = pickPalette();
     colonies.push(makeColony(p.x, p.y, s, pal.name, pal.color, false));
   }
-  spawnTimer = 12;
+  spawnTimer = rand(5, 12);
   if (player) { cam.x = player.queen.x; cam.y = player.queen.y; }
 }
 
@@ -690,7 +693,8 @@ function updateWorkers(c, dt) {
   let rings = 0;
   for (let left = n; left > 0; rings++) left -= Math.max(6, Math.floor(TAU * (RING0 + rings * RING_GAP) / RING_SPACING));
   const outerR = RING0 + (rings - 1) * RING_GAP;
-  const k = 1 - Math.exp(-7 * dt);
+  c.outerR = outerR;
+  const k = 1 - Math.exp(-7 * dt), kRing = 1 - Math.exp(-16 * dt);
   const charging = c.charge > 0;
   const Rc = 8 + 3.5 * Math.sqrt(n);   // tight attack cluster around the charge point
 
@@ -703,19 +707,29 @@ function updateWorkers(c, dt) {
       const w = c.workers[idx + j];
       const a = rot + j / cnt * TAU;
       let tx = q.x + Math.cos(a) * r, ty = q.y + Math.sin(a) * r;
-      let maxS = WORKER_SPEED;
+      let maxS = WORKER_SPEED, guarding = false;
       if (charging) {
         tx = c.chargeX + w.ox * Rc; ty = c.chargeY + w.oy * Rc; maxS = CHARGE_SPEED;
       } else if (w.ed < 38 && dist(w.ex, w.ey, q.x, q.y) < outerR + GUARD_REACH) {
         // guards step out to intercept enemy ants that come close to the queen
         tx = w.ex; ty = w.ey; maxS = WORKER_SPEED * 1.15;
-      }
+      } else guarding = true;
       const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
-      const sp = Math.min(maxS, d * (charging ? 6 : 4));
-      let dvx = d > 0.01 ? dx / d * sp : 0, dvy = d > 0.01 ? dy / d * sp : 0;
-      if (!charging) { dvx += q.vx * 0.15; dvy += q.vy * 0.15; }
-      dvx += w.sx + w.fx; dvy += w.sy + w.fy;
-      w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
+      let dvx, dvy;
+      if (guarding) {
+        // hold the ring slot: move with the queen plus a stiff correction toward the slot,
+        // so the queen stays centred in her colony even at full speed
+        dvx = q.vx + dx * 8 + w.sx * 0.5 + w.fx * 0.5;
+        dvy = q.vy + dy * 8 + w.sy * 0.5 + w.fy * 0.5;
+        const m = Math.hypot(dvx, dvy), cap = PLAYER_SPEED + 140;
+        if (m > cap) { dvx *= cap / m; dvy *= cap / m; }
+        w.vx += (dvx - w.vx) * kRing; w.vy += (dvy - w.vy) * kRing;
+      } else {
+        const sp = Math.min(maxS, d * (charging ? 6 : 4));
+        dvx = (d > 0.01 ? dx / d * sp : 0) + w.sx + w.fx;
+        dvy = (d > 0.01 ? dy / d * sp : 0) + w.sy + w.fy;
+        w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
+      }
       w.x = clamp(w.x + w.vx * dt, 3, WORLD_W - 3);
       w.y = clamp(w.y + w.vy * dt, 3, WORLD_H - 3);
       const s = Math.hypot(w.vx, w.vy);
@@ -869,8 +883,8 @@ function update(dt) {
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
       const psize = player && player.alive ? colonySize(player) : 0;
-      spawnTimer = clamp(10 + psize * 0.15, 10, 45);
-      if (enemyCount() < MAX_ENEMIES) spawnEnemy(randInt(3, 8));
+      spawnTimer = rand(5, 15) + Math.min(10, psize * 0.04);   // random gaps between new rivals
+      if (enemyCount() < MAX_ENEMIES) spawnEnemy(randInt(3, 10));
     }
   }
 
@@ -1120,6 +1134,25 @@ function render() {
     ctx.setLineDash([]);
   }
 
+  // charge status ring around the player's colony
+  if (player && player.alive && state === 'playing' && player.charge <= 0) {
+    const q = player.queen, rr = player.outerR + 12;
+    if (player.chargeCd <= 0) {
+      const pulse = 0.5 + 0.5 * Math.sin(time * 4);
+      ctx.strokeStyle = `rgba(255,214,90,${0.35 + pulse * 0.35})`;
+      ctx.lineWidth = (2 + pulse) / cam.zoom;
+      ctx.setLineDash([10 / cam.zoom, 7 / cam.zoom]);
+      ctx.lineDashOffset = -time * 20 / cam.zoom;
+      ctx.beginPath(); ctx.arc(q.x, q.y, rr, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    } else {
+      const frac = 1 - player.chargeCd / PLAYER_CHARGE_CD;
+      ctx.strokeStyle = 'rgba(255,214,90,0.3)';
+      ctx.lineWidth = 2 / cam.zoom;
+      ctx.beginPath(); ctx.arc(q.x, q.y, rr, -Math.PI / 2, -Math.PI / 2 + frac * TAU); ctx.stroke();
+    }
+  }
+
   // queen shadows / glows
   for (const c of colonies) {
     if (!c.alive) continue;
@@ -1167,7 +1200,7 @@ function render() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (const c of colonies) {
-    if (!c.alive || c.isPlayer) continue;
+    if (!c.alive) continue;
     const q = c.queen;
     if (q.x < L || q.x > R || q.y < T || q.y > B) continue;
     const s = colonySize(c);
@@ -1175,9 +1208,10 @@ function render() {
     const fs = 13 / cam.zoom;
     ctx.font = `bold ${fs}px "Trebuchet MS", sans-serif`;
     const tw = ctx.measureText(label).width + 12 / cam.zoom, th = 18 / cam.zoom;
-    const ty = q.y - 34;
+    const ty = q.y - (c.workers.length ? c.outerR + 16 : 34);
     let bg = 'rgba(30,20,10,0.75)', fg = '#fff';
-    if (psize >= 0 && state === 'playing') {
+    if (c.isPlayer) { bg = 'rgba(245,197,66,0.95)'; fg = '#3a2208'; }
+    else if (psize >= 0 && state === 'playing') {
       if (s < psize) { bg = 'rgba(40,120,40,0.85)'; fg = '#e8ffd8'; }
       else if (s > psize) { bg = 'rgba(150,30,25,0.85)'; fg = '#ffe0da'; }
     }
