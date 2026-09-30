@@ -137,13 +137,14 @@
     <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
     <div class="controls">
       <div><span class="crownicon"><span class="key">Mouse</span></span><span>Your queen follows the cursor</span></div>
-      <div><span class="crownicon"><span class="key">Space</span></span><span>Workers charge the cursor for 2 seconds</span></div>
       <div><span class="crownicon"><span class="crumb"></span></span><span>Eat green crumbs &mdash; every 3 hatch a new worker</span></div>
-      <div><span class="crownicon">Conquer</span><span>Touch a queen with a <b>smaller</b> colony to take her workers</span></div>
-      <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>A bigger queen will conquer <b>you</b></span></div>
+      <div><span class="crownicon"><span class="key">Space</span></span><span>Workers charge the cursor for 2 seconds (your queen is left unguarded!)</span></div>
+      <div><span class="crownicon" style="color:#9fd6ff">Guard</span><span>Your workers form rings around your queen to protect her</span></div>
+      <div><span class="crownicon">Conquer</span><span>If <b>any</b> of your ants touches an enemy queen, her colony is yours</span></div>
+      <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
     <button id="playBtn">Play</button>
-    <div class="hint">Tip: enemy size tags are green when you can take them, red when they can take you.</div>
+    <div class="hint">Tip: charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
   </div>
 </div>
 
@@ -187,12 +188,14 @@ const QUEEN_R = 13, WORKER_R = 5, FOOD_R = 3.5;
 const PLAYER_SPEED = 220;
 const AI_SPEED = 185, AI_FLEE_SPEED = 180;
 const WORKER_SPEED = 270, CHARGE_SPEED = 380;
-const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 3.5;
+const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 5;
+const RING0 = 30, RING_GAP = 11, RING_SPACING = 10.5;   // guard ring layout around the queen
+const GUARD_REACH = 40;                                  // how far guards step out to intercept intruders
 const FOOD_MAX = 420, FOOD_RESPAWN_RATE = 9;   // crumbs per second while below max
 const FOOD_PER_WORKER = 3, MAX_WORKERS = 400;
 const START_ENEMIES = 8, MAX_ENEMIES = 10;
 const PLAYER_COLOR = '#f5c542';
-const SEP_DIST = 13, FIGHT_DIST = 10;
+const SEP_DIST = 10, FIGHT_DIST = 10;
 const CELL = 40;
 const GCOLS = Math.ceil(WORLD_W / CELL), GROWS = Math.ceil(WORLD_H / CELL);
 
@@ -306,9 +309,9 @@ function makeColony(x, y, workers, name, color, isPlayer) {
     dark: shade(color, color === '#26262b' ? -0.6 : -0.5),
     light: shade(color, 0.45),
     alive: true, food: 0, births: 0,
+    charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
     workers: [],
     queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 },
-    charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
     ai: { mode: 'wander', target: null, food: null, think: 0, wx: x, wy: y },
   };
   for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
@@ -322,7 +325,7 @@ function addWorker(c, x, y) {
     x: clamp(x, 5, WORLD_W - 5), y: clamp(y, 5, WORLD_H - 5),
     vx: 0, vy: 0, ang: rand(0, TAU), walk: rand(0, 10),
     ox: Math.cos(a) * r, oy: Math.sin(a) * r, jit: rand(0, TAU),
-    sx: 0, sy: 0, fx: 0, fy: 0, hasFood: false,
+    sx: 0, sy: 0, fx: 0, fy: 0, ex: 0, ey: 0, ed: Infinity,
     fightCd: 0, dead: false,
   });
 }
@@ -514,7 +517,7 @@ function updateAI(c, dt) {
     const tq = ai.target.queen;
     const dx = tq.x - q.x, dy = tq.y - q.y, d = Math.hypot(dx, dy) || 1;
     tx = dx / d; ty = dy / d; sp = AI_SPEED;
-    if (d < 280 && c.charge <= 0 && c.chargeCd <= 0) startCharge(c, tq.x, tq.y);
+    if (d < 220 && c.charge <= 0 && c.chargeCd <= 0) startCharge(c, tq.x, tq.y);
     if (c.charge > 0) { c.chargeX = tq.x; c.chargeY = tq.y; }
   } else if (ai.mode === 'food' && ai.food && !ai.food.dead) {
     tx = ai.food.x - q.x; ty = ai.food.y - q.y; sp = AI_SPEED * 0.8;
@@ -599,7 +602,8 @@ function interactions(dt) {
       if (w.dead) continue;
       w.fightCd -= dt;
       const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
-      let nearF = null, nearD = 46;
+      let nearF = null, nearD = 30;
+      w.ed = Infinity;
       for (let yy = gy - 1; yy <= gy + 1; yy++) {
         if (yy < 0 || yy >= GROWS) continue;
         for (let xx = gx - 1; xx <= gx + 1; xx++) {
@@ -615,8 +619,15 @@ function interactions(dt) {
                 const d = Math.sqrt(d2), p = (SEP_DIST - d) / SEP_DIST;
                 w.sx += dx / d * p * 140; w.sy += dy / d * p * 140;
               }
-            } else if (d2 < FIGHT2) {
-              if (w.id < o.id) fight(w, o);
+            } else {
+              if (d2 < 38 * 38 && d2 < w.ed * w.ed) { w.ed = Math.sqrt(d2); w.ex = o.x; w.ey = o.y; }
+              if (d2 < FIGHT2 && w.id < o.id) {
+                // enemy ants can't pass through each other, so a guard ring actually blocks
+                const d = Math.sqrt(d2) || 0.01, push = (FIGHT_DIST - d) / 2;
+                w.x += dx / d * push; w.y += dy / d * push;
+                o.x -= dx / d * push; o.y -= dy / d * push;
+                fight(w, o);
+              }
               if (w.dead) break;
             }
           }
@@ -675,35 +686,70 @@ function interactions(dt) {
 function updateWorkers(c, dt) {
   const q = c.queen, n = c.workers.length;
   if (!n) return;
-  const R = 16 + 6.5 * Math.sqrt(n);
-  const qs = Math.hypot(q.vx, q.vy);
-  const hx = qs > 10 ? q.vx / qs : Math.cos(q.ang), hy = qs > 10 ? q.vy / qs : Math.sin(q.ang);
-  const back = R * 0.75 + 12;
-  const cx = q.x - hx * back, cy = q.y - hy * back;
+  // how many rings are needed -> outer radius of the guard
+  let rings = 0;
+  for (let left = n; left > 0; rings++) left -= Math.max(6, Math.floor(TAU * (RING0 + rings * RING_GAP) / RING_SPACING));
+  const outerR = RING0 + (rings - 1) * RING_GAP;
+  const k = 1 - Math.exp(-7 * dt);
   const charging = c.charge > 0;
-  const Rc = 10 + 3.5 * Math.sqrt(n);
-  const k = 1 - Math.exp(-6 * dt);
+  const Rc = 8 + 3.5 * Math.sqrt(n);   // tight attack cluster around the charge point
 
-  for (const w of c.workers) {
-    let tx, ty, maxS;
-    if (charging) {
-      tx = c.chargeX + w.ox * Rc; ty = c.chargeY + w.oy * Rc; maxS = CHARGE_SPEED;
-    } else {
-      tx = cx + w.ox * R + Math.cos(time * 1.7 + w.jit) * 5;
-      ty = cy + w.oy * R + Math.sin(time * 1.3 + w.jit * 1.7) * 5;
-      maxS = WORKER_SPEED;
+  let idx = 0;
+  for (let ring = 0; idx < n; ring++) {
+    const r = RING0 + ring * RING_GAP;
+    const cnt = Math.min(Math.max(6, Math.floor(TAU * r / RING_SPACING)), n - idx);
+    const rot = time * 0.22 * (ring % 2 ? -1 : 1) + ring * 0.7 + c.id;
+    for (let j = 0; j < cnt; j++) {
+      const w = c.workers[idx + j];
+      const a = rot + j / cnt * TAU;
+      let tx = q.x + Math.cos(a) * r, ty = q.y + Math.sin(a) * r;
+      let maxS = WORKER_SPEED;
+      if (charging) {
+        tx = c.chargeX + w.ox * Rc; ty = c.chargeY + w.oy * Rc; maxS = CHARGE_SPEED;
+      } else if (w.ed < 38 && dist(w.ex, w.ey, q.x, q.y) < outerR + GUARD_REACH) {
+        // guards step out to intercept enemy ants that come close to the queen
+        tx = w.ex; ty = w.ey; maxS = WORKER_SPEED * 1.15;
+      }
+      const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
+      const sp = Math.min(maxS, d * (charging ? 6 : 4));
+      let dvx = d > 0.01 ? dx / d * sp : 0, dvy = d > 0.01 ? dy / d * sp : 0;
+      if (!charging) { dvx += q.vx * 0.15; dvy += q.vy * 0.15; }
+      dvx += w.sx + w.fx; dvy += w.sy + w.fy;
+      w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
+      w.x = clamp(w.x + w.vx * dt, 3, WORLD_W - 3);
+      w.y = clamp(w.y + w.vy * dt, 3, WORLD_H - 3);
+      const s = Math.hypot(w.vx, w.vy);
+      if (s > 25) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), 1 - Math.exp(-12 * dt));
+      else w.ang = lerpAngle(w.ang, a, 1 - Math.exp(-6 * dt));   // at rest: face outward on guard
+      w.walk += Math.max(s, 12) * dt * 0.3;
+      w.sx = w.sy = w.fx = w.fy = 0;
     }
-    const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
-    const sp = Math.min(maxS, d * (charging ? 5 : 2.6));
-    let dvx = d > 0.01 ? dx / d * sp : 0, dvy = d > 0.01 ? dy / d * sp : 0;
-    dvx += w.sx + w.fx; dvy += w.sy + w.fy;
-    w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
-    w.x = clamp(w.x + w.vx * dt, 3, WORLD_W - 3);
-    w.y = clamp(w.y + w.vy * dt, 3, WORLD_H - 3);
-    const s = Math.hypot(w.vx, w.vy);
-    if (s > 8) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), 1 - Math.exp(-12 * dt));
-    w.walk += s * dt * 0.3;
-    w.sx = w.sy = w.fx = w.fy = 0;
+    idx += cnt;
+  }
+}
+
+// ============================================================
+//  Enemy ant touches a queen: that queen's colony is conquered
+// ============================================================
+function antQueenContacts() {
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    const q = c.queen;
+    // queen hit area: thorax/head circle plus her long abdomen behind
+    const bx = q.x - Math.cos(q.ang) * 11, by = q.y - Math.sin(q.ang) * 11;
+    const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
+    let hit = null;
+    for (let yy = gy - 1; yy <= gy + 1 && !hit; yy++) {
+      if (yy < 0 || yy >= GROWS) continue;
+      for (let xx = gx - 1; xx <= gx + 1 && !hit; xx++) {
+        if (xx < 0 || xx >= GCOLS) continue;
+        for (const w of antGrid[yy * GCOLS + xx]) {
+          if (w.dead || w.col === c || !w.col.alive) continue;
+          if (dist(w.x, w.y, q.x, q.y) < QUEEN_R + WORKER_R || dist(w.x, w.y, bx, by) < 9 + WORKER_R) { hit = w; break; }
+        }
+      }
+    }
+    if (hit) conquer(hit.col, c);
   }
 }
 
@@ -800,6 +846,8 @@ function update(dt) {
   buildGrids();
   interactions(dt);
   for (const c of colonies) if (c.alive) updateWorkers(c, dt);
+  buildGrids();
+  antQueenContacts();
   queenCollisions();
   colonies = colonies.filter(c => c.alive || c.isPlayer);
 
@@ -1064,7 +1112,7 @@ function render() {
   // player charge target marker
   if (player && player.alive && player.charge > 0) {
     const pulse = 1 + Math.sin(time * 14) * 0.12;
-    const n = colonySize(player), rr = (14 + 3.5 * Math.sqrt(n)) * pulse;
+    const rr = (14 + 3.5 * Math.sqrt(colonySize(player))) * pulse;
     ctx.strokeStyle = 'rgba(255,215,80,0.7)';
     ctx.lineWidth = 2 / cam.zoom;
     ctx.setLineDash([8, 6]);
@@ -1204,6 +1252,7 @@ function drawHUD() {
     ctx.fillStyle = i < player.food ? '#6fe04a' : 'rgba(255,255,255,0.15)';
     ctx.fill();
   }
+
   // charge
   ctx.fillStyle = '#d8c090';
   ctx.fillText('Charge', x + 14, y + 96);
