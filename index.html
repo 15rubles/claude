@@ -251,8 +251,27 @@
   .achcard.done .achbar i { background: linear-gradient(90deg, #a070ff, #d9c0ff); }
   .achline { color: #d9c0ff; font-weight: bold; margin: -6px 0 12px; }
   .achline:empty { display: none; }
-  .skin.locked { cursor: not-allowed; color: #b8a27a; }
-  .skin.locked canvas { filter: grayscale(1) brightness(0.45); }
+  .skin { position: relative; }
+  .skin.locked { color: #b8a27a; }
+  .skin.locked canvas { opacity: 0.55; }
+  .skin.peek { border-color: rgba(201,160,255,0.8); }
+  .lockico { position: absolute; top: 7px; right: 6px; width: 10px; height: 8px; background: #e8cf98; border-radius: 2px; }
+  .lockico::before { content: ''; position: absolute; left: 1.5px; top: -5px; width: 7px; height: 7px; box-sizing: border-box;
+    border: 1.5px solid #e8cf98; border-bottom: none; border-radius: 4px 4px 0 0; }
+  .skininfo { font-size: 12px; min-height: 16px; margin: 2px 0 0; color: #d9c0ff; }
+  .cosprev { width: 296px; height: 120px; background: #4a2f17; max-width: 100%; border-radius: 10px; border: 1px solid rgba(212,168,67,0.45); display: block; margin: 0 auto 10px; }
+  .cosgroup { text-align: left; }
+  .coslabel { font-size: 12px; color: #d8c090; margin-bottom: 4px; }
+  .coslabel em { font-style: normal; color: #b8a27a; font-size: 11px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { font-size: 12px; padding: 4px 8px; border-radius: 8px; box-shadow: none; display: inline-flex; align-items: center; gap: 5px;
+    color: #f5e8c8; background: rgba(0,0,0,0.3); border: 1px solid rgba(212,168,67,0.35); font-weight: bold; }
+  .chip:hover { transform: none; filter: brightness(1.15); }
+  .chip.on { background: linear-gradient(180deg, #ffe07a, #f0b429); color: #3a2208; border-color: transparent; }
+  .chip.locked { opacity: 0.5; cursor: not-allowed; font-weight: normal; }
+  .chip small { font-size: 10px; color: #c9b0f0; }
+  .sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.4); }
+  .sw.nosw { background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(255,255,255,0.35) 3px 4px) !important; }
   .hint { margin-top: 14px; font-size: 12px; color: #c8ae7a; }
   @media (max-width: 480px) {
     .panel { padding: 20px 18px 24px; }
@@ -287,6 +306,7 @@
     <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
     <div class="skins-label">Choose your colony</div>
     <div class="skins"></div>
+    <div class="skininfo" id="skinInfo"></div>
     <div class="diffrow"><span>Difficulty</span><div class="seg"><button data-diff="easy">Easy</button><button data-diff="normal">Normal</button><button data-diff="nightmare">Nightmare</button></div></div>
     <div class="diffhint" id="diffHint"></div>
     <button id="playBtn">Play</button>
@@ -305,6 +325,7 @@
     <div class="xpsmall next" id="lvlNext"></div>
     <div id="bestBox" class="best"></div>
     <div class="skins-label">Cosmetics</div>
+    <canvas id="cosPreview" class="cosprev"></canvas>
     <div class="cosm" id="cosmBox"></div>
     <div class="skins-label settings-label">Settings</div>
     <div class="settings">
@@ -328,8 +349,6 @@
       <div class="stat"><div class="v" id="overKills">0</div><div class="l">Colonies conquered</div></div>
       <div class="stat"><div class="v" id="overTime">0:00</div><div class="l">Time survived</div></div>
     </div>
-    <div class="skins-label">Change skin</div>
-    <div class="skins"></div>
     <p class="streakline" id="overStreak"></p>
     <div class="xpbox" id="overXp"></div>
     <p class="achline" id="overAch"></p>
@@ -374,8 +393,6 @@
       <div class="stat"><div class="v" id="winKills">0</div><div class="l">Colonies conquered</div></div>
       <div class="stat"><div class="v" id="winTime">0:00</div><div class="l">Time</div></div>
     </div>
-    <div class="skins-label">Change skin</div>
-    <div class="skins"></div>
     <p class="streakline" id="winStreak"></p>
     <div class="xpbox" id="winXp"></div>
     <p class="achline" id="winAch"></p>
@@ -1540,12 +1557,10 @@ function matchXP(won) {
   const base = parts.reduce((a, p) => a + p[1], 0), mult = diff().xp;
   return { parts, mult, total: Math.round(base * mult) };
 }
-function cycleCos(kind, dir) {
-  const opts = COSMETICS[kind].filter(o => prog.level >= o.level);
-  let i = opts.findIndex(o => o.id === prog[kind]);
-  i = (i + dir + opts.length) % opts.length;
-  prog[kind] = opts[i].id;
-  saveProg(); renderProfile();
+function trailSwatch(id) {
+  if (id === 'none') return 'transparent';
+  if (id === 'rainbow') return 'linear-gradient(90deg,#ff5a5a,#ffd24a,#5aff8a,#5ab0ff,#c07aff)';
+  const c = TRAIL_COLORS[id]; return `linear-gradient(90deg,${c.join(',')})`;
 }
 function renderProfile() {
   const need = xpNeeded(prog.level);
@@ -1559,15 +1574,30 @@ function renderProfile() {
   const box = document.getElementById('cosmBox');
   box.innerHTML = '';
   for (const kind of Object.keys(COSMETICS)) {
-    const all = COSMETICS[kind], cur = all.find(o => o.id === prog[kind]) || all[0];
-    const have = all.filter(o => prog.level >= o.level).length;
-    const row = document.createElement('div');
-    row.className = 'cosrow';
-    row.innerHTML = `<span>${COS_LABEL[kind]}</span><button class="cosbtn" data-k="${kind}" data-d="-1">&lsaquo;</button>
-      <b ${kind === 'crown' ? `style="color:${cur.color}"` : ''}>${cur.name}</b><button class="cosbtn" data-k="${kind}" data-d="1">&rsaquo;</button><em>${have}/${all.length}</em>`;
-    box.appendChild(row);
+    const all = COSMETICS[kind];
+    const group = document.createElement('div');
+    group.className = 'cosgroup';
+    group.innerHTML = `<div class="coslabel">${COS_LABEL[kind]} <em>${all.filter(o => prog.level >= o.level).length}/${all.length}</em></div>`;
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    for (const o of all) {
+      const locked = prog.level < o.level;
+      const chip = document.createElement('button');
+      chip.className = 'chip' + (prog[kind] === o.id ? ' on' : '') + (locked ? ' locked' : '');
+      chip.title = locked ? `${o.name} - unlocks at level ${o.level}` : o.name;
+      const sw = kind === 'crown' ? `<i class="sw crownsw" style="background:${o.color}"></i>`
+        : kind === 'trail' ? `<i class="sw${o.id === 'none' ? ' nosw' : ''}" style="background:${trailSwatch(o.id)}"></i>` : '';
+      chip.innerHTML = `${sw}${o.name}${locked ? `<small>Lv ${o.level}</small>` : ''}`;
+      chip.addEventListener('click', () => {
+        if (locked) return;
+        prog[kind] = o.id; saveProg(); renderProfile();
+        if (kind === 'kfx') cosPrev.fxT = 0.05;   // show the new effect right away
+      });
+      chips.appendChild(chip);
+    }
+    group.appendChild(chips);
+    box.appendChild(group);
   }
-  box.querySelectorAll('.cosbtn').forEach(b => b.addEventListener('click', () => cycleCos(b.dataset.k, +b.dataset.d)));
 }
 function showXP(boxId, x, res) {
   const box = document.getElementById(boxId);
@@ -1584,32 +1614,95 @@ function showXP(boxId, x, res) {
 
 // cosmetic effects in play
 const TRAIL_COLORS = { sparkle: ['#ffffff', '#fff2a0'], fire: ['#ff9a2a', '#ff5a1a', '#ffd23a'], leaves: ['#6fbf3a', '#9fd84a', '#4a9a2a'], stars: ['#ffffff', '#ffe27a'] };
-function spawnTrail(q) {
-  const s = Math.hypot(q.vx, q.vy) || 1, bx = q.x - q.vx / s * 16, by = q.y - q.vy / s * 16;
-  const t = prog.trail;
+function trailParticle(x, y, t, s = 1) {
   const color = t === 'rainbow' ? `hsl(${(time * 300) % 360},90%,62%)` : TRAIL_COLORS[t][randInt(0, TRAIL_COLORS[t].length - 1)];
-  const big = t === 'stars' && Math.random() < 0.2;
-  particles.push({ type: 'trail', x: bx + rand(-5, 5), y: by + rand(-5, 5), vx: rand(-15, 15), vy: t === 'fire' ? rand(-50, -20) : rand(-15, 15),
-    color, life: t === 'leaves' || t === 'stars' ? 0.9 : 0.55, max: t === 'leaves' || t === 'stars' ? 0.9 : 0.55, r: big ? 3.2 : rand(1.3, 2.4) });
+  const big = t === 'stars' && Math.random() < 0.2, life = t === 'leaves' || t === 'stars' ? 0.9 : 0.55;
+  return { type: 'trail', x: x + rand(-5, 5) * s, y: y + rand(-5, 5) * s, vx: rand(-15, 15) * s, vy: (t === 'fire' ? rand(-50, -20) : rand(-15, 15)) * s,
+    color, life, max: life, r: (big ? 3.2 : rand(1.3, 2.4)) * Math.max(0.7, s) };
 }
-function playKillFx(x, y) {
-  const k = prog.kfx;
+function spawnTrail(q) {
+  const s = Math.hypot(q.vx, q.vy) || 1;
+  particles.push(trailParticle(q.x - q.vx / s * 16, q.y - q.vy / s * 16, prog.trail));
+}
+// conquest effect into any particle (P) / ring (F) list, scaled by s (the menu preview uses a small scale)
+function killFxInto(x, y, k, P, F, s = 1, baseColor = '#ffd54a') {
   if (k === 'confetti') {
     const cols = ['#ffd54a', '#ff6a8a', '#6ad0ff', '#9fe08a', '#c9a0ff', '#ffffff'];
-    for (let i = 0; i < 60; i++) { const a = rand(0, TAU), sp = rand(150, 380); particles.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: cols[i % cols.length], life: rand(1, 1.6), max: 1.6, r: rand(2, 3.2) }); }
+    for (let i = 0; i < 60; i++) { const a = rand(0, TAU), sp = rand(150, 380) * s; P.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: cols[i % cols.length], life: rand(1, 1.6), max: 1.6, r: rand(2, 3.2) * Math.max(0.6, s) }); }
   } else if (k === 'shock') {
-    [[160, 0.6, '#ffffff'], [240, 0.8, '#ffd54a'], [330, 1, '#ffffff']].forEach(([r, l, c]) => floaters.push({ type: 'ring', x, y, color: c, life: l, max: l, r }));
-    addShake(5);
+    [[160, 0.6, '#ffffff'], [240, 0.8, '#ffd54a'], [330, 1, '#ffffff']].forEach(([r, l, c]) => F.push({ type: 'ring', x, y, color: c, life: l, max: l, r: r * s }));
   } else if (k === 'fireworks') {
     const cols = ['#ff5a5a', '#5ad0ff', '#ffe24a', '#9f7aff', '#6aff9a'];
     for (let b = 0; b < 4; b++) {
-      const cx = x + rand(-130, 130), cy = y + rand(-130, 130), col = cols[randInt(0, cols.length - 1)];
-      for (let i = 0; i < 22; i++) { const a = i / 22 * TAU, sp = rand(160, 230); particles.push({ type: 'spark', x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: col, life: 1.1, max: 1.1, r: 2.2 }); }
-      floaters.push({ type: 'ring', x: cx, y: cy, color: col, life: 0.5, max: 0.5, r: 50 });
+      const cx = x + rand(-130, 130) * s, cy = y + rand(-130, 130) * s, col = cols[randInt(0, cols.length - 1)];
+      for (let i = 0; i < 22; i++) { const a = i / 22 * TAU, sp = rand(160, 230) * s; P.push({ type: 'spark', x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: col, life: 1.1, max: 1.1, r: 2.2 * Math.max(0.6, s) }); }
+      F.push({ type: 'ring', x: cx, y: cy, color: col, life: 0.5, max: 0.5, r: 50 * s });
     }
   } else if (k === 'crown') {
-    for (let i = 0; i < 14; i++) particles.push({ type: 'crown', x: x + rand(-90, 90), y: y + rand(-90, 60), vx: rand(-20, 20), vy: rand(-160, -60), color: '#ffd700', life: 1.6, max: 1.6, r: rand(5, 8) });
+    for (let i = 0; i < 14; i++) P.push({ type: 'crown', x: x + rand(-90, 90) * s, y: y + rand(-90, 60) * s, vx: rand(-20, 20) * s, vy: rand(-160, -60) * s, color: '#ffd700', life: 1.6, max: 1.6, r: rand(5, 8) * Math.max(0.6, s) });
+  } else {   // classic: a small splash in the colony colour
+    for (let i = 0; i < 16; i++) { const a = rand(0, TAU), sp = rand(60, 180) * s; P.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: i % 2 ? baseColor : '#ffffff', life: 0.8, max: 0.8, r: 2 * Math.max(0.6, s) }); }
+    F.push({ type: 'ring', x, y, color: baseColor, life: 0.9, max: 0.9, r: 90 * s });
   }
+}
+function playKillFx(x, y) {
+  if (prog.kfx === 'none') return;   // classic flecks are already part of every conquest
+  killFxInto(x, y, prog.kfx, particles, floaters);
+  if (prog.kfx === 'shock') addShake(5);
+}
+
+// Live cosmetics preview on the menu: your current skin wearing your crown, trail and conquest effect
+const cosPrev = { parts: [], rings: [], t: 0, fxT: 1.2, trailT: 0, q: { x: 148, y: 60, vx: 0, vy: 0, ang: 0, walk: 0 } };
+function drawCosPreview(dt) {
+  const cv = document.getElementById('cosPreview');
+  if (!cv || !cv.offsetParent || dt <= 0) return;
+  const d = Math.min(2, window.devicePixelRatio || 1), w = 296, h = 120;
+  if (cv.width !== Math.round(w * d)) { cv.width = Math.round(w * d); cv.height = Math.round(h * d); }
+  const P = cosPrev, q = P.q;
+  P.t += dt;
+  const nx = w / 2 + Math.sin(P.t * 0.8) * w * 0.27, ny = h / 2 + 4 + Math.sin(P.t * 1.6) * h * 0.13;
+  q.vx = (nx - q.x) / dt; q.vy = (ny - q.y) / dt; q.x = nx; q.y = ny;
+  q.ang = Math.atan2(q.vy, q.vx); q.walk += Math.hypot(q.vx, q.vy) * dt * 0.13;
+  const sk = SKINS[selectedSkin];
+  const col = { color: sk.color, dark: shade(sk.color, -0.5), isPlayer: true, skin: sk,
+                crownColor: (COSMETICS.crown.find(o => o.id === prog.crown) || COSMETICS.crown[0]).color };
+  if (prog.trail !== 'none' && (P.trailT -= dt) <= 0) {
+    P.trailT = 0.035;
+    const s = Math.hypot(q.vx, q.vy) || 1;
+    P.parts.push(trailParticle(q.x - q.vx / s * 18, q.y - q.vy / s * 18, prog.trail, 0.8));
+  }
+  if ((P.fxT -= dt) <= 0) { P.fxT = 3; killFxInto(q.x, q.y, prog.kfx, P.parts, P.rings, 0.45, sk.color); }
+  for (const p of P.parts) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.93; p.vy *= 0.93; }
+  for (const r of P.rings) r.life -= dt;
+  P.parts = P.parts.filter(p => p.life > 0); P.rings = P.rings.filter(r => r.life > 0);
+
+  const g = cv.getContext('2d');
+  g.setTransform(d, 0, 0, d, 0, 0);
+  const bg = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w * 0.6);
+  bg.addColorStop(0, '#7a522e'); bg.addColorStop(1, '#4a2f17');
+  g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  for (const r of P.rings) {
+    const a = Math.max(0, r.life / r.max);
+    g.globalAlpha = a; g.strokeStyle = r.color; g.lineWidth = 2 * a + 0.5;
+    g.beginPath(); g.arc(r.x, r.y, r.r * (1 - a) + 4, 0, TAU); g.stroke();
+  }
+  for (const p of P.parts) {
+    g.globalAlpha = Math.max(0, p.life / p.max); g.fillStyle = p.color;
+    if (p.type === 'crown') {
+      const r = p.r; g.beginPath();
+      g.moveTo(p.x - r, p.y + r * 0.6); g.lineTo(p.x - r, p.y - r * 0.4); g.lineTo(p.x - r * 0.5, p.y); g.lineTo(p.x, p.y - r * 0.8);
+      g.lineTo(p.x + r * 0.5, p.y); g.lineTo(p.x + r, p.y - r * 0.4); g.lineTo(p.x + r, p.y + r * 0.6); g.closePath(); g.fill();
+    } else g.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+  }
+  g.globalAlpha = 1;
+  const saved = [TZ, TEX, TEY];
+  antCtx = g; TZ = d; TEX = 0; TEY = 0;
+  for (let i = 0; i < 7; i++) {   // a little guard ring around the queen
+    const a = P.t * 0.6 + i / 7 * TAU, wx = q.x + Math.cos(a) * 31, wy = q.y + Math.sin(a) * 31;
+    drawAnt(wx, wy, a + Math.PI / 2, 1.15, col, q.walk * 2 + i, false, i);
+  }
+  drawAnt(q.x, q.y, q.ang, 2.4, col, q.walk, true);
+  antCtx = ctx; [TZ, TEX, TEY] = saved;
 }
 
 // ---- achievements: lifetime progress unlocks skins ----
@@ -3198,11 +3291,11 @@ function drawMinimap() {
 // ============================================================
 //  Title logo
 // ============================================================
-function drawLogo() {
+function drawLogo(sk = SKINS[selectedSkin]) {
   const lc = document.getElementById('logo');
   const l = lc.getContext('2d');
   const d = Math.min(2, window.devicePixelRatio || 1);
-  lc.width = 160 * d; lc.height = 90 * d;
+  lc.width = 160 * d; lc.height = 90 * d;   // (resizing also clears the old picture)
   lc.style.width = '160px'; lc.style.height = '90px';
   l.setTransform(d, 0, 0, d, 0, 0);
   const g = l.createRadialGradient(80, 95, 5, 80, 95, 80);
@@ -3212,7 +3305,6 @@ function drawLogo() {
   const saved = [TZ, TEX, TEY];
   TZ = d; TEX = 0; TEY = 0;
   antCtx = l;
-  const sk = SKINS[selectedSkin];
   const gold = { color: sk.color, dark: shade(sk.color, -0.5), isPlayer: true, skin: sk };
   drawAnt(34, 64, -Math.PI / 2 - 0.5, 1.5, gold, 1.2, false);
   drawAnt(126, 64, -Math.PI / 2 + 0.5, 1.5, gold, 2.4, false);
@@ -3540,6 +3632,7 @@ function frame(now) {
     for (let i = 0; i < steps; i++) update(dt * scale / steps);
   }
   if (state === 'dying') { deathTimer -= realDt; if (deathTimer <= 0) endGame(false); }
+  if (state === 'title') drawCosPreview(realDt);
   shake = Math.max(0, shake - realDt * 30);
   shakeX = (Math.random() * 2 - 1) * shake; shakeY = (Math.random() * 2 - 1) * shake;
   for (const b of banners) b.life -= realDt;
@@ -3569,9 +3662,19 @@ function fillSkinPicker(box) {
     const d = Math.min(2, window.devicePixelRatio || 1);
     cv.width = 56 * d; cv.height = 48 * d;
     btn.appendChild(cv);
-    btn.appendChild(document.createTextNode(locked ? 'Locked' : sk.name));
+    btn.appendChild(document.createTextNode(sk.name));
+    if (locked) { const li = document.createElement('span'); li.className = 'lockico'; btn.appendChild(li); }
     btn.addEventListener('click', () => {
-      if (!skinUnlocked(sk)) return;
+      const info = document.getElementById('skinInfo');
+      document.querySelectorAll('.skin').forEach(b => b.classList.remove('peek'));
+      if (!skinUnlocked(sk)) {   // locked: preview it and say how to unlock it
+        btn.classList.add('peek');
+        drawLogo(sk);
+        const cur = ach ? Math.min(ach.goal, life[ach.key] || 0) : 0;
+        info.textContent = ach ? `${sk.name} is locked - unlock it with "${ach.name}": ${ach.desc}${ach.goal > 1 ? ` (${cur}/${ach.goal})` : ''}` : `${sk.name} is locked`;
+        return;
+      }
+      info.textContent = '';
       selectedSkin = i;
       try { localStorage.setItem('qoth-skin', sk.id); } catch (e) {}
       document.querySelectorAll('.skin').forEach(b => b.classList.toggle('sel', +b.dataset.i === i));
