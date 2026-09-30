@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Queen of the Hill</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #2a1a0d;
+    font-family: "Trebuchet MS", "Segoe UI", Tahoma, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas#game { display: block; cursor: crosshair; touch-action: none; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, rgba(30,18,8,0.35) 0%, rgba(15,8,3,0.75) 100%);
+    padding: 16px;
+    box-sizing: border-box;
+    animation: fadeIn 0.4s ease-out;
+  }
+  .hidden { display: none; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .panel {
+    background: linear-gradient(180deg, #6a4524 0%, #45290f 100%);
+    border: 3px solid #d4a843;
+    border-radius: 20px;
+    padding: 28px 40px 32px;
+    color: #f5e8c8;
+    text-align: center;
+    box-shadow: 0 14px 50px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,230,160,0.25);
+    max-width: 520px;
+    width: 100%;
+    box-sizing: border-box;
+    animation: pop 0.35s ease-out;
+  }
+  .panel h1 {
+    font-size: 54px;
+    line-height: 1.05;
+    margin: 4px 0 8px;
+    color: #ffd54a;
+    text-shadow: 0 3px 0 #7a4c0c, 0 6px 18px rgba(0,0,0,0.6);
+    letter-spacing: 1px;
+  }
+  .panel h2 {
+    font-size: 40px;
+    margin: 4px 0 10px;
+    color: #ffd54a;
+    text-shadow: 0 3px 0 #7a4c0c, 0 6px 16px rgba(0,0,0,0.6);
+  }
+  .panel.lose h2 { color: #ff7a6a; text-shadow: 0 3px 0 #6a1a10, 0 6px 16px rgba(0,0,0,0.6); }
+  .tagline { margin: 0 0 18px; color: #e8cf98; font-style: italic; }
+  .controls {
+    text-align: left;
+    background: rgba(0,0,0,0.25);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin: 0 0 22px;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .controls div { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+  .key {
+    display: inline-block;
+    min-width: 62px;
+    text-align: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #f5e8c8;
+    color: #45290f;
+    font-weight: bold;
+    font-size: 13px;
+    box-shadow: 0 2px 0 #9c7a44;
+    flex-shrink: 0;
+  }
+  .crumb {
+    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+    background: #7fe05a; box-shadow: 0 0 6px #9cff6a; vertical-align: middle;
+  }
+  .crownicon {
+    display: inline-block; min-width: 78px; text-align: center; color: #ffd54a; font-weight: bold; flex-shrink: 0;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 12px 0 24px;
+  }
+  .stat {
+    background: rgba(0,0,0,0.28);
+    border-radius: 10px;
+    padding: 10px 6px;
+  }
+  .stat .v { font-size: 28px; font-weight: bold; color: #ffd54a; }
+  .stat .l { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #d8c090; }
+  button {
+    font-family: inherit;
+    font-size: 24px;
+    font-weight: bold;
+    color: #3a2208;
+    background: linear-gradient(180deg, #ffe07a 0%, #f0b429 100%);
+    border: none;
+    border-radius: 14px;
+    padding: 12px 56px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #9a6a10, 0 8px 18px rgba(0,0,0,0.45);
+    transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
+  }
+  button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  button:active { transform: translateY(4px); box-shadow: 0 1px 0 #9a6a10, 0 3px 8px rgba(0,0,0,0.45); }
+  #logo { display: block; margin: 0 auto; }
+  .hint { margin-top: 14px; font-size: 12px; color: #c8ae7a; }
+  @media (max-width: 480px) {
+    .panel { padding: 20px 18px 24px; }
+    .panel h1 { font-size: 40px; }
+    .controls { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="titleScreen" class="overlay">
+  <div class="panel">
+    <canvas id="logo" width="160" height="90"></canvas>
+    <h1>Queen of the Hill</h1>
+    <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
+    <div class="controls">
+      <div><span class="crownicon"><span class="key">Mouse</span></span><span>Your queen follows the cursor</span></div>
+      <div><span class="crownicon"><span class="key">Space</span></span><span>Workers charge the cursor for 2 seconds</span></div>
+      <div><span class="crownicon"><span class="crumb"></span></span><span>Eat green crumbs &mdash; every 3 hatch a new worker</span></div>
+      <div><span class="crownicon">Conquer</span><span>Touch a queen with a <b>smaller</b> colony to take her workers</span></div>
+      <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>A bigger queen will conquer <b>you</b></span></div>
+    </div>
+    <button id="playBtn">Play</button>
+    <div class="hint">Tip: enemy size tags are green when you can take them, red when they can take you.</div>
+  </div>
+</div>
+
+<div id="overScreen" class="overlay hidden">
+  <div class="panel lose">
+    <h2>Your Queen Has Fallen</h2>
+    <p class="tagline" id="overBy">Your colony was absorbed.</p>
+    <div class="stats">
+      <div class="stat"><div class="v" id="overSize">0</div><div class="l">Final size</div></div>
+      <div class="stat"><div class="v" id="overPeak">0</div><div class="l">Peak size</div></div>
+      <div class="stat"><div class="v" id="overKills">0</div><div class="l">Colonies conquered</div></div>
+      <div class="stat"><div class="v" id="overTime">0:00</div><div class="l">Time survived</div></div>
+    </div>
+    <button id="restartBtn">Restart</button>
+  </div>
+</div>
+
+<div id="winScreen" class="overlay hidden">
+  <div class="panel">
+    <h2>Victory!</h2>
+    <p class="tagline">Every rival colony bows to you. You are the Queen of the Hill.</p>
+    <div class="stats">
+      <div class="stat"><div class="v" id="winSize">0</div><div class="l">Colony size</div></div>
+      <div class="stat"><div class="v" id="winPeak">0</div><div class="l">Peak size</div></div>
+      <div class="stat"><div class="v" id="winKills">0</div><div class="l">Colonies conquered</div></div>
+      <div class="stat"><div class="v" id="winTime">0:00</div><div class="l">Time</div></div>
+    </div>
+    <button id="againBtn">Play Again</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+//  Constants
+// ============================================================
+const TAU = Math.PI * 2;
+const WORLD_W = 4000, WORLD_H = 2600;          // ~4x a typical screen
+const QUEEN_R = 13, WORKER_R = 5, FOOD_R = 3.5;
+const PLAYER_SPEED = 220;
+const AI_SPEED = 185, AI_FLEE_SPEED = 180;
+const WORKER_SPEED = 270, CHARGE_SPEED = 380;
+const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 3.5;
+const FOOD_MAX = 420, FOOD_RESPAWN_RATE = 9;   // crumbs per second while below max
+const FOOD_PER_WORKER = 3, MAX_WORKERS = 400;
+const START_ENEMIES = 8, MAX_ENEMIES = 10;
+const PLAYER_COLOR = '#f5c542';
+const SEP_DIST = 13, FIGHT_DIST = 10;
+const CELL = 40;
+const GCOLS = Math.ceil(WORLD_W / CELL), GROWS = Math.ceil(WORLD_H / CELL);
+
+const PALETTE = [
+  { name: 'Crimson Hive',   color: '#e0403a' },
+  { name: 'Azure Nest',     color: '#3d8fe0' },
+  { name: 'Violet Mound',   color: '#9b59d0' },
+  { name: 'Cyan Burrow',    color: '#2ec4d6' },
+  { name: 'Ember Brood',    color: '#ff7a2e' },
+  { name: 'Rose Swarm',     color: '#f062a8' },
+  { name: 'Ivory Legion',   color: '#ece4d6' },
+  { name: 'Obsidian Horde', color: '#26262b' },
+  { name: 'Indigo Den',     color: '#5b5fd6' },
+  { name: 'Slate Clan',     color: '#8fa3b3' },
+  { name: 'Scarlet Tunnel', color: '#a8102a' },
+  { name: 'Teal Dynasty',   color: '#1f9e8f' },
+];
+
+// ============================================================
+//  Helpers
+// ============================================================
+const rand = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+function lerpAngle(a, b, t) {
+  const d = ((b - a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  return a + d * t;
+}
+function shade(hex, amt) {
+  let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+  if (amt < 0) { r *= 1 + amt; g *= 1 + amt; b *= 1 + amt; }
+  else { r += (255 - r) * amt; g += (255 - g) * amt; b += (255 - b) * amt; }
+  return `rgb(${r | 0},${g | 0},${b | 0})`;
+}
+function fmtTime(s) {
+  s = Math.floor(s);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ============================================================
+//  Canvas / input
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.floor(W * DPR); canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+const mouse = { x: 0, y: 0, moved: false };
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.moved = true; });
+canvas.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  mouse.x = t.clientX; mouse.y = t.clientY; mouse.moved = true;
+  if (e.touches.length >= 2) tryPlayerCharge();   // two-finger tap = charge on touch devices
+  e.preventDefault();
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  mouse.x = t.clientX; mouse.y = t.clientY; e.preventDefault();
+}, { passive: false });
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!e.repeat) tryPlayerCharge();
+  } else if (e.code === 'Enter') {
+    if (state === 'title' || state === 'over' || state === 'victory') startGame();
+  }
+});
+
+// ============================================================
+//  Game state
+// ============================================================
+let state = 'title';     // title | playing | over | victory
+let colonies = [];
+let food = [];
+let particles = [];      // ground splats + flecks
+let floaters = [];       // floating text / rings
+let player = null;
+let uid = 1;
+let time = 0;
+let spawnTimer = 10;
+let foodAccum = 0;
+let stats = { start: 0, kills: 0, peak: 0, finalSize: 0, killedBy: '', endTime: 0 };
+const cam = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.8 };
+
+const antGrid = Array.from({ length: GCOLS * GROWS }, () => []);
+const foodGrid = Array.from({ length: GCOLS * GROWS }, () => []);
+
+// ============================================================
+//  Entity creation
+// ============================================================
+function makeColony(x, y, workers, name, color, isPlayer) {
+  const c = {
+    id: uid++, name, color, isPlayer,
+    dark: shade(color, color === '#26262b' ? -0.6 : -0.5),
+    light: shade(color, 0.45),
+    alive: true, food: 0, births: 0,
+    workers: [],
+    queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 },
+    charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
+    ai: { mode: 'wander', target: null, food: null, think: 0, wx: x, wy: y },
+  };
+  for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
+  return c;
+}
+
+function addWorker(c, x, y) {
+  const a = rand(0, TAU), r = Math.sqrt(Math.random());
+  c.workers.push({
+    id: uid++, col: c,
+    x: clamp(x, 5, WORLD_W - 5), y: clamp(y, 5, WORLD_H - 5),
+    vx: 0, vy: 0, ang: rand(0, TAU), walk: rand(0, 10),
+    ox: Math.cos(a) * r, oy: Math.sin(a) * r, jit: rand(0, TAU),
+    sx: 0, sy: 0, fx: 0, fy: 0, hasFood: false,
+    fightCd: 0, dead: false,
+  });
+}
+
+function spawnFood(x, y) {
+  food.push({
+    x: x ?? rand(20, WORLD_W - 20), y: y ?? rand(20, WORLD_H - 20),
+    r: rand(2.6, 4.2), ox: rand(-1.5, 1.5), oy: rand(-1.5, 1.5), age: 0, dead: false,
+  });
+}
+
+function pickPalette() {
+  const used = new Set(colonies.filter(c => c.alive).map(c => c.color));
+  const free = PALETTE.filter(p => !used.has(p.color));
+  const src = free.length ? free : PALETTE;
+  return src[randInt(0, src.length - 1)];
+}
+
+function findSpawnPos(minFromPlayer, minFromQueens) {
+  let best = null, bestScore = -1;
+  for (let t = 0; t < 80; t++) {
+    const x = rand(180, WORLD_W - 180), y = rand(180, WORLD_H - 180);
+    let score = Infinity;
+    for (const c of colonies) {
+      if (!c.alive) continue;
+      const d = dist(x, y, c.queen.x, c.queen.y);
+      const need = c.isPlayer ? minFromPlayer : minFromQueens;
+      score = Math.min(score, d / need);
+    }
+    if (score >= 1) return { x, y };
+    if (score > bestScore) { bestScore = score; best = { x, y }; }
+  }
+  return best;
+}
+
+function spawnEnemy(size) {
+  const p = findSpawnPos(900, 380);
+  const pal = pickPalette();
+  const c = makeColony(p.x, p.y, size, pal.name, pal.color, false);
+  colonies.push(c);
+  if (state === 'playing') floaters.push({ type: 'ring', x: p.x, y: p.y, color: pal.color, life: 1, max: 1, r: 60 });
+  return c;
+}
+
+function enemyCount() {
+  let n = 0;
+  for (const c of colonies) if (c.alive && !c.isPlayer) n++;
+  return n;
+}
+
+function colonySize(c) { return c.workers.length; }
+
+// ============================================================
+//  World setup
+// ============================================================
+function resetWorld(withPlayer) {
+  colonies = []; food = []; particles = []; floaters = [];
+  player = null; time = 0; foodAccum = 0;
+  for (let i = 0; i < FOOD_MAX; i++) spawnFood();
+  for (const f of food) f.age = 1;
+
+  if (withPlayer) {
+    player = makeColony(WORLD_W / 2 + rand(-600, 600), WORLD_H / 2 + rand(-400, 400), 5, 'You', PLAYER_COLOR, true);
+    colonies.push(player);
+  }
+  // 8 rivals with sizes spread from 3 to 30
+  const sizes = [3, 30];
+  while (sizes.length < START_ENEMIES) sizes.push(randInt(4, 26));
+  for (const s of sizes) {
+    const p = findSpawnPos(700, 450);
+    const pal = pickPalette();
+    colonies.push(makeColony(p.x, p.y, s, pal.name, pal.color, false));
+  }
+  spawnTimer = 12;
+  if (player) { cam.x = player.queen.x; cam.y = player.queen.y; }
+}
+
+function startGame() {
+  resetWorld(true);
+  state = 'playing';
+  stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0 };
+  mouse.x = W / 2; mouse.y = H / 2;
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('overScreen').classList.add('hidden');
+  document.getElementById('winScreen').classList.add('hidden');
+}
+
+function tryPlayerCharge() {
+  if (state !== 'playing' || !player || !player.alive) return;
+  if (player.chargeCd > 0 || player.charge > 0) return;
+  const m = screenToWorld(mouse.x, mouse.y);
+  startCharge(player, m.x, m.y);
+}
+
+function startCharge(c, x, y) {
+  c.charge = CHARGE_TIME;
+  c.chargeX = x; c.chargeY = y;
+}
+
+function screenToWorld(sx, sy) {
+  return { x: cam.x + (sx - W / 2) / cam.zoom, y: cam.y + (sy - H / 2) / cam.zoom };
+}
+
+// ============================================================
+//  Queen movement
+// ============================================================
+function steerQueen(q, tvx, tvy, dt, resp) {
+  const k = 1 - Math.exp(-resp * dt);
+  q.vx += (tvx - q.vx) * k;
+  q.vy += (tvy - q.vy) * k;
+  q.x += q.vx * dt; q.y += q.vy * dt;
+  if (q.x < QUEEN_R) { q.x = QUEEN_R; q.vx = 0; }
+  if (q.x > WORLD_W - QUEEN_R) { q.x = WORLD_W - QUEEN_R; q.vx = 0; }
+  if (q.y < QUEEN_R) { q.y = QUEEN_R; q.vy = 0; }
+  if (q.y > WORLD_H - QUEEN_R) { q.y = WORLD_H - QUEEN_R; q.vy = 0; }
+  const s = Math.hypot(q.vx, q.vy);
+  if (s > 6) q.ang = lerpAngle(q.ang, Math.atan2(q.vy, q.vx), 1 - Math.exp(-10 * dt));
+  q.walk += s * dt * 0.13;
+}
+
+function updatePlayer(c, dt) {
+  const q = c.queen;
+  const m = screenToWorld(mouse.x, mouse.y);
+  const dx = m.x - q.x, dy = m.y - q.y, d = Math.hypot(dx, dy);
+  const sp = Math.min(PLAYER_SPEED, Math.max(0, d - 4) * 3);
+  steerQueen(q, d > 1 ? dx / d * sp : 0, d > 1 ? dy / d * sp : 0, dt, 7);
+  if (c.charge > 0) { c.chargeX = m.x; c.chargeY = m.y; }
+}
+
+// ============================================================
+//  AI
+// ============================================================
+function aiThink(c) {
+  const q = c.queen, ai = c.ai, my = colonySize(c);
+  let threat = null, threatD = Infinity, prey = null, preyScore = -Infinity;
+  for (const o of colonies) {
+    if (o === c || !o.alive) continue;
+    const d = dist(q.x, q.y, o.queen.x, o.queen.y);
+    const os = colonySize(o);
+    if (os > my && d < 380 && d < threatD) { threat = o; threatD = d; }
+    if (os < my && d < 520) {
+      const score = (my - os) / (my + 1) - d / 520;
+      if (score > preyScore) { preyScore = score; prey = o; }
+    }
+  }
+  if (threat && (!prey || threatD < 260)) { ai.mode = 'flee'; ai.target = threat; return; }
+  if (prey) { ai.mode = 'chase'; ai.target = prey; return; }
+
+  // look for food
+  let best = null, bestD = 340;
+  const gx = (q.x / CELL) | 0, gy = (q.y / CELL) | 0;
+  for (let yy = gy - 8; yy <= gy + 8; yy++) {
+    if (yy < 0 || yy >= GROWS) continue;
+    for (let xx = gx - 8; xx <= gx + 8; xx++) {
+      if (xx < 0 || xx >= GCOLS) continue;
+      for (const f of foodGrid[yy * GCOLS + xx]) {
+        if (f.dead) continue;
+        const d = dist(q.x, q.y, f.x, f.y);
+        if (d < bestD) { bestD = d; best = f; }
+      }
+    }
+  }
+  if (best) { ai.mode = 'food'; ai.food = best; return; }
+
+  if (ai.mode !== 'wander' || dist(q.x, q.y, ai.wx, ai.wy) < 60) {
+    ai.wx = clamp(q.x + rand(-700, 700), 150, WORLD_W - 150);
+    ai.wy = clamp(q.y + rand(-700, 700), 150, WORLD_H - 150);
+  }
+  ai.mode = 'wander';
+}
+
+function updateAI(c, dt) {
+  const q = c.queen, ai = c.ai;
+  ai.think -= dt;
+  if (ai.think <= 0) { ai.think = rand(0.2, 0.45); aiThink(c); }
+  let tx = 0, ty = 0, sp = AI_SPEED * 0.6;
+
+  if (ai.mode === 'flee' && ai.target && ai.target.alive) {
+    const tq = ai.target.queen;
+    const dx = q.x - tq.x, dy = q.y - tq.y, d = Math.hypot(dx, dy) || 1;
+    tx = dx / d; ty = dy / d;
+    const m = 260;   // steer away from walls so fleeing queens don't pin themselves
+    if (q.x < m) tx += (m - q.x) / m * 1.6;
+    if (q.x > WORLD_W - m) tx -= (q.x - (WORLD_W - m)) / m * 1.6;
+    if (q.y < m) ty += (m - q.y) / m * 1.6;
+    if (q.y > WORLD_H - m) ty -= (q.y - (WORLD_H - m)) / m * 1.6;
+    sp = AI_FLEE_SPEED;
+  } else if (ai.mode === 'chase' && ai.target && ai.target.alive) {
+    const tq = ai.target.queen;
+    const dx = tq.x - q.x, dy = tq.y - q.y, d = Math.hypot(dx, dy) || 1;
+    tx = dx / d; ty = dy / d; sp = AI_SPEED;
+    if (d < 280 && c.charge <= 0 && c.chargeCd <= 0) startCharge(c, tq.x, tq.y);
+    if (c.charge > 0) { c.chargeX = tq.x; c.chargeY = tq.y; }
+  } else if (ai.mode === 'food' && ai.food && !ai.food.dead) {
+    tx = ai.food.x - q.x; ty = ai.food.y - q.y; sp = AI_SPEED * 0.8;
+  } else {
+    if (ai.mode !== 'wander') { ai.mode = 'wander'; ai.think = 0; }
+    tx = ai.wx - q.x; ty = ai.wy - q.y; sp = AI_SPEED * 0.6;
+    if (Math.hypot(tx, ty) < 50) ai.think = 0;
+  }
+  const n = Math.hypot(tx, ty) || 1;
+  steerQueen(q, tx / n * sp, ty / n * sp, dt, 4);
+}
+
+// ============================================================
+//  Grids, fights, food
+// ============================================================
+function buildGrids() {
+  for (let i = 0; i < antGrid.length; i++) { antGrid[i].length = 0; foodGrid[i].length = 0; }
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    for (const w of c.workers) {
+      const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
+      antGrid[gy * GCOLS + gx].push(w);
+    }
+  }
+  for (const f of food) {
+    if (f.dead) continue;
+    const gx = clamp((f.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((f.y / CELL) | 0, 0, GROWS - 1);
+    foodGrid[gy * GCOLS + gx].push(f);
+  }
+}
+
+function fight(a, b) {
+  if (a.fightCd > 0 || b.fightCd > 0) return;
+  a.fightCd = b.fightCd = 0.35;
+  const sa = colonySize(a.col), sb = colonySize(b.col);
+  const pa = (sa + 1) / (sa + sb + 2);  // share of strength for a's side
+  let aDie = 0.9 * (1 - pa), bDie = 0.9 * pa;
+  if (a.col.charge > 0) bDie *= 1.3;
+  if (b.col.charge > 0) aDie *= 1.3;
+  // knock apart
+  const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1;
+  a.vx += dx / d * 120; a.vy += dy / d * 120;
+  b.vx -= dx / d * 120; b.vy -= dy / d * 120;
+  sparks((a.x + b.x) / 2, (a.y + b.y) / 2);
+  if (Math.random() < Math.min(0.95, aDie)) killWorker(a, b.col);
+  if (Math.random() < Math.min(0.95, bDie)) killWorker(b, a.col);
+}
+
+function killWorker(w, killerCol) {
+  if (w.dead) return;
+  w.dead = true;
+  particles.push({ type: 'splat', x: w.x, y: w.y, color: w.col.color, life: 3, max: 3, r: rand(3, 5) });
+  for (let i = 0; i < 4; i++) {
+    const a = rand(0, TAU), s = rand(30, 90);
+    particles.push({ type: 'fleck', x: w.x, y: w.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: w.col.dark, life: 0.5, max: 0.5, r: 1.3 });
+  }
+}
+
+function sparks(x, y) {
+  for (let i = 0; i < 2; i++) {
+    const a = rand(0, TAU), s = rand(40, 110);
+    particles.push({ type: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: '#fff3c0', life: 0.25, max: 0.25, r: 1.2 });
+  }
+}
+
+function eatFood(c, f) {
+  if (f.dead) return;
+  f.dead = true;
+  c.food++;
+  if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
+  for (let i = 0; i < 3; i++) {
+    const a = rand(0, TAU), s = rand(20, 60);
+    particles.push({ type: 'fleck', x: f.x, y: f.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: '#9dff6e', life: 0.4, max: 0.4, r: 1.4 });
+  }
+}
+
+function interactions(dt) {
+  const SEP2 = SEP_DIST * SEP_DIST, FIGHT2 = FIGHT_DIST * FIGHT_DIST;
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    for (const w of c.workers) {
+      if (w.dead) continue;
+      w.fightCd -= dt;
+      const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
+      let nearF = null, nearD = 46;
+      for (let yy = gy - 1; yy <= gy + 1; yy++) {
+        if (yy < 0 || yy >= GROWS) continue;
+        for (let xx = gx - 1; xx <= gx + 1; xx++) {
+          if (xx < 0 || xx >= GCOLS) continue;
+          const idx = yy * GCOLS + xx;
+          const cell = antGrid[idx];
+          for (let i = 0; i < cell.length; i++) {
+            const o = cell[i];
+            if (o === w || o.dead) continue;
+            const dx = w.x - o.x, dy = w.y - o.y, d2 = dx * dx + dy * dy;
+            if (o.col === w.col) {
+              if (d2 < SEP2 && d2 > 0.0001) {
+                const d = Math.sqrt(d2), p = (SEP_DIST - d) / SEP_DIST;
+                w.sx += dx / d * p * 140; w.sy += dy / d * p * 140;
+              }
+            } else if (d2 < FIGHT2) {
+              if (w.id < o.id) fight(w, o);
+              if (w.dead) break;
+            }
+          }
+          if (w.dead) break;
+          const fc = foodGrid[idx];
+          for (let i = 0; i < fc.length; i++) {
+            const f = fc[i];
+            if (f.dead) continue;
+            const d = dist(w.x, w.y, f.x, f.y);
+            if (d < WORKER_R + f.r + 1) { eatFood(c, f); continue; }
+            if (d < nearD) { nearD = d; nearF = f; }
+          }
+        }
+        if (w.dead) break;
+      }
+      if (nearF && c.charge <= 0) {
+        w.fx = (nearF.x - w.x) / nearD * 150; w.fy = (nearF.y - w.y) / nearD * 150;
+      }
+    }
+  }
+
+  // queens eat food
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    const q = c.queen;
+    const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
+    for (let yy = gy - 1; yy <= gy + 1; yy++) {
+      if (yy < 0 || yy >= GROWS) continue;
+      for (let xx = gx - 1; xx <= gx + 1; xx++) {
+        if (xx < 0 || xx >= GCOLS) continue;
+        for (const f of foodGrid[yy * GCOLS + xx]) {
+          if (!f.dead && dist(q.x, q.y, f.x, f.y) < QUEEN_R + f.r) eatFood(c, f);
+        }
+      }
+    }
+  }
+
+  // clean up dead, hatch new workers
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    if (c.workers.some(w => w.dead)) c.workers = c.workers.filter(w => !w.dead);
+    while (c.births > 0) {
+      c.births--;
+      if (c.workers.length >= MAX_WORKERS) continue;
+      const q = c.queen;
+      addWorker(c, q.x - Math.cos(q.ang) * 16 + rand(-4, 4), q.y - Math.sin(q.ang) * 16 + rand(-4, 4));
+      if (c.isPlayer) floaters.push({ type: 'text', text: '+1', x: q.x, y: q.y - 24, color: '#ffe27a', life: 0.9, max: 0.9, size: 16 });
+    }
+  }
+  if (food.some(f => f.dead)) food = food.filter(f => !f.dead);
+}
+
+// ============================================================
+//  Worker movement (flocking around the queen)
+// ============================================================
+function updateWorkers(c, dt) {
+  const q = c.queen, n = c.workers.length;
+  if (!n) return;
+  const R = 16 + 6.5 * Math.sqrt(n);
+  const qs = Math.hypot(q.vx, q.vy);
+  const hx = qs > 10 ? q.vx / qs : Math.cos(q.ang), hy = qs > 10 ? q.vy / qs : Math.sin(q.ang);
+  const back = R * 0.75 + 12;
+  const cx = q.x - hx * back, cy = q.y - hy * back;
+  const charging = c.charge > 0;
+  const Rc = 10 + 3.5 * Math.sqrt(n);
+  const k = 1 - Math.exp(-6 * dt);
+
+  for (const w of c.workers) {
+    let tx, ty, maxS;
+    if (charging) {
+      tx = c.chargeX + w.ox * Rc; ty = c.chargeY + w.oy * Rc; maxS = CHARGE_SPEED;
+    } else {
+      tx = cx + w.ox * R + Math.cos(time * 1.7 + w.jit) * 5;
+      ty = cy + w.oy * R + Math.sin(time * 1.3 + w.jit * 1.7) * 5;
+      maxS = WORKER_SPEED;
+    }
+    const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
+    const sp = Math.min(maxS, d * (charging ? 5 : 2.6));
+    let dvx = d > 0.01 ? dx / d * sp : 0, dvy = d > 0.01 ? dy / d * sp : 0;
+    dvx += w.sx + w.fx; dvy += w.sy + w.fy;
+    w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
+    w.x = clamp(w.x + w.vx * dt, 3, WORLD_W - 3);
+    w.y = clamp(w.y + w.vy * dt, 3, WORLD_H - 3);
+    const s = Math.hypot(w.vx, w.vy);
+    if (s > 8) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), 1 - Math.exp(-12 * dt));
+    w.walk += s * dt * 0.3;
+    w.sx = w.sy = w.fx = w.fy = 0;
+  }
+}
+
+// ============================================================
+//  Queen vs queen: conquest
+// ============================================================
+function queenCollisions() {
+  for (let i = 0; i < colonies.length; i++) {
+    const a = colonies[i];
+    if (!a.alive) continue;
+    for (let j = i + 1; j < colonies.length; j++) {
+      const b = colonies[j];
+      if (!b.alive || !a.alive) continue;
+      const dx = a.queen.x - b.queen.x, dy = a.queen.y - b.queen.y, d = Math.hypot(dx, dy);
+      if (d >= QUEEN_R * 2) continue;
+      const sa = colonySize(a), sb = colonySize(b);
+      if (sa > sb) conquer(a, b);
+      else if (sb > sa) conquer(b, a);
+      else {  // evenly matched: bump apart
+        const nx = dx / (d || 1), ny = dy / (d || 1), push = (QUEEN_R * 2 - d) / 2 + 0.5;
+        a.queen.x += nx * push; a.queen.y += ny * push;
+        b.queen.x -= nx * push; b.queen.y -= ny * push;
+        a.queen.vx += nx * 80; a.queen.vy += ny * 80;
+        b.queen.vx -= nx * 80; b.queen.vy -= ny * 80;
+      }
+    }
+  }
+}
+
+function conquer(win, lose) {
+  const loseSize = colonySize(lose);
+  lose.alive = false;
+  const lq = lose.queen;
+  particles.push({ type: 'splat', x: lq.x, y: lq.y, color: lose.color, life: 5, max: 5, r: 11 });
+  for (let i = 0; i < 16; i++) {
+    const a = rand(0, TAU), s = rand(60, 180);
+    particles.push({ type: 'fleck', x: lq.x, y: lq.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: i % 2 ? lose.color : win.color, life: 0.8, max: 0.8, r: 2 });
+  }
+  floaters.push({ type: 'ring', x: lq.x, y: lq.y, color: win.color, life: 0.9, max: 0.9, r: 90 });
+
+  for (const w of lose.workers) {
+    const a = rand(0, TAU), r = Math.sqrt(Math.random());
+    w.col = win; w.ox = Math.cos(a) * r; w.oy = Math.sin(a) * r; w.fightCd = 0.6;
+    win.workers.push(w);
+  }
+  lose.workers = [];
+
+  if (win.isPlayer) {
+    stats.kills++;
+    floaters.push({ type: 'text', text: `Conquered ${lose.name}! +${loseSize}`, x: lq.x, y: lq.y - 30, color: '#ffe27a', life: 2, max: 2, size: 22 });
+    if (state === 'playing' && enemyCount() === 0) endGame(true);
+  } else if (lose.isPlayer) {
+    stats.finalSize = loseSize;
+    stats.killedBy = win.name;
+    if (state === 'playing') endGame(false);
+  }
+}
+
+function endGame(won) {
+  stats.endTime = time - stats.start;
+  if (won) {
+    state = 'victory';
+    document.getElementById('winSize').textContent = colonySize(player);
+    document.getElementById('winPeak').textContent = stats.peak;
+    document.getElementById('winKills').textContent = stats.kills;
+    document.getElementById('winTime').textContent = fmtTime(stats.endTime);
+    document.getElementById('winScreen').classList.remove('hidden');
+  } else {
+    state = 'over';
+    document.getElementById('overBy').textContent = `Your queen was conquered by ${stats.killedBy}.`;
+    document.getElementById('overSize').textContent = stats.finalSize;
+    document.getElementById('overPeak').textContent = stats.peak;
+    document.getElementById('overKills').textContent = stats.kills;
+    document.getElementById('overTime').textContent = fmtTime(stats.endTime);
+    document.getElementById('overScreen').classList.remove('hidden');
+  }
+}
+
+// ============================================================
+//  Main update
+// ============================================================
+function update(dt) {
+  time += dt;
+
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    if (c.isPlayer) updatePlayer(c, dt); else updateAI(c, dt);
+    if (c.charge > 0) {
+      c.charge -= dt;
+      if (c.charge <= 0) { c.charge = 0; c.chargeCd = c.isPlayer ? PLAYER_CHARGE_CD : AI_CHARGE_CD * rand(0.8, 1.3); }
+    } else if (c.chargeCd > 0) c.chargeCd -= dt;
+  }
+
+  buildGrids();
+  interactions(dt);
+  for (const c of colonies) if (c.alive) updateWorkers(c, dt);
+  queenCollisions();
+  colonies = colonies.filter(c => c.alive || c.isPlayer);
+
+  // food respawn
+  if (food.length < FOOD_MAX) {
+    foodAccum += FOOD_RESPAWN_RATE * dt;
+    while (foodAccum >= 1 && food.length < FOOD_MAX) {
+      foodAccum -= 1;
+      if (Math.random() < 0.3) {  // small clusters now and then
+        const x = rand(40, WORLD_W - 40), y = rand(40, WORLD_H - 40);
+        for (let i = 0; i < 4 && food.length < FOOD_MAX; i++) spawnFood(x + rand(-25, 25), y + rand(-25, 25));
+      } else spawnFood();
+    }
+  }
+  for (const f of food) if (f.age < 1) f.age = Math.min(1, f.age + dt * 2);
+
+  // new rival colonies appear over time; the bigger you are, the rarer they get
+  if (state !== 'victory') {
+    spawnTimer -= dt;
+    if (spawnTimer <= 0) {
+      const psize = player && player.alive ? colonySize(player) : 0;
+      spawnTimer = clamp(10 + psize * 0.15, 10, 45);
+      if (enemyCount() < MAX_ENEMIES) spawnEnemy(randInt(3, 8));
+    }
+  }
+
+  if (state === 'playing' && player.alive) stats.peak = Math.max(stats.peak, colonySize(player));
+
+  // particles
+  for (const p of particles) {
+    p.life -= dt;
+    if (p.vx !== undefined) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.9; p.vy *= 0.9; }
+  }
+  particles = particles.filter(p => p.life > 0);
+  if (particles.length > 1500) particles.splice(0, particles.length - 1500);
+  for (const f of floaters) { f.life -= dt; if (f.type === 'text') f.y -= 22 * dt; }
+  floaters = floaters.filter(f => f.life > 0);
+
+  updateCamera(dt);
+}
+
+let titleFocus = null;
+function updateCamera(dt) {
+  let tx, ty, tz;
+  const base = clamp(Math.min(W, H) / 760, 0.6, 1.05);
+  if (player && (state === 'playing' || state === 'victory' || state === 'over')) {
+    tx = player.queen.x; ty = player.queen.y;
+    tz = base * (1 - 0.35 * Math.min(1, colonySize(player) / 250));
+  } else {
+    // title: follow the biggest colony around
+    if (!titleFocus || !titleFocus.alive || Math.random() < dt / 8) {
+      titleFocus = colonies.filter(c => c.alive).sort((a, b) => colonySize(b) - colonySize(a))[0] || null;
+    }
+    tx = titleFocus ? titleFocus.queen.x : WORLD_W / 2;
+    ty = titleFocus ? titleFocus.queen.y : WORLD_H / 2;
+    tz = base * 0.85;
+  }
+  const k = 1 - Math.exp(-5 * dt);
+  cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k;
+  cam.zoom += (tz - cam.zoom) * (1 - Math.exp(-2 * dt));
+  const vw = W / cam.zoom, vh = H / cam.zoom, m = 80;
+  cam.x = vw > WORLD_W + 2 * m ? WORLD_W / 2 : clamp(cam.x, vw / 2 - m, WORLD_W - vw / 2 + m);
+  cam.y = vh > WORLD_H + 2 * m ? WORLD_H / 2 : clamp(cam.y, vh / 2 - m, WORLD_H - vh / 2 + m);
+}
+
+// ============================================================
+//  Rendering
+// ============================================================
+let dirtPattern = null;
+function makeDirtPattern() {
+  const s = 512;
+  const pc = document.createElement('canvas');
+  pc.width = pc.height = s;
+  const p = pc.getContext('2d');
+  p.fillStyle = '#6e4a2a';
+  p.fillRect(0, 0, s, s);
+  // mottled patches
+  for (let i = 0; i < 60; i++) {
+    const x = Math.random() * s, y = Math.random() * s, r = rand(20, 70);
+    const g = p.createRadialGradient(x, y, 0, x, y, r);
+    const dark = Math.random() < 0.5;
+    g.addColorStop(0, dark ? 'rgba(60,36,16,0.22)' : 'rgba(140,100,60,0.16)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    p.fillStyle = g;
+    for (const ox of [-s, 0, s]) for (const oy of [-s, 0, s]) {
+      p.save(); p.translate(ox, oy); p.beginPath(); p.arc(x, y, r, 0, TAU); p.fill(); p.restore();
+    }
+  }
+  // speckles
+  for (let i = 0; i < 2600; i++) {
+    const v = Math.random();
+    p.fillStyle = v < 0.5 ? `rgba(40,24,10,${rand(0.15, 0.4)})` : `rgba(170,130,85,${rand(0.1, 0.3)})`;
+    p.fillRect(Math.random() * s, Math.random() * s, rand(1, 2.4), rand(1, 2.4));
+  }
+  // pebbles
+  for (let i = 0; i < 26; i++) {
+    const x = rand(10, s - 10), y = rand(10, s - 10), rx = rand(2.5, 6), ry = rx * rand(0.6, 0.9), rot = rand(0, TAU);
+    p.fillStyle = 'rgba(30,18,8,0.35)';
+    p.beginPath(); p.ellipse(x + 1.2, y + 1.5, rx, ry, rot, 0, TAU); p.fill();
+    const tone = randInt(110, 160);
+    p.fillStyle = `rgb(${tone},${tone - 22},${tone - 45})`;
+    p.beginPath(); p.ellipse(x, y, rx, ry, rot, 0, TAU); p.fill();
+    p.fillStyle = 'rgba(255,240,210,0.25)';
+    p.beginPath(); p.ellipse(x - rx * 0.3, y - ry * 0.3, rx * 0.4, ry * 0.3, rot, 0, TAU); p.fill();
+  }
+  dirtPattern = ctx.createPattern(pc, 'repeat');
+}
+
+// Current camera transform components (device pixels)
+let TZ = 1, TEX = 0, TEY = 0;
+function setCameraTransform() {
+  TZ = DPR * cam.zoom;
+  TEX = DPR * (W / 2 - cam.x * cam.zoom);
+  TEY = DPR * (H / 2 - cam.y * cam.zoom);
+  ctx.setTransform(TZ, 0, 0, TZ, TEX, TEY);
+}
+
+let antCtx = ctx;   // target context for drawAnt (swapped for the title logo)
+// Draw an ant in its own local frame (facing +x). Worker body length ~13 units.
+function drawAnt(x, y, ang, s, c, walk, isQueen) {
+  const ctx = antCtx;
+  const co = Math.cos(ang) * s * TZ, si = Math.sin(ang) * s * TZ;
+  ctx.setTransform(co, si, -si, co, x * TZ + TEX, y * TZ + TEY);
+
+  // legs (tripod gait) + antennae
+  ctx.strokeStyle = c.dark;
+  ctx.lineWidth = isQueen ? 0.75 : 0.95;
+  ctx.beginPath();
+  const roots = [1.1, 0, -1.1], feet = [4.2, 0.2, -4.4];
+  for (let side = -1; side <= 1; side += 2) {
+    for (let i = 0; i < 3; i++) {
+      const phase = ((i + (side > 0 ? 1 : 0)) % 2) * Math.PI;
+      const sw = Math.sin(walk + phase) * 1.5;
+      const fx = feet[i] + sw, fy = side * (i === 1 ? 5.6 : 5.1);
+      const kx = roots[i] + (fx - roots[i]) * 0.35 + (i === 0 ? 0.6 : i === 2 ? -0.6 : 0), ky = side * 3.4;
+      ctx.moveTo(roots[i], side * 0.6);
+      ctx.lineTo(kx, ky);
+      ctx.lineTo(fx, fy);
+    }
+    const aw = Math.sin(walk * 0.7 + side) * 0.5;
+    ctx.moveTo(4.6, side * 0.8);
+    ctx.lineTo(6.2, side * 2.0);
+    ctx.lineTo(8.0, side * (1.6 + aw));
+  }
+  ctx.stroke();
+
+  if (isQueen) {  // wings folded over the abdomen
+    ctx.fillStyle = 'rgba(235,245,255,0.38)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 0.35;
+    const fl = Math.sin(time * 18) * 0.04;
+    ctx.beginPath();
+    ctx.ellipse(-5.2, -2.4, 6.2, 2.1, 0.28 + fl, 0, TAU);
+    ctx.moveTo(-5.2 + 6.2, 2.4);
+    ctx.ellipse(-5.2, 2.4, 6.2, 2.1, -0.28 - fl, 0, TAU);
+    ctx.fill(); ctx.stroke();
+  }
+
+  // body: abdomen, petiole, thorax, head
+  const abX = isQueen ? -5.4 : -4.3, abRx = isQueen ? 4.9 : 3.6, abRy = isQueen ? 3.3 : 2.6;
+  ctx.fillStyle = c.color;
+  ctx.beginPath();
+  ctx.moveTo(abX + abRx, 0); ctx.ellipse(abX, 0, abRx, abRy, 0, 0, TAU);
+  ctx.moveTo(-0.7 + 0.8, 0); ctx.ellipse(-0.9, 0, 0.8, 0.7, 0, 0, TAU);
+  ctx.moveTo(2.3, 0); ctx.ellipse(0.4, 0, 1.9, 1.4, 0, 0, TAU);
+  ctx.moveTo(5.4, 0); ctx.ellipse(3.6, 0, 1.8, 1.7, 0, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = c.dark;
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // shine
+  ctx.fillStyle = 'rgba(255,255,255,0.32)';
+  ctx.beginPath();
+  ctx.moveTo(abX - 0.4 + abRx * 0.38, -abRy * 0.35);
+  ctx.ellipse(abX - 0.4, -abRy * 0.35, abRx * 0.38, abRy * 0.22, 0, 0, TAU);
+  ctx.moveTo(3.9 + 0.6, -0.6);
+  ctx.ellipse(3.9, -0.6, 0.6, 0.35, 0, 0, TAU);
+  ctx.fill();
+
+  if (isQueen) {  // crown on the head
+    ctx.fillStyle = '#ffd700';
+    ctx.strokeStyle = '#7a5200';
+    ctx.lineWidth = 0.35;
+    ctx.beginPath();
+    ctx.moveTo(2.4, -2.1);
+    ctx.lineTo(5.2, -2.5);
+    ctx.lineTo(3.9, -1.0);
+    ctx.lineTo(5.9, 0);
+    ctx.lineTo(3.9, 1.0);
+    ctx.lineTo(5.2, 2.5);
+    ctx.lineTo(2.4, 2.1);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = c.isPlayer ? '#e0283c' : '#3de0ff';
+    ctx.beginPath(); ctx.arc(3.2, 0, 0.55, 0, TAU); ctx.fill();
+  }
+}
+
+function render() {
+  if (!dirtPattern) makeDirtPattern();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#24160a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  setCameraTransform();
+  const vw = W / cam.zoom, vh = H / cam.zoom;
+  const L = cam.x - vw / 2 - 40, R = cam.x + vw / 2 + 40, T = cam.y - vh / 2 - 40, B = cam.y + vh / 2 + 40;
+
+  // ground
+  ctx.fillStyle = dirtPattern;
+  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  // faint grid
+  ctx.strokeStyle = 'rgba(40,24,10,0.18)';
+  ctx.lineWidth = 1 / cam.zoom;
+  ctx.beginPath();
+  const g0x = Math.max(0, Math.floor(L / 100) * 100), g0y = Math.max(0, Math.floor(T / 100) * 100);
+  for (let x = g0x; x <= Math.min(WORLD_W, R); x += 100) { ctx.moveTo(x, Math.max(0, T)); ctx.lineTo(x, Math.min(WORLD_H, B)); }
+  for (let y = g0y; y <= Math.min(WORLD_H, B); y += 100) { ctx.moveTo(Math.max(0, L), y); ctx.lineTo(Math.min(WORLD_W, R), y); }
+  ctx.stroke();
+  // world border
+  ctx.strokeStyle = 'rgba(20,10,3,0.8)';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(-4, -4, WORLD_W + 8, WORLD_H + 8);
+
+  // ground splats
+  for (const p of particles) {
+    if (p.type !== 'splat' || p.x < L || p.x > R || p.y < T || p.y > B) continue;
+    ctx.globalAlpha = 0.45 * Math.min(1, p.life / p.max * 1.5);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x + p.r * 0.8, p.y - p.r * 0.5, p.r * 0.45, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // food crumbs (batched)
+  ctx.fillStyle = 'rgba(120,255,90,0.16)';
+  ctx.beginPath();
+  for (const f of food) {
+    if (f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    ctx.moveTo(f.x + f.r * 2 * f.age, f.y); ctx.arc(f.x, f.y, f.r * 2 * f.age, 0, TAU);
+  }
+  ctx.fill();
+  ctx.fillStyle = '#5cc93a';
+  ctx.beginPath();
+  for (const f of food) {
+    if (f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    const r = f.r * f.age;
+    ctx.moveTo(f.x + r, f.y); ctx.arc(f.x, f.y, r, 0, TAU);
+    ctx.moveTo(f.x + f.ox + r * 0.7, f.y + f.oy); ctx.arc(f.x + f.ox, f.y + f.oy, r * 0.7, 0, TAU);
+  }
+  ctx.fill();
+  ctx.fillStyle = '#b8ff8c';
+  ctx.beginPath();
+  for (const f of food) {
+    if (f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    const r = f.r * f.age * 0.35;
+    ctx.moveTo(f.x - r * 0.8 + r, f.y - r); ctx.arc(f.x - r * 0.8, f.y - r, r, 0, TAU);
+  }
+  ctx.fill();
+
+  // player charge target marker
+  if (player && player.alive && player.charge > 0) {
+    const pulse = 1 + Math.sin(time * 14) * 0.12;
+    const n = colonySize(player), rr = (14 + 3.5 * Math.sqrt(n)) * pulse;
+    ctx.strokeStyle = 'rgba(255,215,80,0.7)';
+    ctx.lineWidth = 2 / cam.zoom;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath(); ctx.arc(player.chargeX, player.chargeY, rr, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // queen shadows / glows
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    const q = c.queen;
+    if (q.x < L || q.x > R || q.y < T || q.y > B) continue;
+    if (c.isPlayer) {
+      const g = ctx.createRadialGradient(q.x, q.y, 4, q.x, q.y, 36);
+      g.addColorStop(0, 'rgba(255,220,90,0.45)');
+      g.addColorStop(1, 'rgba(255,220,90,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 36, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(20,10,2,0.3)';
+    ctx.beginPath(); ctx.ellipse(q.x + 3, q.y + 5, 16, 11, q.ang, 0, TAU); ctx.fill();
+  }
+
+  // workers
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    for (const w of c.workers) {
+      if (w.x < L || w.x > R || w.y < T || w.y > B) continue;
+      drawAnt(w.x, w.y, w.ang, 0.95, w.col, w.walk, false);
+    }
+  }
+  // queens on top
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    const q = c.queen;
+    if (q.x < L || q.x > R || q.y < T || q.y > B) continue;
+    drawAnt(q.x, q.y, q.ang, 2.1, c, q.walk, true);
+  }
+  setCameraTransform();
+
+  // flying particles
+  for (const p of particles) {
+    if (p.type === 'splat' || p.x < L || p.x > R || p.y < T || p.y > B) continue;
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // size tags above enemy queens
+  const psize = player && player.alive ? colonySize(player) : -1;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const c of colonies) {
+    if (!c.alive || c.isPlayer) continue;
+    const q = c.queen;
+    if (q.x < L || q.x > R || q.y < T || q.y > B) continue;
+    const s = colonySize(c);
+    const label = String(s);
+    const fs = 13 / cam.zoom;
+    ctx.font = `bold ${fs}px "Trebuchet MS", sans-serif`;
+    const tw = ctx.measureText(label).width + 12 / cam.zoom, th = 18 / cam.zoom;
+    const ty = q.y - 34;
+    let bg = 'rgba(30,20,10,0.75)', fg = '#fff';
+    if (psize >= 0 && state === 'playing') {
+      if (s < psize) { bg = 'rgba(40,120,40,0.85)'; fg = '#e8ffd8'; }
+      else if (s > psize) { bg = 'rgba(150,30,25,0.85)'; fg = '#ffe0da'; }
+    }
+    roundRect(ctx, q.x - tw / 2, ty - th / 2, tw, th, 6 / cam.zoom);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.fillStyle = c.color;
+    ctx.beginPath(); ctx.arc(q.x - tw / 2 - 5 / cam.zoom, ty, 4 / cam.zoom, 0, TAU); ctx.fill();
+    ctx.fillStyle = fg;
+    ctx.fillText(label, q.x, ty + 0.5 / cam.zoom);
+  }
+
+  // floaters
+  for (const f of floaters) {
+    const a = Math.max(0, f.life / f.max);
+    if (f.type === 'ring') {
+      ctx.strokeStyle = f.color;
+      ctx.globalAlpha = a;
+      ctx.lineWidth = 4 * a + 1;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r * (1 - a) + 10, 0, TAU); ctx.stroke();
+    } else {
+      ctx.globalAlpha = Math.min(1, a * 2);
+      ctx.font = `bold ${f.size / cam.zoom}px "Trebuchet MS", sans-serif`;
+      ctx.lineWidth = 3 / cam.zoom;
+      ctx.strokeStyle = 'rgba(40,20,5,0.85)';
+      ctx.strokeText(f.text, f.x, f.y);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // screen space UI
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (state === 'playing' || state === 'over' || state === 'victory') {
+    drawHUD();
+    drawLeaderboard();
+    drawMinimap();
+  }
+}
+
+function panel(x, y, w, h) {
+  roundRect(ctx, x, y, w, h, 12);
+  ctx.fillStyle = 'rgba(30,18,8,0.72)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(212,168,67,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawHUD() {
+  if (!player) return;
+  const x = 14, y = 14, w = 210, h = 104;
+  panel(x, y, w, h);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#d8c090';
+  ctx.font = 'bold 12px "Trebuchet MS", sans-serif';
+  ctx.fillText('COLONY SIZE', x + 14, y + 22);
+  ctx.fillStyle = PLAYER_COLOR;
+  ctx.font = 'bold 34px "Trebuchet MS", sans-serif';
+  const sizeText = String(player.alive ? colonySize(player) : stats.finalSize);
+  ctx.fillText(sizeText, x + 14, y + 56);
+  const sizeW = ctx.measureText(sizeText).width;
+  ctx.fillStyle = '#d8c090';
+  ctx.font = '12px "Trebuchet MS", sans-serif';
+  ctx.fillText('workers', x + 20 + sizeW, y + 56);
+
+  // food progress
+  ctx.fillText('Next worker', x + 14, y + 78);
+  for (let i = 0; i < FOOD_PER_WORKER; i++) {
+    ctx.beginPath();
+    ctx.arc(x + 100 + i * 16, y + 74, 5, 0, TAU);
+    ctx.fillStyle = i < player.food ? '#6fe04a' : 'rgba(255,255,255,0.15)';
+    ctx.fill();
+  }
+  // charge
+  ctx.fillStyle = '#d8c090';
+  ctx.fillText('Charge', x + 14, y + 96);
+  const bx = x + 70, bw = w - 84, by = y + 88;
+  roundRect(ctx, bx, by, bw, 10, 5);
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fill();
+  let frac, col, lbl;
+  if (player.charge > 0) { frac = player.charge / CHARGE_TIME; col = '#ff9a3c'; lbl = 'CHARGING'; }
+  else if (player.chargeCd > 0) { frac = 1 - player.chargeCd / PLAYER_CHARGE_CD; col = '#8a7a5a'; lbl = ''; }
+  else { frac = 1; col = '#f5c542'; lbl = 'READY [SPACE]'; }
+  if (frac > 0.02) { roundRect(ctx, bx, by, bw * frac, 10, 5); ctx.fillStyle = col; ctx.fill(); }
+  if (lbl) {
+    ctx.fillStyle = '#3a2208';
+    ctx.font = 'bold 8px "Trebuchet MS", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(lbl, bx + bw / 2, by + 8);
+    ctx.textAlign = 'left';
+  }
+
+  // rivals remaining
+  ctx.fillStyle = 'rgba(245,232,200,0.8)';
+  ctx.font = '12px "Trebuchet MS", sans-serif';
+  ctx.fillText(`Rival colonies: ${enemyCount()}`, x + 4, y + h + 18);
+}
+
+function drawLeaderboard() {
+  const alive = colonies.filter(c => c.alive).sort((a, b) => colonySize(b) - colonySize(a));
+  const top = alive.slice(0, 5);
+  const pRank = player && player.alive ? alive.indexOf(player) : -1;
+  const extra = pRank >= 5 ? 1 : 0;
+  const w = 220, rowH = 22, h = 36 + (top.length + extra) * rowH + 6;
+  const x = W - w - 14, y = 14;
+  panel(x, y, w, h);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd54a';
+  ctx.font = 'bold 14px "Trebuchet MS", sans-serif';
+  ctx.fillText('LEADERBOARD', x + w / 2, y + 22);
+
+  const row = (c, rank, ry) => {
+    const me = c.isPlayer;
+    if (me) {
+      roundRect(ctx, x + 6, ry - 15, w - 12, 20, 6);
+      ctx.fillStyle = 'rgba(245,197,66,0.2)'; ctx.fill();
+    }
+    ctx.textAlign = 'left';
+    ctx.font = (me ? 'bold ' : '') + '13px "Trebuchet MS", sans-serif';
+    ctx.fillStyle = '#d8c090';
+    ctx.fillText(rank + '.', x + 12, ry);
+    ctx.fillStyle = c.color;
+    ctx.beginPath(); ctx.arc(x + 38, ry - 4, 5, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = me ? '#ffe27a' : '#f5e8c8';
+    ctx.fillText(me ? 'You' : c.name, x + 50, ry);
+    ctx.textAlign = 'right';
+    ctx.fillText(String(colonySize(c)), x + w - 14, ry);
+  };
+  top.forEach((c, i) => row(c, i + 1, y + 44 + i * rowH));
+  if (extra) row(player, pRank + 1, y + 44 + top.length * rowH);
+}
+
+function drawMinimap() {
+  const mw = Math.min(220, W * 0.32), mh = mw * WORLD_H / WORLD_W;
+  const x = W - mw - 14, y = H - mh - 14;
+  panel(x - 4, y - 4, mw + 8, mh + 8);
+  ctx.fillStyle = '#4a3019';
+  ctx.fillRect(x, y, mw, mh);
+  const sx = mw / WORLD_W, sy = mh / WORLD_H;
+
+  // food as faint specks
+  ctx.fillStyle = 'rgba(120,230,90,0.35)';
+  for (let i = 0; i < food.length; i += 2) ctx.fillRect(x + food[i].x * sx, y + food[i].y * sy, 1, 1);
+
+  // viewport
+  const vw = W / cam.zoom, vh = H / cam.zoom;
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + (cam.x - vw / 2) * sx, y + (cam.y - vh / 2) * sy, vw * sx, vh * sy);
+
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    const r = 2.5 + Math.sqrt(colonySize(c)) * 0.55;
+    const px = x + c.queen.x * sx, py = y + c.queen.y * sy;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, TAU);
+    ctx.fillStyle = c.color; ctx.fill();
+    ctx.strokeStyle = c.isPlayer ? '#fff' : 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = c.isPlayer ? 2 : 1;
+    ctx.stroke();
+  }
+}
+
+// ============================================================
+//  Title logo
+// ============================================================
+function drawLogo() {
+  const lc = document.getElementById('logo');
+  const l = lc.getContext('2d');
+  const d = Math.min(2, window.devicePixelRatio || 1);
+  lc.width = 160 * d; lc.height = 90 * d;
+  lc.style.width = '160px'; lc.style.height = '90px';
+  l.setTransform(d, 0, 0, d, 0, 0);
+  const g = l.createRadialGradient(80, 95, 5, 80, 95, 80);
+  g.addColorStop(0, '#8a5d34'); g.addColorStop(1, 'rgba(138,93,52,0)');
+  l.fillStyle = g; l.beginPath(); l.ellipse(80, 92, 80, 40, 0, 0, TAU); l.fill();
+
+  const saved = [TZ, TEX, TEY];
+  TZ = d; TEX = 0; TEY = 0;
+  antCtx = l;
+  const gold = { color: PLAYER_COLOR, dark: shade(PLAYER_COLOR, -0.5), isPlayer: true };
+  drawAnt(34, 64, -Math.PI / 2 - 0.5, 1.5, gold, 1.2, false);
+  drawAnt(126, 64, -Math.PI / 2 + 0.5, 1.5, gold, 2.4, false);
+  drawAnt(16, 80, -Math.PI / 2 - 0.2, 1.2, gold, 0.4, false);
+  drawAnt(144, 80, -Math.PI / 2 + 0.2, 1.2, gold, 3.1, false);
+  drawAnt(80, 50, -Math.PI / 2, 3.2, gold, 0, true);
+  antCtx = ctx;
+  [TZ, TEX, TEY] = saved;
+}
+
+// ============================================================
+//  Loop
+// ============================================================
+let last = performance.now();
+function frame(now) {
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.05) dt = 0.05;
+  if (dt > 0) update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+
+document.getElementById('playBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+document.getElementById('againBtn').addEventListener('click', startGame);
+
+drawLogo();
+resetWorld(false);   // attract-mode simulation behind the title screen
+cam.zoom = 0.8;
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
