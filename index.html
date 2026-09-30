@@ -193,6 +193,24 @@
   .skin:active { transform: none; box-shadow: none; }
   .skin.sel { border-color: #ffd54a; background: rgba(255,213,74,0.18); }
   .skin canvas { width: 56px; height: 48px; }
+  .skins { max-height: 196px; overflow-y: auto; padding: 4px; }
+  .panel.ach { max-width: 760px; }
+  .achlist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: calc(100vh - 260px); overflow-y: auto; margin: 0 0 18px; text-align: left; padding: 2px; }
+  @media (max-width: 640px) { .achlist { grid-template-columns: 1fr; } }
+  .achcard { display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,0.28); border: 1px solid rgba(212,168,67,0.25); border-radius: 10px; padding: 6px 10px 6px 6px; }
+  .achcard canvas { width: 56px; height: 48px; flex-shrink: 0; filter: grayscale(1) brightness(0.5); }
+  .achcard.done { border-color: rgba(201,160,255,0.7); background: rgba(160,110,255,0.12); }
+  .achcard.done canvas { filter: none; }
+  .achtxt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .achtxt b { color: #ffd54a; font-size: 14px; }
+  .achcard.done .achtxt b { color: #d9c0ff; }
+  .achtxt span { font-size: 12px; color: #e8d8b0; }
+  .achtxt em { font-size: 11px; color: #c8ae7a; font-style: normal; margin-top: 2px; }
+  .achbar { height: 5px; background: rgba(255,255,255,0.12); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .achbar i { display: block; height: 100%; background: linear-gradient(90deg, #f0b429, #ffe07a); }
+  .achcard.done .achbar i { background: linear-gradient(90deg, #a070ff, #d9c0ff); }
+  .achline { color: #d9c0ff; font-weight: bold; margin: -6px 0 12px; }
+  .achline:empty { display: none; }
   .skin.locked { cursor: not-allowed; color: #b8a27a; }
   .skin.locked canvas { filter: grayscale(1) brightness(0.45); }
   .hint { margin-top: 14px; font-size: 12px; color: #c8ae7a; }
@@ -231,6 +249,7 @@
     <div class="skins-label">Choose your colony</div>
     <div class="skins"></div>
     <button id="playBtn">Play</button>
+    <div><button id="achBtn" class="secondary">Achievements</button></div>
     <div class="skins-label settings-label">Settings</div>
     <div class="settings">
       <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
@@ -255,8 +274,18 @@
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
     <p class="streakline" id="overStreak"></p>
+    <p class="achline" id="overAch"></p>
     <button id="restartBtn">Restart</button>
     <div><button class="secondary menuBtn">Main menu</button></div>
+  </div>
+</div>
+
+<div id="achScreen" class="overlay hidden">
+  <div class="panel ach">
+    <h2>Achievements</h2>
+    <p class="tagline" id="achCount"></p>
+    <div id="achList" class="achlist"></div>
+    <button id="achClose">Back</button>
   </div>
 </div>
 
@@ -289,6 +318,7 @@
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
     <p class="streakline" id="winStreak"></p>
+    <p class="achline" id="winAch"></p>
     <button id="againBtn">Play Again</button>
     <div><button class="secondary menuBtn">Main menu</button></div>
   </div>
@@ -311,35 +341,48 @@ const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 3;
 const RING0 = 36, RING_GAP = 11, RING_SPACING = 10.5;   // guard ring layout around the queen
 const FOOD_MAX = 420, FOOD_RESPAWN_RATE = 9;   // crumbs per second while below max
 const FOOD_PER_WORKER = 3, MAX_WORKERS = 400;
-const START_ENEMIES = 8, MAX_ENEMIES = 14;
+const START_ENEMIES = 8, MAX_ENEMIES = 16;
 const PLAYER_COLOR = '#f5c542';
 // Player skins: restyle the queen and every worker in her colony
 const SKINS = [
-  { id: 'gold',    name: 'Golden',   color: '#f5c542', glow: '255,220,90' },
-  { id: 'fire',    name: 'Fire Ant', color: '#ff5a26', glow: '255,110,40', head: '#8a1a05', embers: true },
+  // basic ants: available from the start
+  { id: 'gold',    name: 'Golden',    color: '#f5c542', glow: '255,220,90', basic: true },
+  { id: 'fire',    name: 'Fire Ant',  color: '#ff5a26', glow: '255,110,40', head: '#8a1a05', embers: true, basic: true },
+  { id: 'black',   name: 'Black Ant', color: '#2e2e34', glow: '200,200,220', head: '#18181c', basic: true },
+  { id: 'brown',   name: 'Carpenter', color: '#8b5a2b', glow: '220,160,100', head: '#4f2f12', basic: true },
+  { id: 'green',   name: 'Green Ant', color: '#6cbf3c', glow: '160,240,110', head: '#3f7d1e', basic: true },
+  { id: 'blue',    name: 'Blue Ant',  color: '#3d86e0', glow: '120,180,255', head: '#1f4e8f', basic: true },
+  // unlocked by achievements
   { id: 'bee',     name: 'Bumblebee', color: '#ffd21f', glow: '255,215,60', stripes: '#1b1408', workerWings: true },
-  { id: 'lady',    name: 'Ladybug',  color: '#e0282e', glow: '255,90,90', head: '#15100c', spots: '#15100c' },
-  { id: 'ghost',   name: 'Ghost',    color: '#d4ecff', glow: '170,220,255', alpha: 0.55, workerWings: true },
-  { id: 'rainbow', name: 'Rainbow',  color: '#ff66cc', glow: '255,160,230', rainbow: true },
+  { id: 'lady',    name: 'Ladybug',   color: '#e0282e', glow: '255,90,90', head: '#15100c', spots: '#15100c' },
+  { id: 'ghost',   name: 'Ghost',     color: '#d4ecff', glow: '170,220,255', alpha: 0.55, workerWings: true },
+  { id: 'rainbow', name: 'Rainbow',   color: '#ff66cc', glow: '255,160,230', rainbow: true },
   { id: 'leaf',    name: 'Leafcutter', color: '#b5652a', glow: '150,220,90', head: '#5a2c10', leaf: true },
-  { id: 'frost',   name: 'Frost',    color: '#9fd8ff', glow: '190,235,255', head: '#eaf8ff', stars: '#ffffff' },
-  { id: 'galaxy',  name: 'Galaxy',   color: '#3b1f78', glow: '150,110,255', head: '#1c0f3e', stars: '#fff6b0' },
-  { id: 'robot',   name: 'Robot',    color: '#a3adb7', glow: '120,230,255', head: '#56606a', stripes: '#5f6973', visor: '#3ff0ff' },
-  { id: 'lava',    name: 'Lava',     color: '#2d1a14', glow: '255,120,30', head: '#1a0d08', cracks: '#ff8a1e' },
-  { id: 'candy',   name: 'Candy',    color: '#ff8fc4', glow: '255,170,210', stripes: '#ffffff' },
-  // unlocked by growth milestones
-  { id: 'royal',   name: 'Royal',    color: '#7b3fbf', glow: '190,130,255', head: '#3a1a66', stripes: '#ffd54a', req: 25 },
-  { id: 'diamond', name: 'Diamond',  color: '#bff4ff', glow: '200,250,255', head: '#f2feff', stars: '#ffffff', alpha: 0.8, req: 50 },
-  { id: 'emperor', name: 'Emperor',  color: '#1d1d24', glow: '255,210,80', head: '#0d0d10', stripes: '#ffd54a', visor: '#ffd54a', req: 100 },
-  { id: 'legend',  name: 'Legend',   color: '#ffcf3a', glow: '255,230,120', head: '#fff2a8', stars: '#ffffff', embers: true, workerWings: true, req: 200 },
+  { id: 'frost',   name: 'Frost',     color: '#9fd8ff', glow: '190,235,255', head: '#eaf8ff', stars: '#ffffff' },
+  { id: 'galaxy',  name: 'Galaxy',    color: '#3b1f78', glow: '150,110,255', head: '#1c0f3e', stars: '#fff6b0' },
+  { id: 'robot',   name: 'Robot',     color: '#a3adb7', glow: '120,230,255', head: '#56606a', stripes: '#5f6973', visor: '#3ff0ff' },
+  { id: 'lava',    name: 'Lava',      color: '#2d1a14', glow: '255,120,30', head: '#1a0d08', cracks: '#ff8a1e' },
+  { id: 'candy',   name: 'Candy',     color: '#ff8fc4', glow: '255,170,210', stripes: '#ffffff' },
+  { id: 'royal',   name: 'Royal',     color: '#7b3fbf', glow: '190,130,255', head: '#3a1a66', stripes: '#ffd54a' },
+  { id: 'diamond', name: 'Diamond',   color: '#bff4ff', glow: '200,250,255', head: '#f2feff', stars: '#ffffff', alpha: 0.8 },
+  { id: 'emperor', name: 'Emperor',   color: '#1d1d24', glow: '255,210,80', head: '#0d0d10', stripes: '#ffd54a', visor: '#ffd54a' },
+  { id: 'legend',  name: 'Legend',    color: '#ffcf3a', glow: '255,230,120', head: '#fff2a8', stars: '#ffffff', embers: true, workerWings: true },
+  // other bug colonies
+  { id: 'army',    name: 'Army Ant',  color: '#7a2a18', glow: '255,110,80', head: '#3a120a', mandibles: true },
+  { id: 'termite', name: 'Termite',   body: 'termite', color: '#efe0c0', glow: '255,235,190', head: '#c07a35' },
+  { id: 'wasp',    name: 'Wasp',      body: 'wasp', color: '#ffd21f', glow: '255,220,60', stripes: '#15110a', head: '#2a1e08' },
+  { id: 'hornet',  name: 'Hornet',    body: 'wasp', color: '#e0801c', glow: '255,160,60', stripes: '#3a1a08', head: '#f2c230' },
+  { id: 'moth',    name: 'Moth',      body: 'wasp', stinger: false, color: '#b9a58a', glow: '230,210,170', head: '#8a765c', mothWings: 'rgba(214,196,164,0.9)' },
+  { id: 'scarab',  name: 'Scarab',    body: 'beetle', color: '#1f8a7a', glow: '90,230,200', head: '#0f4a42', stars: '#8ff5e0' },
+  { id: 'jewel',   name: 'Jewel Beetle', body: 'beetle', color: '#28a86a', glow: '120,240,150', head: '#15603a', stripes: '#e0b83a' },
+  { id: 'stag',    name: 'Stag Beetle', body: 'beetle', color: '#4a2a18', glow: '200,140,90', head: '#2a160c', horns: true },
+  { id: 'firefly', name: 'Firefly',   body: 'beetle', color: '#3c3c2c', glow: '230,255,110', head: '#d05030', glowTail: true },
+  { id: 'spider',  name: 'Spider',    body: 'spider', color: '#6a5a4a', glow: '200,170,140', head: '#3a2e24', spots: '#3a2e24' },
+  { id: 'widow',   name: 'Black Widow', body: 'spider', color: '#1a1a1e', glow: '255,80,90', head: '#0c0c0e', hourglass: '#e0202a' },
+  { id: 'roach',   name: 'Cockroach', body: 'roach', color: '#7a4520', glow: '220,150,90', head: '#3a200c', rim: '#d09a5a' },
 ];
-// biggest colony ever reached (live, so skins unlock mid-match)
-let unlockPeak = 0;
-try { unlockPeak = +localStorage.getItem('qoth-unlock') || 0; } catch (e) {}
-try { unlockPeak = Math.max(unlockPeak, JSON.parse(localStorage.getItem('qoth-best') || '{}').peak || 0); } catch (e) {}
-const skinUnlocked = sk => !sk.req || unlockPeak >= sk.req;
 let selectedSkin = 0;
-try { const i = SKINS.findIndex(k => k.id === localStorage.getItem('qoth-skin')); if (i >= 0 && skinUnlocked(SKINS[i])) selectedSkin = i; } catch (e) {}
+try { const i = SKINS.findIndex(k => k.id === localStorage.getItem('qoth-skin')); if (i >= 0) selectedSkin = i; } catch (e) {}
 const SEP_DIST = 10, FIGHT_DIST = 10;
 const CELL = 40;
 // power-ups & structures
@@ -585,6 +628,7 @@ function resetWorld(withPlayer) {
     const skin = SKINS[selectedSkin];
     player = makeColony(WORLD_W / 2 + rand(-600, 600), WORLD_H / 2 + rand(-400, 400), 5, 'You', skin.color, true);
     player.skin = skin;
+    player.chargeCd = 0;   // charge is ready from the start
     player.grace = PLAYER_GRACE;
     colonies.push(player);
   }
@@ -596,7 +640,7 @@ function resetWorld(withPlayer) {
     const pal = pickPalette();
     colonies.push(makeColony(p.x, p.y, s, pal.name, pal.color, false));
   }
-  spawnTimer = rand(5, 12);
+  spawnTimer = rand(3, 7);
   if (player) { cam.x = player.queen.x; cam.y = player.queen.y; }
 }
 
@@ -607,8 +651,11 @@ function startGame() {
   resetWorld(true);
   state = 'playing';
   stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0,
-            streak: 0, bestStreak: 0, lastConquer: -99, milestone: 0, deathCause: '', deathX: 0, deathY: 0 };
+            streak: 0, bestStreak: 0, lastConquer: -99, milestone: 0, deathCause: '', deathX: 0, deathY: 0,
+            charges: 0, newAch: [], achTimer: 0 };
+  life.games++;
   banners = []; shake = 0; hitStop = 0;
+  checkAchievements();
   mouse.x = W / 2; mouse.y = H / 2;
   document.getElementById('titleScreen').classList.add('hidden');
   document.getElementById('overScreen').classList.add('hidden');
@@ -624,6 +671,7 @@ function tryPlayerCharge() {
 
 function startCharge(c, x, y) {
   c.chargeHit = false;
+  if (c.isPlayer && state === 'playing') { life.charges++; stats.charges++; }
   if (c.isPlayer) playSfx('charge');
   else if (state === 'playing' && onScreen(c.queen.x, c.queen.y)) playSfx('charge', 0.5);
   c.charge = CHARGE_TIME;
@@ -931,7 +979,7 @@ function sparks(x, y) {
 function eatFood(c, f) {
   if (f.dead) return;
   f.dead = true;
-  if (c.isPlayer) playSfx('eat');
+  if (c.isPlayer) { playSfx('eat'); if (state === 'playing') life.crumbs++; }
   c.food++;
   if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
   for (let i = 0; i < 3; i++) {
@@ -1224,7 +1272,7 @@ function queenCollisions() {
 }
 
 function conquer(win, lose, how = { via: 'ant' }) {
-  const loseSize = colonySize(lose);
+  const loseSize = colonySize(lose), winSize = colonySize(win);
   lose.alive = false;
   const lq = lose.queen;
   particles.push({ type: 'splat', x: lq.x, y: lq.y, color: lose.color, life: 5, max: 5, r: 11 });
@@ -1250,6 +1298,11 @@ function conquer(win, lose, how = { via: 'ant' }) {
     stats.streak = time - stats.lastConquer <= STREAK_WINDOW ? stats.streak + 1 : 1;
     stats.lastConquer = time;
     stats.bestStreak = Math.max(stats.bestStreak, stats.streak);
+    life.conquests++;
+    life.bestStreak = Math.max(life.bestStreak, stats.streak);
+    if (loseSize > winSize) life.giant = 1;
+    if (loseSize >= 50) life.bigGame = 1;
+    if (winSize < 10) life.underdog = 1;
     if (stats.streak >= 2) {
       const bonus = 3 * (stats.streak - 1);
       win.births += bonus;
@@ -1275,14 +1328,7 @@ function conquer(win, lose, how = { via: 'ant' }) {
 
 // ---- growth milestones: celebration, crown upgrade, permanent skin unlock ----
 function reachMilestone(m) {
-  let sub = m.perk;
-  if (unlockPeak < m.at) {
-    unlockPeak = m.at;
-    try { localStorage.setItem('qoth-unlock', unlockPeak); } catch (e) {}
-    const sk = SKINS.find(k => k.req === m.at);
-    if (sk) { sub += `  \u2022  New skin unlocked: ${sk.name}`; buildSkinPicker(); }
-  }
-  addBanner(m.title, sub, '#9fe08a', 2.6, 46);
+  addBanner(m.title, m.perk, '#9fe08a', 2.6, 46);
   addShake(5);
   playSfx('milestone');
   const q = player.queen, cols = ['#ffd54a', '#ff6a8a', '#6ad0ff', '#9fe08a', '#ffffff', player.color];
@@ -1325,6 +1371,99 @@ function recordBest(won, survived) {
   renderBest();
   return newRecord;
 }
+// ---- achievements: lifetime progress unlocks skins ----
+const ACHIEVEMENTS = [
+  { id: 'first',     name: 'First Steps',      desc: 'Play your first match',                    key: 'games',      goal: 1,    skin: 'bee' },
+  { id: 'hungry',    name: 'Hungry Colony',    desc: 'Eat 100 crumbs',                           key: 'crumbs',     goal: 100,  skin: 'leaf' },
+  { id: 'feast',     name: 'Endless Feast',    desc: 'Eat 1,000 crumbs',                         key: 'crumbs',     goal: 1000, skin: 'termite' },
+  { id: 'blood',     name: 'First Conquest',   desc: 'Conquer a rival colony',                   key: 'conquests',  goal: 1,    skin: 'lady' },
+  { id: 'conq25',    name: 'Conqueror',        desc: 'Conquer 25 colonies',                      key: 'conquests',  goal: 25,   skin: 'army' },
+  { id: 'conq100',   name: 'Warlord',          desc: 'Conquer 100 colonies',                     key: 'conquests',  goal: 100,  skin: 'hornet' },
+  { id: 'streak2',   name: 'Double Trouble',   desc: 'Get a x2 conquest streak',                 key: 'bestStreak', goal: 2,    skin: 'wasp' },
+  { id: 'streak4',   name: 'Rampage',          desc: 'Get a x4 conquest streak',                 key: 'bestStreak', goal: 4,    skin: 'widow' },
+  { id: 'size25',    name: 'Growing Up',       desc: 'Reach 25 ants in a match',                 key: 'bestPeak',   goal: 25,   skin: 'royal' },
+  { id: 'size50',    name: 'Swarm',            desc: 'Reach 50 ants in a match',                 key: 'bestPeak',   goal: 50,   skin: 'diamond' },
+  { id: 'size100',   name: 'Horde',            desc: 'Reach 100 ants in a match',                key: 'bestPeak',   goal: 100,  skin: 'emperor' },
+  { id: 'size200',   name: 'Legion',           desc: 'Reach 200 ants in a match',                key: 'bestPeak',   goal: 200,  skin: 'legend' },
+  { id: 'chili',     name: 'Chili Head',       desc: 'Eat 10 Fire Chilis',                       key: 'chili',      goal: 10,   skin: 'lava' },
+  { id: 'sugar',     name: 'Sugar High',       desc: 'Collect 10 Sugar Rush cubes',              key: 'sugar',      goal: 10,   skin: 'candy' },
+  { id: 'tunnel',    name: 'Tunnel Rat',       desc: 'Travel through tunnels 10 times',          key: 'tunnels',    goal: 10,   skin: 'roach' },
+  { id: 'farmer',    name: 'Mushroom Farmer',  desc: 'Harvest 150 food from fungus gardens',     key: 'gardenFood', goal: 150,  skin: 'scarab' },
+  { id: 'surv5',     name: 'Survivor',         desc: 'Survive 5 minutes in one match',           key: 'longest',    goal: 300,  skin: 'robot' },
+  { id: 'surv10',    name: 'Marathon Queen',   desc: 'Survive 10 minutes in one match',          key: 'longest',    goal: 600,  skin: 'galaxy' },
+  { id: 'win',       name: 'Queen of the Hill', desc: 'Win a match',                             key: 'wins',       goal: 1,    skin: 'rainbow' },
+  { id: 'giant',     name: 'Giant Slayer',     desc: 'Conquer a colony bigger than yours',       key: 'giant',      goal: 1,    skin: 'stag' },
+  { id: 'blitz',     name: 'Blitz',            desc: 'Reach 50 ants within 2 minutes',           key: 'blitz',      goal: 1,    skin: 'firefly' },
+  { id: 'charge',    name: 'Charge!',          desc: 'Launch 50 charges',                        key: 'charges',    goal: 50,   skin: 'spider' },
+  { id: 'pacifist',  name: 'Gentle Giant',     desc: 'Reach 30 ants without charging',           key: 'pacifist',   goal: 1,    skin: 'ghost' },
+  { id: 'dedicated', name: 'Dedicated',        desc: 'Play 10 matches',                          key: 'games',      goal: 10,   skin: 'jewel' },
+  { id: 'bigGame',   name: 'Big Game Hunter',  desc: 'Conquer a colony of 50+ ants',             key: 'bigGame',    goal: 1,    skin: 'moth' },
+  { id: 'underdog',  name: 'Underdog',         desc: 'Conquer a colony while you have under 10 ants', key: 'underdog', goal: 1, skin: 'frost' },
+];
+const life = { games: 0, crumbs: 0, conquests: 0, wins: 0, chili: 0, sugar: 0, tunnels: 0, gardenFood: 0, charges: 0,
+               bestStreak: 0, bestPeak: 0, longest: 0, blitz: 0, pacifist: 0, giant: 0, bigGame: 0, underdog: 0 };
+try { Object.assign(life, JSON.parse(localStorage.getItem('qoth-life') || '{}')); } catch (e) {}
+// carry over earlier records
+life.bestPeak = Math.max(life.bestPeak, best.peak);
+life.wins = Math.max(life.wins, best.wins);
+life.longest = Math.max(life.longest, best.time);
+life.conquests = Math.max(life.conquests, best.kills);
+try { life.bestPeak = Math.max(life.bestPeak, +localStorage.getItem('qoth-unlock') || 0); } catch (e) {}
+let achDone = new Set();
+try { achDone = new Set(JSON.parse(localStorage.getItem('qoth-ach') || '[]')); } catch (e) {}
+function saveLife() {
+  try { localStorage.setItem('qoth-life', JSON.stringify(life)); localStorage.setItem('qoth-ach', JSON.stringify([...achDone])); } catch (e) {}
+}
+function skinUnlocked(sk) { return sk.basic || ACHIEVEMENTS.some(a => a.skin === sk.id && achDone.has(a.id)); }
+function achForSkin(sk) { return ACHIEVEMENTS.find(a => a.skin === sk.id); }
+function checkAchievements(announce = true) {
+  const fresh = [];
+  for (const a of ACHIEVEMENTS) {
+    if (!achDone.has(a.id) && life[a.key] >= a.goal) { achDone.add(a.id); fresh.push(a); }
+  }
+  if (!fresh.length) return;
+  saveLife();
+  for (const a of fresh) {
+    const sk = SKINS.find(k => k.id === a.skin);
+    if (announce) {
+      addBanner('Achievement: ' + a.name, sk ? `New skin unlocked: ${sk.name}` : a.desc, '#c9a0ff', 3, 34);
+      stats.newAch.push(a.name);
+    }
+  }
+  if (announce) playSfx('milestone');
+  buildSkinPicker();
+  updateAchButton();
+}
+function updateAchButton() {
+  const b = document.getElementById('achBtn');
+  if (b) b.textContent = `Achievements  ${achDone.size}/${ACHIEVEMENTS.length}`;
+}
+function openAchievements() {
+  const list = document.getElementById('achList');
+  list.innerHTML = '';
+  document.getElementById('achCount').textContent = `${achDone.size} of ${ACHIEVEMENTS.length} unlocked`;
+  const d = Math.min(2, window.devicePixelRatio || 1);
+  for (const a of ACHIEVEMENTS) {
+    const done = achDone.has(a.id), sk = SKINS.find(k => k.id === a.skin);
+    const cur = Math.min(a.goal, life[a.key] || 0);
+    const card = document.createElement('div');
+    card.className = 'achcard' + (done ? ' done' : '');
+    const cv = document.createElement('canvas');
+    cv.width = 56 * d; cv.height = 48 * d;
+    card.appendChild(cv);
+    const txt = document.createElement('div');
+    txt.className = 'achtxt';
+    const prog = a.goal > 1 ? `${cur}/${a.goal}` : '';
+    txt.innerHTML = `<b>${a.name}</b><span>${a.desc}</span>
+      <div class="achbar"><i style="width:${(cur / a.goal) * 100}%"></i></div>
+      <em>${done ? 'Unlocked' : prog || 'Locked'} &middot; ${sk.name} skin</em>`;
+    card.appendChild(txt);
+    list.appendChild(card);
+    drawSkinPreview(cv, sk, d);
+  }
+  document.getElementById('achScreen').classList.remove('hidden');
+}
+
 function renderBest() {
   const box = document.getElementById('bestBox');
   if (!best.peak) { box.innerHTML = '<div class="best-label">High score</div><div class="best-none">No games yet &mdash; set the first record!</div>'; return; }
@@ -1334,7 +1473,12 @@ function renderBest() {
 }
 
 function endGame(won) {
-  if (won) stats.endTime = time - stats.start;
+  if (won) { stats.endTime = time - stats.start; life.wins++; }
+  checkAchievements();
+  saveLife();
+  const achText = stats.newAch.length ? 'Achievements unlocked: ' + stats.newAch.join(', ') : '';
+  document.getElementById('overAch').textContent = achText;
+  document.getElementById('winAch').textContent = achText;
   const isRecord = recordBest(won, stats.endTime);
   document.querySelectorAll('.newbest').forEach(el => el.classList.toggle('hidden', !isRecord));
   document.getElementById('optionsBtn').classList.add('hidden');
@@ -1406,7 +1550,7 @@ function spawnPowerup() {
 
 function applyPower(c, pu) {
   pu.dead = true;
-  if (c.isPlayer) playSfx('power');
+  if (c.isPlayer) { playSfx('power'); if (state === 'playing') life[pu.type === 'frenzy' ? 'chili' : 'sugar']++; }
   const info = POWER_INFO[pu.type];
   if (pu.type === 'frenzy') c.frenzy = FRENZY_TIME;
   else { c.rush = RUSH_TIME; if (c.charge <= 0) c.chargeCd = 0; }
@@ -1420,7 +1564,7 @@ function applyPower(c, pu) {
 }
 
 function teleport(c, from, to) {
-  if (c.isPlayer) playSfx('tunnel');
+  if (c.isPlayer) { playSfx('tunnel'); if (state === 'playing') life.tunnels++; }
   const q = c.queen, s = Math.hypot(q.vx, q.vy);
   // come out the far side, a little past the hole, in the direction she was heading
   const hx = s > 5 ? q.vx / s : Math.cos(q.ang), hy = s > 5 ? q.vy / s : Math.sin(q.ang);
@@ -1485,7 +1629,7 @@ function updatePowerAndStructures(dt) {
         const c = g.owner;
         c.food++;
         if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
-        if (c.isPlayer) playSfx('garden');
+        if (c.isPlayer) { playSfx('garden'); if (state === 'playing') life.gardenFood++; }
         const sh = g.shrooms[randInt(0, g.shrooms.length - 1)];
         particles.push({ type: 'spark', x: g.x + sh.dx, y: g.y + sh.dy, vx: (c.queen.x - g.x - sh.dx) * 1.6, vy: (c.queen.y - g.y - sh.dy) * 1.6, color: '#b8ff8c', life: 0.5, max: 0.5, r: 2.2 });
       }
@@ -1544,13 +1688,20 @@ function update(dt) {
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
       const psize = player && player.alive ? colonySize(player) : 0;
-      spawnTimer = rand(5, 15) + Math.min(10, psize * 0.04);   // random gaps between new rivals
+      spawnTimer = rand(3, 8) + Math.min(5, psize * 0.02);    // random gaps between new rivals
       if (enemyCount() < MAX_ENEMIES) spawnEnemy(randInt(3, 10));
     }
   }
 
   if (state === 'playing' && player.alive) {
     stats.peak = Math.max(stats.peak, colonySize(player));
+    const n = colonySize(player), elapsed = time - stats.start;
+    life.bestPeak = Math.max(life.bestPeak, n);
+    life.longest = Math.max(life.longest, elapsed);
+    if (n >= 50 && elapsed <= 120) life.blitz = 1;
+    if (n >= 30 && stats.charges === 0) life.pacifist = 1;
+    stats.achTimer -= dt;
+    if (stats.achTimer <= 0) { stats.achTimer = 0.5; checkAchievements(); }
     while (stats.milestone < MILESTONES.length && colonySize(player) >= MILESTONES[stats.milestone].at) {
       reachMilestone(MILESTONES[stats.milestone]);
       stats.milestone++;
@@ -1651,6 +1802,24 @@ function setCameraTransform() {
 
 let antCtx = ctx;   // target context for drawAnt (swapped for the title logo)
 // Draw an ant in its own local frame (facing +x). Worker body length ~13 units.
+// Body layout per bug type (local units, facing +x). Workers ~13 units long.
+function bodyGeo(bt, q) {
+  switch (bt) {
+    case 'termite': return { abX: q ? -6.6 : -4.3, abRx: q ? 6.8 : 4.2, abRy: q ? 4.1 : 2.4, waist: null,
+      thx: 0.7, thRx: 1.6, thRy: 1.5, hx: 3.5, hRx: 2.1, hRy: 1.9, legScale: 0.95, antennae: 'straight' };
+    case 'wasp': return { abX: q ? -6.2 : -5.1, abRx: q ? 5.2 : 4.2, abRy: q ? 2.9 : 2.2, waist: [-0.9, 1.3, 0.45],
+      thx: 0.6, thRx: 1.9, thRy: 1.5, hx: 3.5, hRx: 1.7, hRy: 1.9, legScale: 1, antennae: 'bent' };
+    case 'beetle': return { abX: -2.3, abRx: 4.9, abRy: 3.6, waist: null,
+      thx: 2.2, thRx: 1.4, thRy: 2.3, hx: 3.9, hRx: 1.1, hRy: 1.4, legScale: 0.9, antennae: 'short' };
+    case 'spider': return { abX: -3.7, abRx: 3.6, abRy: 3.2, waist: [-0.2, 0.5, 0.5],
+      thx: 1.4, thRx: 2.4, thRy: 2.0, hx: 3.2, hRx: 0.9, hRy: 1.1, legs: 8, antennae: 'none' };
+    case 'roach': return { abX: -2.0, abRx: 5.8, abRy: 3.1, waist: null,
+      thx: 2.7, thRx: 1.6, thRy: 2.8, hx: 4.1, hRx: 1.0, hRy: 1.3, legScale: 1.15, antennae: 'long' };
+    default: return { abX: q ? -5.4 : -4.3, abRx: q ? 4.9 : 3.6, abRy: q ? 3.3 : 2.6, waist: [-0.9, 0.8, 0.7],
+      thx: 0.4, thRx: 1.9, thRy: 1.4, hx: 3.6, hRx: 1.8, hRy: 1.7, legScale: 1, antennae: 'bent' };
+  }
+}
+
 function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
   const ctx = antCtx;
   const skin = c.skin;
@@ -1663,33 +1832,80 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
   const co = Math.cos(ang) * s * TZ, si = Math.sin(ang) * s * TZ;
   ctx.setTransform(co, si, -si, co, x * TZ + TEX, y * TZ + TEY);
 
-  // legs (tripod gait) + antennae
+  const bt = (skin && skin.body) || 'ant';
+  const G = bodyGeo(bt, isQueen);
+  const { abX, abRx, abRy, thx, hx, hRx, hRy } = G;
+
+  // legs (tripod gait) + antennae / mandibles
   ctx.strokeStyle = dark;
   ctx.lineWidth = isQueen ? 0.75 : 0.95;
   ctx.beginPath();
-  const roots = [1.1, 0, -1.1], feet = [4.2, 0.2, -4.4];
-  for (let side = -1; side <= 1; side += 2) {
-    for (let i = 0; i < 3; i++) {
-      const phase = ((i + (side > 0 ? 1 : 0)) % 2) * Math.PI;
-      const sw = Math.sin(walk + phase) * 1.5;
-      const fx = feet[i] + sw, fy = side * (i === 1 ? 5.6 : 5.1);
-      const kx = roots[i] + (fx - roots[i]) * 0.35 + (i === 0 ? 0.6 : i === 2 ? -0.6 : 0), ky = side * 3.4;
-      ctx.moveTo(roots[i], side * 0.6);
-      ctx.lineTo(kx, ky);
-      ctx.lineTo(fx, fy);
+  if (G.legs === 8) {   // spider: four long jointed legs a side
+    const rx = [1.2, 0.4, -0.4, -1.2], fxs = [5.6, 2.4, -1.8, -5.4];
+    for (let side = -1; side <= 1; side += 2) {
+      for (let i = 0; i < 4; i++) {
+        const sw = Math.sin(walk + ((i + (side > 0 ? 1 : 0)) % 2) * Math.PI) * 1.3;
+        const r0 = thx + rx[i], fx = thx + fxs[i] + sw, fy = side * (i === 0 || i === 3 ? 6.4 : 7);
+        ctx.moveTo(r0, side * 0.8);
+        ctx.lineTo(r0 + (fx - r0) * 0.45, side * 4.9);
+        ctx.lineTo(fx, fy);
+      }
     }
+  } else {
+    const ls = G.legScale;
+    const roots = [thx + 0.7, thx - 0.4, thx - 1.5], feet = [thx + 3.8, thx - 0.2, thx - 4.8];
+    for (let side = -1; side <= 1; side += 2) {
+      for (let i = 0; i < 3; i++) {
+        const phase = ((i + (side > 0 ? 1 : 0)) % 2) * Math.PI;
+        const sw = Math.sin(walk + phase) * 1.5;
+        const fx = feet[i] + sw, fy = side * (i === 1 ? 5.6 : 5.1) * ls;
+        const kx = roots[i] + (fx - roots[i]) * 0.35 + (i === 0 ? 0.6 : i === 2 ? -0.6 : 0), ky = side * 3.4 * ls;
+        ctx.moveTo(roots[i], side * 0.6);
+        ctx.lineTo(kx, ky);
+        ctx.lineTo(fx, fy);
+      }
+    }
+  }
+  for (let side = -1; side <= 1; side += 2) {
     const aw = Math.sin(walk * 0.7 + side) * 0.5;
-    ctx.moveTo(4.6, side * 0.8);
-    ctx.lineTo(6.2, side * 2.0);
-    ctx.lineTo(8.0, side * (1.6 + aw));
+    const ax = hx + hRx * 0.6;
+    if (G.antennae === 'bent') {
+      ctx.moveTo(ax, side * 0.8); ctx.lineTo(ax + 1.6, side * 2.0); ctx.lineTo(ax + 3.4, side * (1.6 + aw));
+    } else if (G.antennae === 'straight') {
+      ctx.moveTo(ax, side * 0.8); ctx.lineTo(ax + 2.8, side * (2.5 + aw * 0.5));
+    } else if (G.antennae === 'short') {
+      ctx.moveTo(ax, side * 0.7); ctx.lineTo(ax + 1.4, side * 1.7); ctx.lineTo(ax + 2.1, side * 1.5);
+    } else if (G.antennae === 'long') {
+      ctx.moveTo(ax, side * 0.6); ctx.quadraticCurveTo(ax + 4, side * (0.8 + aw), ax + 7.5, side * (4.2 + aw));
+    }
+  }
+  if (bt === 'termite' || (skin && skin.mandibles)) {   // pincer jaws
+    for (let side = -1; side <= 1; side += 2) {
+      ctx.moveTo(hx + hRx - 0.4, side * 0.7); ctx.quadraticCurveTo(hx + hRx + 1.2, side * 0.9, hx + hRx + 1.5, side * 0.1);
+    }
   }
   ctx.stroke();
 
-  if (isQueen || (skin && skin.workerWings)) {  // wings folded over the abdomen
+  // wings
+  const fl = Math.sin(time * 18) * 0.04;
+  if (skin && skin.mothWings) {                       // broad furry moth wings
+    ctx.fillStyle = skin.mothWings; ctx.strokeStyle = dark; ctx.lineWidth = 0.35;
+    ctx.beginPath();
+    ctx.ellipse(-1.8, -3.4, 5.2, 3.4, 0.55 + fl, 0, TAU);
+    ctx.moveTo(-1.8 + 5.2, 3.4); ctx.ellipse(-1.8, 3.4, 5.2, 3.4, -0.55 - fl, 0, TAU);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(60,40,20,0.45)';            // eye-spots
+    ctx.beginPath(); ctx.arc(-3, -4.4, 0.9, 0, TAU); ctx.moveTo(-2.1, 4.4); ctx.arc(-3, 4.4, 0.9, 0, TAU); ctx.fill();
+  } else if (bt === 'wasp') {                         // narrow wasp wings, every caste
+    ctx.fillStyle = 'rgba(225,240,255,0.45)'; ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 0.3;
+    ctx.beginPath();
+    ctx.ellipse(-2.6, -2.3, 5.6, 1.4, 0.3 + fl, 0, TAU);
+    ctx.moveTo(-2.6 + 5.6, 2.3); ctx.ellipse(-2.6, 2.3, 5.6, 1.4, -0.3 - fl, 0, TAU);
+    ctx.fill(); ctx.stroke();
+  } else if ((bt === 'ant' || bt === 'termite') && (isQueen || (skin && skin.workerWings))) {  // folded wings
     ctx.fillStyle = skin && skin.id === 'bee' ? 'rgba(220,240,255,0.5)' : 'rgba(235,245,255,0.38)';
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 0.35;
-    const fl = Math.sin(time * 18) * 0.04;
     ctx.beginPath();
     ctx.ellipse(-5.2, -2.4, 6.2, 2.1, 0.28 + fl, 0, TAU);
     ctx.moveTo(-5.2 + 6.2, 2.4);
@@ -1697,23 +1913,76 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
     ctx.fill(); ctx.stroke();
   }
 
-  // body: abdomen, petiole, thorax, head
-  const abX = isQueen ? -5.4 : -4.3, abRx = isQueen ? 4.9 : 3.6, abRy = isQueen ? 3.3 : 2.6;
+  // body: abdomen, waist, thorax, head (+ wasp stinger)
   ctx.fillStyle = body;
   ctx.beginPath();
   ctx.moveTo(abX + abRx, 0); ctx.ellipse(abX, 0, abRx, abRy, 0, 0, TAU);
-  ctx.moveTo(-0.7 + 0.8, 0); ctx.ellipse(-0.9, 0, 0.8, 0.7, 0, 0, TAU);
-  ctx.moveTo(2.3, 0); ctx.ellipse(0.4, 0, 1.9, 1.4, 0, 0, TAU);
-  ctx.moveTo(5.4, 0); ctx.ellipse(3.6, 0, 1.8, 1.7, 0, 0, TAU);
+  if (G.waist) { const [wx, wrx, wry] = G.waist; ctx.moveTo(wx + wrx, 0); ctx.ellipse(wx, 0, wrx, wry, 0, 0, TAU); }
+  ctx.moveTo(thx + G.thRx, 0); ctx.ellipse(thx, 0, G.thRx, G.thRy, 0, 0, TAU);
+  ctx.moveTo(hx + hRx, 0); ctx.ellipse(hx, 0, hRx, hRy, 0, 0, TAU);
+  if (bt === 'wasp' && !(skin && skin.stinger === false)) {
+    const tip = abX - abRx;
+    ctx.moveTo(tip + 0.5, -0.55); ctx.lineTo(tip - 1.9, 0); ctx.lineTo(tip + 0.5, 0.55); ctx.closePath();
+  }
   ctx.fill();
   ctx.strokeStyle = dark;
   ctx.lineWidth = 0.5;
   ctx.stroke();
 
+  // body-type details
+  if (bt === 'beetle') {          // split wing-cases
+    ctx.strokeStyle = dark; ctx.lineWidth = 0.45;
+    ctx.beginPath(); ctx.moveTo(abX + abRx - 0.1, 0); ctx.lineTo(abX - abRx + 0.4, 0); ctx.stroke();
+  } else if (bt === 'roach') {    // pale shield rim and folded-wing seam
+    ctx.strokeStyle = (skin && skin.rim) || 'rgba(255,220,170,0.6)'; ctx.lineWidth = 0.55;
+    ctx.beginPath(); ctx.ellipse(thx, 0, G.thRx * 0.85, G.thRy * 0.85, 0, -1.2, 1.2); ctx.stroke();
+    ctx.strokeStyle = dark; ctx.lineWidth = 0.35;
+    ctx.beginPath(); ctx.moveTo(abX + abRx - 1.2, 0); ctx.lineTo(abX - abRx + 0.6, 0.35);
+    ctx.moveTo(abX + abRx - 1.2, 0); ctx.lineTo(abX - abRx + 1.4, -0.9); ctx.stroke();
+  } else if (bt === 'termite') {  // soft segment rings
+    ctx.strokeStyle = 'rgba(90,60,30,0.28)'; ctx.lineWidth = 0.3;
+    ctx.beginPath();
+    for (const f of [-0.55, -0.15, 0.25, 0.6]) {
+      const sx = abX + abRx * f, ry = abRy * Math.sqrt(1 - f * f);
+      ctx.moveTo(sx, -ry); ctx.quadraticCurveTo(sx - 0.5, 0, sx, ry);
+    }
+    ctx.stroke();
+  } else if (bt === 'spider') {   // cluster of eyes
+    ctx.fillStyle = '#0c0a08';
+    ctx.beginPath();
+    for (const [ex, ey, er] of [[2.9, -0.45, 0.32], [2.9, 0.45, 0.32], [2.5, -1.05, 0.22], [2.5, 1.05, 0.22]]) {
+      ctx.moveTo(thx + ex - 1.4 + er, ey); ctx.arc(thx + ex - 1.4, ey, er, 0, TAU);
+    }
+    ctx.fill();
+  }
+
   if (skin) {
     if (skin.head) {     // contrasting head
       ctx.fillStyle = skin.head;
-      ctx.beginPath(); ctx.moveTo(5.4, 0); ctx.ellipse(3.6, 0, 1.8, 1.7, 0, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(hx + hRx, 0); ctx.ellipse(hx, 0, hRx, hRy, 0, 0, TAU); ctx.fill();
+    }
+    if (skin.horns) {    // stag beetle antlers
+      ctx.strokeStyle = skin.head || dark; ctx.lineWidth = 0.9; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let side = -1; side <= 1; side += 2) {
+        ctx.moveTo(hx + 0.6, side * 0.8); ctx.quadraticCurveTo(hx + 3.2, side * 3, hx + 4.6, side * 0.5);
+        ctx.moveTo(hx + 2.6, side * 1.9); ctx.lineTo(hx + 3.1, side * 1.1);
+      }
+      ctx.stroke(); ctx.lineCap = 'butt';
+    }
+    if (skin.glowTail) { // firefly lantern
+      const gx = abX - abRx * 0.55, gr = abRy * 0.62;
+      ctx.fillStyle = 'rgba(230,255,110,0.35)';
+      ctx.beginPath(); ctx.arc(gx, 0, gr * 1.8, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#eeff7a';
+      ctx.beginPath(); ctx.ellipse(gx, 0, gr * 1.1, gr, 0, 0, TAU); ctx.fill();
+    }
+    if (skin.hourglass) { // black widow mark
+      ctx.fillStyle = skin.hourglass;
+      ctx.beginPath();
+      ctx.moveTo(abX - 1.3, -0.9); ctx.lineTo(abX + 1.3, -0.9); ctx.lineTo(abX, 0); ctx.closePath();
+      ctx.moveTo(abX - 1.3, 0.9); ctx.lineTo(abX + 1.3, 0.9); ctx.lineTo(abX, 0); ctx.closePath();
+      ctx.fill();
     }
     if (skin.stripes) {  // bumblebee bands across the abdomen
       ctx.fillStyle = skin.stripes;
@@ -1756,7 +2025,7 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
     }
     if (skin.visor) {    // robot eye strip
       ctx.strokeStyle = skin.visor; ctx.lineWidth = 0.55;
-      ctx.beginPath(); ctx.moveTo(4.3, -1.2); ctx.lineTo(4.6, 0); ctx.lineTo(4.3, 1.2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(hx + 0.7, -1.2); ctx.lineTo(hx + 1, 0); ctx.lineTo(hx + 0.7, 1.2); ctx.stroke();
     }
     if (skin.leaf && !isQueen) {   // leafcutter workers carry a leaf fragment
       ctx.fillStyle = '#5fbf3a'; ctx.strokeStyle = '#2f6e1c'; ctx.lineWidth = 0.35;
@@ -1778,21 +2047,22 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
   ctx.beginPath();
   ctx.moveTo(abX - 0.4 + abRx * 0.38, -abRy * 0.35);
   ctx.ellipse(abX - 0.4, -abRy * 0.35, abRx * 0.38, abRy * 0.22, 0, 0, TAU);
-  ctx.moveTo(3.9 + 0.6, -0.6);
-  ctx.ellipse(3.9, -0.6, 0.6, 0.35, 0, 0, TAU);
+  ctx.moveTo(hx + 0.3 + 0.6, -0.6);
+  ctx.ellipse(hx + 0.3, -0.6, 0.6, 0.35, 0, 0, TAU);
   ctx.fill();
 
   if (isQueen) {  // crown on the head; grows with the colony's milestones
     const lvl = c.crownLevel || 0, cs = 1 + 0.2 * lvl;
     if (lvl >= 4) {   // legendary glow behind the crown
       ctx.fillStyle = `rgba(255,220,90,${0.35 + 0.2 * Math.sin(time * 6)})`;
-      ctx.beginPath(); ctx.arc(4, 0, 3.6 * cs, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(4 + hx - 3.6, 0, 3.6 * cs, 0, TAU); ctx.fill();
     }
     ctx.fillStyle = '#ffd700';
     ctx.strokeStyle = '#7a5200';
     ctx.lineWidth = 0.35;
     ctx.beginPath();
-    const P = (px, py) => [2.4 + (px - 2.4) * cs, py * cs];
+    const dx = hx - 3.6;   // sit the crown on this body type's head
+    const P = (px, py) => [2.4 + dx + (px - 2.4) * cs, py * cs];
     ctx.moveTo(...P(2.4, -2.1));
     ctx.lineTo(...P(5.2, -2.5));
     ctx.lineTo(...P(3.9, -1.0));
@@ -1803,7 +2073,7 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
     ctx.closePath();
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = c.isPlayer ? '#e0283c' : '#3de0ff';
-    ctx.beginPath(); ctx.arc(3.2, 0, 0.55 * cs, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.2 + dx, 0, 0.55 * cs, 0, TAU); ctx.fill();
     if (lvl >= 2) {   // side gems
       ctx.fillStyle = '#3de0ff';
       ctx.beginPath();
@@ -1816,7 +2086,7 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
 
 // Workers are stamped from cached pre-rendered sprites (one per colour / skin /
 // leg frame) instead of redrawing every body part of every ant each frame.
-const SPR_RES = 5, SPR_OX = 9, SPR_OY = 7, SPR_FRAMES = 6;
+const SPR_RES = 4, SPR_OX = 13, SPR_OY = 8, SPR_FRAMES = 6;
 const SPR_W = SPR_OX * 2 * SPR_RES, SPR_H = SPR_OY * 2 * SPR_RES;
 const spriteCache = new Map();
 function antSprite(col, walk, seed) {
@@ -2740,7 +3010,7 @@ function closeOptions() {
   document.getElementById('optionsScreen').classList.add('hidden');
 }
 function goToMenu() {
-  if (state === 'paused' && player) recordBest(false, time - stats.start);   // quitting mid-match still counts
+  if (state === 'paused' && player) { recordBest(false, time - stats.start); checkAchievements(false); saveLife(); }
   for (const id of ['optionsScreen', 'overScreen', 'winScreen']) document.getElementById(id).classList.add('hidden');
   document.getElementById('optionsBtn').classList.add('hidden');
   resetWorld(false);
@@ -2799,12 +3069,13 @@ function fillSkinPicker(box) {
     const locked = !skinUnlocked(sk);
     btn.className = 'skin' + (i === selectedSkin ? ' sel' : '') + (locked ? ' locked' : '');
     btn.dataset.i = i;
-    if (locked) btn.title = `Reach ${sk.req} ants in a match to unlock`;
+    const ach = achForSkin(sk);
+    btn.title = locked && ach ? `Locked - achievement "${ach.name}": ${ach.desc}` : sk.name;
     const cv = document.createElement('canvas');
     const d = Math.min(2, window.devicePixelRatio || 1);
     cv.width = 56 * d; cv.height = 48 * d;
     btn.appendChild(cv);
-    btn.appendChild(document.createTextNode(locked ? `Reach ${sk.req}` : sk.name));
+    btn.appendChild(document.createTextNode(locked ? 'Locked' : sk.name));
     btn.addEventListener('click', () => {
       if (!skinUnlocked(sk)) return;
       selectedSkin = i;
@@ -2813,19 +3084,27 @@ function fillSkinPicker(box) {
       drawLogo();
     });
     box.appendChild(btn);
-    const colony = { color: sk.color, dark: shade(sk.color, -0.5), isPlayer: true, skin: sk };
-    const saved = [TZ, TEX, TEY];
-    const g = cv.getContext('2d');
-    antCtx = g; TZ = d; TEX = 0; TEY = 0;
-    drawAnt(13, 32, -Math.PI / 2 - 0.3, 1.1, colony, 1, false, 3);
-    drawAnt(43, 32, -Math.PI / 2 + 0.3, 1.1, colony, 2, false, 9);
-    drawAnt(28, 26, -Math.PI / 2, 1.9, colony, 0, true, 0);
-    antCtx = ctx; [TZ, TEX, TEY] = saved;
+    drawSkinPreview(cv, sk, d);
   });
 }
+function drawSkinPreview(cv, sk, d) {
+  const colony = { color: sk.color, dark: shade(sk.color, -0.5), isPlayer: true, skin: sk };
+  const saved = [TZ, TEX, TEY];
+  antCtx = cv.getContext('2d'); TZ = d; TEX = 0; TEY = 0;
+  drawAnt(12, 33, -Math.PI / 2 - 0.3, 1, colony, 1, false, 3);
+  drawAnt(44, 33, -Math.PI / 2 + 0.3, 1, colony, 2, false, 9);
+  drawAnt(28, 27, -Math.PI / 2, 1.7, colony, 0, true, 0);
+  antCtx = ctx; [TZ, TEX, TEY] = saved;
+}
 
+checkAchievements(false);
+if (!skinUnlocked(SKINS[selectedSkin])) selectedSkin = 0;
 buildSkinPicker();
 renderBest();
+updateAchButton();
+document.getElementById('achBtn').addEventListener('click', openAchievements);
+document.getElementById('achClose').addEventListener('click', () => document.getElementById('achScreen').classList.add('hidden'));
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveLife(); });
 drawLogo();
 resetWorld(false);   // attract-mode simulation behind the title screen
 cam.zoom = 0.8;
