@@ -644,6 +644,9 @@ let powerTimer = 5;
 // terrain obstacles and map events
 let rocks = [], puddles = [];
 let eventTimer = 60, raining = 0, quakeTime = 0, picnic = null, lastEvent = '';
+let creatures = [], creatureTimer = 30, bossTimer = 300;
+let magnifier = null, flood = null, migration = null, golden = null;
+let nightT = 0, bloodMoon = 0, sugarRain = 0, sugarRainT = 0;
 const RAIN_TIME = 20, RAIN_SLOW = 0.78, PUDDLE_SLOW = 0.55;
 let stats = { start: 0, kills: 0, peak: 0, finalSize: 0, killedBy: '', endTime: 0 };
 const cam = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.8 };
@@ -750,6 +753,8 @@ function resetWorld(withPlayer) {
   bgCanvas && buildBackground();
   powerups = []; powerTimer = 3;
   raining = 0; quakeTime = 0; picnic = null; eventTimer = rand(55, 75); lastEvent = '';
+  creatures = []; creatureTimer = rand(20, 35); bossTimer = 300;
+  magnifier = null; flood = null; migration = null; golden = null; nightT = 0; bloodMoon = 0; sugarRain = 0;
   for (let i = 0; i < 2; i++) spawnPowerup();
   for (let i = 0; i < FOOD_MAX; i++) spawnFood();
   for (const f of food) f.age = 1;
@@ -894,7 +899,7 @@ function aiStrike(c) {
     if (odds > bestOdds) { bestOdds = odds; best = o; }
   }
   // not every opening is spotted: hesitate sometimes and need clearly good odds
-  if (best && bestOdds > diff().strike && Math.random() < 0.6) {
+  if (best && bestOdds > diff().strike * (bloodMoon > 0 ? 0.6 : 1) && Math.random() < 0.6) {
     c.ai.chargeTarget = best;
     startCharge(c, best.queen.x, best.queen.y);
     return true;
@@ -929,6 +934,8 @@ function aiThink(c) {
   // 3) hunt: overwhelm smaller colonies, stalk comparable ones and wait for an opening
   if (prey) { ai.mode = colonySize(prey) < my * 0.7 ? 'chase' : 'stalk'; ai.target = prey; return; }
 
+  // the golden crumb is worth a long trip
+  if (golden && dist(q.x, q.y, golden.x, golden.y) < 1000) { ai.mode = 'powerup'; ai.power = golden; return; }
   // 4) power-ups nearby are worth a detour
   let bp = null, bpd = 450;
   for (const pu of powerups) {
@@ -991,7 +998,14 @@ function updateAI(c, dt) {
   if (ai.think <= 0) { ai.think = rand(0.35, 0.7); aiThink(c); }
   // quick reflexes: check for openings several times a second
   ai.react -= dt;
-  if (ai.react <= 0) { ai.react = rand(0.25, 0.5) * diff().react; if (aiStrike(c)) ai.think = 0; }
+  if (ai.react <= 0) {
+    ai.react = rand(0.25, 0.5) * diff().react;
+    if (aiStrike(c)) ai.think = 0;
+    else if (c.charge <= 0 && c.chargeCd <= 0 && c.workers.length >= 15 && Math.random() < 0.15) {
+      const cr = creatures.find(k => k.type !== 'drone' && k.state !== 'flipped' && k.state !== 'out' && dist(k.x, k.y, q.x, q.y) < 230);
+      if (cr) { ai.chargeTarget = null; startCharge(c, cr.x, cr.y); }
+    }
+  }
 
   // steer our charge onto where the target queen is heading
   if (c.charge > 0 && ai.chargeTarget && ai.chargeTarget.alive) {
@@ -1087,6 +1101,7 @@ function fight(a, b) {
   const sa = colonySize(a.col), sb = colonySize(b.col);
   const pa = (sa + 1) / (sa + sb + 2);  // share of strength for a's side
   let aDie = 0.9 * (1 - pa), bDie = 0.9 * pa;
+  if (bloodMoon > 0) { aDie *= 1.5; bDie *= 1.5; }
   // guards holding their ring fight better than chargers crashing into it
   const ac = a.col.charge > 0, bc = b.col.charge > 0;
   if (ac && !bc) { aDie *= 1.25; bDie *= 0.75; }
@@ -1128,8 +1143,8 @@ function eatFood(c, f) {
   if (f.dead) return;
   f.dead = true;
   if (c.isPlayer) { playSfx('eat'); if (state === 'playing') life.crumbs++; }
-  c.food++;
-  if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
+  c.food += f.honey ? 2 : 1;
+  while (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
   for (let i = 0; i < 3; i++) {
     const a = rand(0, TAU), s = rand(20, 60);
     particles.push({ type: 'fleck', x: f.x, y: f.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, color: '#9dff6e', life: 0.4, max: 0.4, r: 1.4 });
@@ -1305,10 +1320,16 @@ function updateWorkers(c, dt) {
         dvy = (d > 0.01 ? dy / d * sp : 0) + w.sy + w.fy;
         w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
       }
-      const tf = terrainFactor(w.x, w.y);
-      w.x = clamp(w.x + w.vx * dt * tf, 3, WORLD_W - 3);
-      w.y = clamp(w.y + w.vy * dt * tf, 3, WORLD_H - 3);
-      if (rocks.length) pushOutOfRocks(w, WORKER_R);
+      if (w.stuck > 0) {   // caught in a spider web
+        w.stuck -= dt; w.vx = w.vy = 0;
+        if (w.stuck <= 0) w.webCd = 3;
+      } else {
+        if (w.webCd > 0) w.webCd -= dt;
+        const tf = terrainFactor(w.x, w.y);
+        w.x = clamp(w.x + w.vx * dt * tf, 3, WORLD_W - 3);
+        w.y = clamp(w.y + w.vy * dt * tf, 3, WORLD_H - 3);
+        if (rocks.length) pushOutOfRocks(w, WORKER_R);
+      }
       const s = Math.hypot(w.vx, w.vy);
       if (s > 25) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), 1 - Math.exp(-12 * dt));
       else w.ang = lerpAngle(w.ang, a, 1 - Math.exp(-6 * dt));   // at rest: face outward on guard
@@ -1902,10 +1923,16 @@ const ACHIEVEMENTS = [
   { id: 'nm5',       name: 'Nightmare Survivor', desc: 'Survive 5 minutes on Nightmare',         key: 'nmLongest',  goal: 300,  xp: 500 },
   { id: 'nm100',     name: 'Nightmare Horde',  desc: 'Reach 100 ants on Nightmare',              key: 'nmPeak',     goal: 100,  xp: 700 },
   { id: 'nmwin',     name: 'Nightmare Queen',  desc: 'Win a match on Nightmare',                 key: 'nmWins',     goal: 1,    xp: 1500 },
+  { id: 'spider',    name: 'Arachnophobe',     desc: 'Defeat a spider',                          key: 'spiderKills', goal: 1,   xp: 200 },
+  { id: 'ladybug',   name: 'Flip It',          desc: 'Flip a ladybug beetle',                    key: 'ladyFlips',  goal: 1,    xp: 200 },
+  { id: 'wasp',      name: 'Swatter',          desc: 'Swat a wasp scout',                        key: 'waspKills',  goal: 1,    xp: 200 },
+  { id: 'beeBoss',   name: 'Bee Slayer',       desc: 'Defeat the Queen Bee',                     key: 'beeKills',   goal: 1,    xp: 800 },
+  { id: 'golden',    name: 'Golden Touch',     desc: 'Take the last bite of a Golden Crumb',     key: 'goldenWins', goal: 1,    xp: 200 },
 ];
 const life = { games: 0, crumbs: 0, conquests: 0, wins: 0, chili: 0, sugar: 0, tunnels: 0, gardenFood: 0, charges: 0,
                bestStreak: 0, bestPeak: 0, longest: 0, blitz: 0, pacifist: 0, giant: 0, bigGame: 0, underdog: 0,
-               events: 0, nmLongest: 0, nmPeak: 0, nmWins: 0, ghostKills: 0 };
+               events: 0, nmLongest: 0, nmPeak: 0, nmWins: 0, ghostKills: 0,
+               spiderKills: 0, ladyFlips: 0, waspKills: 0, beeKills: 0, goldenWins: 0 };
 try { Object.assign(life, JSON.parse(localStorage.getItem('qoth-life') || '{}')); } catch (e) {}
 // carry over earlier records
 life.bestPeak = Math.max(life.bestPeak, best.peak);
@@ -2087,6 +2114,8 @@ function placeTunnels(pairs) {
 function inRock(x, y, pad = 0) { return rocks.some(k => (x - k.x) ** 2 + (y - k.y) ** 2 < (k.r + pad) ** 2); }
 function terrainFactor(x, y) {
   let f = raining > 0 ? RAIN_SLOW : 1;
+  if (flood && inFlood(x, y)) f *= 0.35;
+  for (const cr of creatures) if (cr.type === 'spider' && (x - cr.x) ** 2 + (y - cr.y) ** 2 < cr.webR * cr.webR) f *= 0.4;
   for (const p of puddles) {
     const dx = x - p.x, dy = y - p.y;
     if (Math.abs(dx) > p.rx || Math.abs(dy) > p.rx) continue;
@@ -2153,11 +2182,497 @@ function teleport(c, from, to) {
   if (c.isPlayer) { cam.x += dx; cam.y += dy; }
 }
 
+// ---- more map events ----
+function floodCov() {
+  if (!flood) return 0;
+  const t = flood.t, d = flood.dur;
+  return 0.34 * clamp(t < 3 ? t / 3 : t > d - 3 ? (d - t) / 3 : 1, 0, 1);
+}
+function inFlood(x, y) {
+  const c = floodCov();
+  if (c <= 0) return false;
+  switch (flood.side) {
+    case 'left': return x < WORLD_W * c;
+    case 'right': return x > WORLD_W * (1 - c);
+    case 'top': return y < WORLD_H * c;
+    default: return y > WORLD_H * (1 - c);
+  }
+}
+const COMPASS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'];
+function startExtraEvent(type) {
+  if (type === 'glass') {
+    const lead = biggestColony(), p = lead ? { x: lead.queen.x + rand(-400, 400), y: lead.queen.y + rand(-300, 300) } : openSpot(0);
+    magnifier = { x: clamp(p.x, 100, WORLD_W - 100), y: clamp(p.y, 100, WORLD_H - 100), t: 20, burnT: 0.5 };
+    addBanner('MAGNIFYING GLASS!', 'A burning sunbeam hunts the biggest colony', '#fff2a0', 3, 44);
+    playSfx('event');
+  } else if (type === 'flood') {
+    flood = { side: ['left', 'right', 'top', 'bottom'][randInt(0, 3)], t: 0, dur: 20 };
+    addBanner('FLOOD!', `Water is rising from the ${flood.side} - everything in it is slowed`, '#7fc4ff', 3, 46);
+    playSfx('thunder');
+  } else if (type === 'migration') {
+    const a = rand(0, TAU);
+    migration = { dx: Math.cos(a), dy: Math.sin(a), t: 25 };
+    addBanner('MIGRATION!', `All the food is drifting ${COMPASS[Math.round(((a % TAU) + TAU) % TAU / (TAU / 8)) % 8]} - follow it`, '#b8ff8c', 3, 44);
+    playSfx('event');
+  } else if (type === 'night') {
+    nightT = 30;
+    addBanner('NIGHT FALLS', 'You can only see around your colony - watch the minimap', '#b0b8ff', 3, 44);
+    playSfx('event');
+  } else if (type === 'blood') {
+    bloodMoon = 20;
+    addBanner('BLOOD MOON!', 'Charges recharge instantly and every fight is deadlier', '#ff5a5a', 3, 46);
+    playSfx('thunder'); addShake(5);
+  } else if (type === 'sugar') {
+    sugarRain = 15; sugarRainT = 0;
+    addBanner('SUGAR RAIN!', 'Sugar cubes are falling everywhere - grab them!', '#8fd8ff', 3, 46);
+    playSfx('event');
+  } else if (type === 'golden') {
+    const p = openSpot(350, 350);
+    golden = { x: p.x, y: p.y, progress: 0, t: 60, lead: null, dead: false };
+    addBanner('GOLDEN CRUMB!', 'Worth 25 ants to whoever takes the last bite - see the minimap', '#ffd54a', 3, 44);
+    playSfx('event');
+  }
+}
+function updateExtraEvents(dt) {
+  if (magnifier) {
+    if ((magnifier.t -= dt) <= 0) magnifier = null;
+    else {
+      const lead = biggestColony();
+      if (lead) {
+        const dx = lead.queen.x - magnifier.x, dy = lead.queen.y - magnifier.y, d = Math.hypot(dx, dy);
+        if (d > 5) { magnifier.x += dx / d * Math.min(95 * dt, d); magnifier.y += dy / d * Math.min(95 * dt, d); }
+      }
+      if ((magnifier.burnT -= dt) <= 0) {
+        magnifier.burnT = 0.35;
+        const hit = workersNear(magnifier.x, magnifier.y, 48);
+        if (hit.length) killWorker(hit[randInt(0, hit.length - 1)]);
+        particles.push({ type: 'spark', x: magnifier.x + rand(-20, 20), y: magnifier.y + rand(-20, 20), vx: rand(-10, 10), vy: rand(-60, -30), color: 'rgba(90,80,70,0.8)', life: 0.9, max: 0.9, r: 2.5 });
+      }
+    }
+  }
+  if (flood && (flood.t += dt) >= flood.dur) flood = null;
+  if (migration) {
+    for (const f of food) { f.x = clamp(f.x + migration.dx * 22 * dt, 12, WORLD_W - 12); f.y = clamp(f.y + migration.dy * 22 * dt, 12, WORLD_H - 12); }
+    if ((migration.t -= dt) <= 0) migration = null;
+  }
+  if (nightT > 0) nightT -= dt;
+  if (bloodMoon > 0) {
+    bloodMoon -= dt;
+    for (const c of colonies) if (c.alive && c.charge <= 0) c.chargeCd = 0;
+  }
+  if (sugarRain > 0) {
+    sugarRain -= dt;
+    if ((sugarRainT -= dt) <= 0 && powerups.length < 30) {
+      sugarRainT = 0.3;
+      const p = openSpot(0, 120);
+      powerups.push({ x: p.x, y: p.y, type: 'rush', age: 0, dead: false, bob: rand(0, TAU), rain: true });
+    }
+    if (sugarRain <= 0) powerups = powerups.filter(p => !p.rain);   // the rest melts away
+  }
+  if (golden) {
+    const con = crContacts(golden.x, golden.y, 16);
+    for (const c of colonies) if (c.alive && dist(c.queen.x, c.queen.y, golden.x, golden.y) < QUEEN_R + 16) { con.res.set(c, (con.res.get(c) || 0) + 3); con.total += 3; }
+    if (con.total > 0) {
+      golden.progress += Math.min(0.25, con.total * 0.012) * dt;
+      let lead = null, lw = 0;
+      for (const [c, w] of con.res) if (w > lw) { lw = w; lead = c; }
+      golden.lead = lead;
+    }
+    if (golden.progress >= 1 && golden.lead) {
+      const w = golden.lead;
+      w.births += 25;
+      golden.dead = true;
+      floaters.push({ type: 'ring', x: golden.x, y: golden.y, color: '#ffd54a', life: 1.2, max: 1.2, r: 150 });
+      floaters.push({ type: 'text', text: `${w.isPlayer ? 'You' : w.name} took the Golden Crumb! +25`, x: golden.x, y: golden.y - 40, color: '#ffe27a', life: 2.5, max: 2.5, size: 20 });
+      if (w.isPlayer && state === 'playing') { life.goldenWins++; addBanner('GOLDEN CRUMB!', '+25 ants - you took the last bite', '#ffd54a', 2.6, 42); playSfx('combo'); addShake(6); }
+      golden = null;
+    } else if ((golden.t -= dt) <= 0) { golden.dead = true; golden = null; }
+  }
+}
+function drawGolden() {
+  const g = golden, pulse = 0.5 + 0.5 * Math.sin(time * 4);
+  const gl = ctx.createRadialGradient(g.x, g.y, 4, g.x, g.y, 46);
+  gl.addColorStop(0, `rgba(255,220,80,${0.55 + 0.2 * pulse})`); gl.addColorStop(1, 'rgba(255,220,80,0)');
+  ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(g.x, g.y, 46, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#ffc93a'; ctx.strokeStyle = '#8a5a00'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(g.x, g.y, 12, 0, TAU); ctx.arc(g.x + 6, g.y - 5, 8, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#fff6c0'; ctx.beginPath(); ctx.arc(g.x - 4, g.y - 5, 3.5, 0, TAU); ctx.fill();
+  // eating progress ring
+  ctx.lineWidth = 5 / cam.zoom;
+  ctx.strokeStyle = 'rgba(20,10,0,0.6)'; ctx.beginPath(); ctx.arc(g.x, g.y, 26, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = g.lead ? g.lead.color : '#ffd54a';
+  ctx.beginPath(); ctx.arc(g.x, g.y, 26, -Math.PI / 2, -Math.PI / 2 + g.progress * TAU); ctx.stroke();
+  ctx.font = `bold ${12 / cam.zoom}px "Trebuchet MS", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 3 / cam.zoom; ctx.strokeStyle = 'rgba(30,15,0,0.85)';
+  const label = `${Math.floor(g.progress * 100)}%`;
+  ctx.strokeText(label, g.x, g.y + 40); ctx.fillStyle = '#ffe27a'; ctx.fillText(label, g.x, g.y + 40);
+}
+function drawFlood(L, R, T, B) {
+  const c = floodCov();
+  if (c <= 0) return;
+  let x0 = 0, y0 = 0, x1 = WORLD_W, y1 = WORLD_H;
+  if (flood.side === 'left') x1 = WORLD_W * c; else if (flood.side === 'right') x0 = WORLD_W * (1 - c);
+  else if (flood.side === 'top') y1 = WORLD_H * c; else y0 = WORLD_H * (1 - c);
+  ctx.fillStyle = 'rgba(55,115,175,0.45)';
+  ctx.fillRect(Math.max(x0, L), Math.max(y0, T), Math.min(x1, R) - Math.max(x0, L), Math.min(y1, B) - Math.max(y0, T));
+  ctx.strokeStyle = 'rgba(200,230,255,0.7)'; ctx.lineWidth = 3 / cam.zoom;
+  ctx.beginPath();
+  if (flood.side === 'left' || flood.side === 'right') {
+    const ex = flood.side === 'left' ? x1 : x0;
+    for (let y = Math.max(0, T); y <= Math.min(WORLD_H, B); y += 20) { const x = ex + Math.sin(y * 0.05 + time * 3) * 6; y === Math.max(0, T) ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+  } else {
+    const ey = flood.side === 'top' ? y1 : y0;
+    for (let x = Math.max(0, L); x <= Math.min(WORLD_W, R); x += 20) { const y = ey + Math.sin(x * 0.05 + time * 3) * 6; x === Math.max(0, L) ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+  }
+  ctx.stroke();
+}
+function drawMagnifier() {
+  const m = magnifier, fade = Math.min(1, m.t / 1.5, (20 - m.t) / 1.5), pulse = 0.5 + 0.5 * Math.sin(time * 10);
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = 'rgba(255,255,220,0.07)'; ctx.strokeStyle = 'rgba(255,255,240,0.35)'; ctx.lineWidth = 4 / cam.zoom;
+  ctx.beginPath(); ctx.arc(m.x - 20, m.y - 30, 130, 0, TAU); ctx.fill(); ctx.stroke();   // the lens above
+  const g = ctx.createRadialGradient(m.x, m.y, 2, m.x, m.y, 55 + pulse * 6);
+  g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.35, 'rgba(255,240,140,0.8)'); g.addColorStop(1, 'rgba(255,150,40,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(m.x, m.y, 55 + pulse * 6, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1;
+}
+function drawNightAndMoon() {
+  if (nightT > 0) {
+    const fade = Math.min(1, nightT / 2, (30 - nightT) / 2);
+    let sx = W / 2, sy = H / 2, r = 220;
+    if (player && player.alive) { sx = (player.queen.x - cam.x) * cam.zoom + W / 2; sy = (player.queen.y - cam.y) * cam.zoom + H / 2; r = (player.outerR + 150) * cam.zoom; }
+    const g = ctx.createRadialGradient(sx, sy, r * 0.6, sx, sy, r * 1.35);
+    g.addColorStop(0, 'rgba(5,6,20,0)'); g.addColorStop(1, `rgba(5,6,20,${0.9 * fade})`);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  if (bloodMoon > 0) {
+    const fade = Math.min(1, bloodMoon / 2, (20 - bloodMoon) / 1.5);
+    ctx.fillStyle = `rgba(150,0,15,${0.17 * fade})`; ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = fade;
+    const mg = ctx.createRadialGradient(W - 290, 60, 4, W - 290, 60, 34);
+    mg.addColorStop(0, '#ff8a7a'); mg.addColorStop(1, '#8a0a10');
+    ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(W - 290, 60, 26, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ============================================================
+//  Roaming creatures: spider, ladybug, wasp scout, queen bee boss (+ drones)
+// ============================================================
+function openSpot(minFromPlayer = 500, margin = 200) {
+  for (let t = 0; t < 60; t++) {
+    const x = rand(margin, WORLD_W - margin), y = rand(margin, WORLD_H - margin);
+    if (inRock(x, y, 70)) continue;
+    if (player && player.alive && dist(x, y, player.queen.x, player.queen.y) < minFromPlayer) continue;
+    return { x, y };
+  }
+  return { x: rand(margin, WORLD_W - margin), y: rand(margin, WORLD_H - margin) };
+}
+function edgeSpot() {
+  const side = randInt(0, 3);
+  return side === 0 ? { x: -60, y: rand(200, WORLD_H - 200) } : side === 1 ? { x: WORLD_W + 60, y: rand(200, WORLD_H - 200) }
+       : side === 2 ? { x: rand(200, WORLD_W - 200), y: -60 } : { x: rand(200, WORLD_W - 200), y: WORLD_H + 60 };
+}
+function biggestColony() {
+  let best = null;
+  for (const c of colonies) if (c.alive && (!best || c.workers.length > best.workers.length)) best = c;
+  return best;
+}
+// workers touching a point: weight per colony (charging ants hit 3x harder)
+function crContacts(x, y, rad) {
+  const res = new Map(); let total = 0;
+  const rr = rad + WORKER_R, cr = Math.ceil(rr / CELL);
+  const gx = clamp((x / CELL) | 0, 0, GCOLS - 1), gy = clamp((y / CELL) | 0, 0, GROWS - 1);
+  for (let yy = Math.max(0, gy - cr); yy <= Math.min(GROWS - 1, gy + cr); yy++)
+    for (let xx = Math.max(0, gx - cr); xx <= Math.min(GCOLS - 1, gx + cr); xx++)
+      for (const w of antGrid[yy * GCOLS + xx]) {
+        if (w.dead || !w.col.alive || (w.x - x) ** 2 + (w.y - y) ** 2 > rr * rr) continue;
+        const wt = w.col.charge > 0 ? 3 : 1;
+        res.set(w.col, (res.get(w.col) || 0) + wt); total += wt;
+      }
+  return { res, total };
+}
+function workersNear(x, y, rad, filter) {
+  const out = [], cr = Math.ceil(rad / CELL);
+  const gx = clamp((x / CELL) | 0, 0, GCOLS - 1), gy = clamp((y / CELL) | 0, 0, GROWS - 1);
+  for (let yy = Math.max(0, gy - cr); yy <= Math.min(GROWS - 1, gy + cr); yy++)
+    for (let xx = Math.max(0, gx - cr); xx <= Math.min(GCOLS - 1, gx + cr); xx++)
+      for (const w of antGrid[yy * GCOLS + xx])
+        if (!w.dead && (w.x - x) ** 2 + (w.y - y) ** 2 <= rad * rad && (!filter || filter(w))) out.push(w);
+  return out;
+}
+function hurtCreature(cr, con, rate, dt) {
+  for (const [col, wt] of con.res) { const d = wt * rate * dt; cr.hp -= d; cr.dmg.set(col, (cr.dmg.get(col) || 0) + d); }
+  if (con.total > 0) cr.hitFlash = 0.12;
+}
+function rewardCreature(cr, ants, label, lifeKey) {
+  let best = null, bd = 0;
+  for (const [c, d] of cr.dmg) if (c.alive && d > bd) { bd = d; best = c; }
+  for (let i = 0; i < 24; i++) {
+    const a = rand(0, TAU), sp = rand(60, 200);
+    particles.push({ type: 'spark', x: cr.x, y: cr.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: i % 2 ? '#ffe27a' : '#ffffff', life: 0.9, max: 0.9, r: 2 });
+  }
+  if (!best) return;
+  best.births += ants;
+  floaters.push({ type: 'text', text: `${label}! +${ants}`, x: cr.x, y: cr.y - 34, color: '#ffe27a', life: 2, max: 2, size: 20 });
+  if (best.isPlayer && state === 'playing') {
+    life[lifeKey]++;
+    addBanner(label + '!', `+${ants} ants for your colony`, '#ffe27a', 2.4, 40);
+    playSfx('conquer'); addShake(6);
+  }
+}
+
+function spawnCreature(type) {
+  const base = { type, t: 0, hp: 1, max: 1, dmg: new Map(), hitFlash: 0, ang: rand(0, TAU), gone: false, vx: 0, vy: 0 };
+  if (type === 'spider') {
+    const p = openSpot(600);
+    creatures.push({ ...base, x: p.x, y: p.y, r: 16, hp: 140, max: 140, webR: 78, eatT: 1, webSeed: rand(0, 1) });
+  } else if (type === 'ladybug') {
+    const p = openSpot(400);
+    creatures.push({ ...base, x: p.x, y: p.y, r: 20, hp: 160, max: 160, tx: p.x, ty: p.y, state: 'walk', flipT: 0 });
+  } else if (type === 'wasp') {
+    const prey = colonies.filter(c => c.alive && c.workers.length >= 12);
+    if (!prey.length) return;
+    const target = (player && prey.includes(player) && Math.random() < 0.5) ? player : prey[randInt(0, prey.length - 1)];
+    const p = edgeSpot();
+    creatures.push({ ...base, x: p.x, y: p.y, r: 11, hp: 30, max: 30, target, state: 'in', grabT: 1.2, grabs: 0, huntT: 12, orbit: rand(0, TAU) });
+    if (target.isPlayer && state === 'playing') addBanner('WASP SCOUT!', 'It picks off ants at the edge of your ring - keep it tight', '#ffd23a', 2.4, 34);
+  } else if (type === 'bee') {
+    const p = edgeSpot();
+    const boss = { ...base, x: p.x, y: p.y, r: 30, hp: 600, max: 600, target: null, retarget: 0, stingT: 0.4 };
+    creatures.push(boss);
+    for (let i = 0; i < 8; i++) creatures.push({ ...base, dmg: new Map(), type: 'drone', owner: boss, x: p.x, y: p.y, r: 9, hp: 20, max: 20, a: i / 8 * TAU, state: 'orbit', diveT: rand(1, 3), prey: null });
+    addBanner('QUEEN BEE ATTACKS!', 'Defeat her and her drones for a pile of honey', '#ffc23a', 3.2, 44);
+    playSfx('thunder'); addShake(8);
+  }
+}
+
+function releaseWeb(cr) {
+  for (const w of workersNear(cr.x, cr.y, cr.webR + 4)) if (w.stuck > 0) { w.stuck = 0; w.webCd = 2; }
+}
+
+function moveToward(cr, tx, ty, speed, dt) {
+  const dx = tx - cr.x, dy = ty - cr.y, d = Math.hypot(dx, dy);
+  if (d < 1) { cr.vx = cr.vy = 0; return d; }
+  const s = Math.min(speed, d / dt);
+  cr.vx = dx / d * s; cr.vy = dy / d * s;
+  cr.x += cr.vx * dt; cr.y += cr.vy * dt;
+  cr.ang = lerpAngle(cr.ang, Math.atan2(dy, dx), 1 - Math.exp(-6 * dt));
+  return d;
+}
+
+function updateCreatures(dt) {
+  creatureTimer -= dt;
+  if (creatureTimer <= 0) {
+    creatureTimer = rand(35, 60);
+    const count = t => creatures.filter(c => c.type === t && !c.gone).length;
+    const opts = [];
+    if (count('spider') < 2) opts.push('spider');
+    if (count('ladybug') < 3) opts.push('ladybug', 'ladybug');
+    if (count('wasp') < 1) opts.push('wasp');
+    if (opts.length) spawnCreature(opts[randInt(0, opts.length - 1)]);
+  }
+  if (state === 'playing') {
+    bossTimer -= dt;
+    if (bossTimer <= 0) { bossTimer = 300; if (!creatures.some(c => c.type === 'bee' && !c.gone)) spawnCreature('bee'); }
+  }
+  for (const cr of creatures) {
+    cr.t += dt;
+    if (cr.hitFlash > 0) cr.hitFlash -= dt;
+    if (cr.type === 'spider') {
+      // the web traps ants that wander in (a charge tears straight through it)
+      const inWeb = workersNear(cr.x, cr.y, cr.webR);
+      const stuck = [];
+      for (const w of inWeb) {
+        if (w.stuck > 0) { stuck.push(w); continue; }
+        if (!(w.webCd > 0) && w.col.charge <= 0) { w.stuck = 2.5; stuck.push(w); }
+      }
+      if ((cr.eatT -= dt) <= 0) {
+        cr.eatT = 1;
+        if (stuck.length) { killWorker(stuck[randInt(0, stuck.length - 1)]); cr.munch = 0.3; }
+      }
+      if (cr.munch > 0) cr.munch -= dt;
+      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 10), 5, dt);
+      if (cr.hp <= 0) { releaseWeb(cr); rewardCreature(cr, 15, 'Spider defeated', 'spiderKills'); cr.gone = true; }
+    } else if (cr.type === 'ladybug') {
+      if (cr.state === 'flipped') { if ((cr.flipT -= dt) <= 0) cr.gone = true; continue; }
+      if (dist(cr.x, cr.y, cr.tx, cr.ty) < 30 || cr.t > 12) {
+        cr.t = 0;
+        for (let k = 0; k < 20; k++) { const tx = clamp(cr.x + rand(-500, 500), 120, WORLD_W - 120), ty = clamp(cr.y + rand(-500, 500), 120, WORLD_H - 120); if (!inRock(tx, ty, 40)) { cr.tx = tx; cr.ty = ty; break; } }
+      }
+      moveToward(cr, cr.tx, cr.ty, 28 * terrainFactor(cr.x, cr.y), dt);
+      pushOutOfRocks(cr, cr.r);
+      const gx = clamp((cr.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((cr.y / CELL) | 0, 0, GROWS - 1);
+      for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1); yy++)
+        for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1); xx++)
+          for (const f of foodGrid[yy * GCOLS + xx]) if (!f.dead && dist(f.x, f.y, cr.x, cr.y) < cr.r) f.dead = true;   // munches crumbs
+      for (const w of workersNear(cr.x, cr.y, cr.r + WORKER_R)) {   // its shell shoves ants aside
+        const dx = w.x - cr.x, dy = w.y - cr.y, d = Math.hypot(dx, dy) || 0.01, rr = cr.r + WORKER_R;
+        w.x = cr.x + dx / d * rr; w.y = cr.y + dy / d * rr;
+      }
+      const con = crContacts(cr.x, cr.y, cr.r + 4);
+      if (con.total >= 15) hurtCreature(cr, con, 6, dt);   // only a real charge can flip it
+      if (cr.hp <= 0) { cr.state = 'flipped'; cr.flipT = 4; rewardCreature(cr, 10, 'Ladybug flipped', 'ladyFlips'); }
+    } else if (cr.type === 'wasp') {
+      const tg = cr.target;
+      if (cr.state !== 'out' && (!tg || !tg.alive)) cr.state = 'out';
+      if (cr.state === 'in') {
+        if (moveToward(cr, tg.queen.x, tg.queen.y, 170, dt) < tg.outerR + 45) cr.state = 'hunt';
+      } else if (cr.state === 'hunt') {
+        cr.orbit += 1.1 * dt;
+        const rr = tg.outerR + 38;
+        moveToward(cr, tg.queen.x + Math.cos(cr.orbit) * rr, tg.queen.y + Math.sin(cr.orbit) * rr, 220, dt);
+        if ((cr.grabT -= dt) <= 0) {
+          cr.grabT = 1.3;
+          let far = null, fd = 0;   // the most exposed ant: farthest from its queen
+          for (const w of workersNear(cr.x, cr.y, 70, w => w.col === tg)) { const d = dist(w.x, w.y, tg.queen.x, tg.queen.y); if (d > fd) { fd = d; far = w; } }
+          if (far) { killWorker(far); cr.grabs++; floaters.push({ type: 'ring', x: far.x, y: far.y, color: '#ffd23a', life: 0.4, max: 0.4, r: 20 }); }
+        }
+        if ((cr.huntT -= dt) <= 0 || cr.grabs >= 4) cr.state = 'out';
+      } else {
+        const ex = cr.x < WORLD_W / 2 ? -200 : WORLD_W + 200, ey = cr.y;
+        moveToward(cr, ex, ey, 200, dt);
+        if (cr.x < -150 || cr.x > WORLD_W + 150) cr.gone = true;
+      }
+      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 2), 8, dt);
+      if (cr.hp <= 0) { rewardCreature(cr, 4, 'Wasp swatted', 'waspKills'); cr.gone = true; }
+    } else if (cr.type === 'bee') {
+      if ((cr.retarget -= dt) <= 0) { cr.retarget = 4; cr.target = biggestColony(); }
+      if (cr.target && cr.target.alive && dist(cr.x, cr.y, cr.target.queen.x, cr.target.queen.y) > 50) moveToward(cr, cr.target.queen.x, cr.target.queen.y, 45, dt);
+      if ((cr.stingT -= dt) <= 0) {
+        cr.stingT = 0.35;
+        const vic = workersNear(cr.x, cr.y, cr.r + 6);
+        if (vic.length) killWorker(vic[0]);
+      }
+      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 4), 3, dt);
+      if (cr.hp <= 0) {
+        cr.gone = true;
+        const start = food.length;
+        for (let i = 0; i < 70; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * 90; spawnFood(cr.x + Math.cos(a) * r, cr.y + Math.sin(a) * r); }
+        for (let i = start; i < food.length; i++) { food[i].honey = true; food[i].r = rand(3.5, 5); }
+        rewardCreature(cr, 20, 'Queen Bee defeated', 'beeKills');
+        floaters.push({ type: 'ring', x: cr.x, y: cr.y, color: '#ffc23a', life: 1.4, max: 1.4, r: 180 });
+        addShake(10);
+      }
+    } else if (cr.type === 'drone') {
+      const boss = cr.owner;
+      if (!boss || boss.gone) { cr.gone = true; sparks(cr.x, cr.y); continue; }
+      if (cr.state === 'orbit') {
+        cr.a += 1.6 * dt;
+        moveToward(cr, boss.x + Math.cos(cr.a) * 70, boss.y + Math.sin(cr.a) * 70, 230, dt);
+        if ((cr.diveT -= dt) <= 0) {
+          cr.diveT = rand(1.5, 3);
+          let best = null, bd = 1e9;
+          for (const w of workersNear(cr.x, cr.y, 200)) { const d = dist(w.x, w.y, cr.x, cr.y); if (d < bd) { bd = d; best = w; } }
+          if (best) { cr.prey = best; cr.state = 'dive'; }
+        }
+      } else {
+        const p = cr.prey;
+        if (!p || p.dead || dist(p.x, p.y, boss.x, boss.y) > 320) cr.state = 'orbit';
+        else if (moveToward(cr, p.x, p.y, 260, dt) < 10) { killWorker(p); cr.state = 'orbit'; cr.diveT = rand(1.5, 3); }
+      }
+      hurtCreature(cr, crContacts(cr.x, cr.y, cr.r + 2), 10, dt);
+      if (cr.hp <= 0) { cr.gone = true; sparks(cr.x, cr.y); }
+    }
+  }
+  if (creatures.some(c => c.gone)) creatures = creatures.filter(c => !c.gone);
+}
+
+// ---- creature drawing (world space, camera transform set) ----
+function drawWeb(cr) {
+  const r = cr.webR, spokes = 10;
+  ctx.strokeStyle = 'rgba(240,240,250,0.45)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let i = 0; i < spokes; i++) { const a = i / spokes * TAU + cr.webSeed; ctx.moveTo(cr.x, cr.y); ctx.lineTo(cr.x + Math.cos(a) * r, cr.y + Math.sin(a) * r); }
+  for (let k = 1; k <= 5; k++) {
+    const rr = r * k / 5;
+    for (let i = 0; i <= spokes; i++) { const a = i / spokes * TAU + cr.webSeed, x = cr.x + Math.cos(a) * rr, y = cr.y + Math.sin(a) * rr; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  }
+  ctx.stroke();
+}
+function hpBar(cr, w, yOff, label) {
+  if (cr.hp >= cr.max && !label) return;
+  const x = cr.x - w / 2, y = cr.y - yOff;
+  ctx.fillStyle = 'rgba(20,10,5,0.75)'; ctx.fillRect(x - 1, y - 1, w + 2, 6);
+  ctx.fillStyle = cr.hp / cr.max > 0.4 ? '#8fe07a' : '#ff7a5a'; ctx.fillRect(x, y, w * Math.max(0, cr.hp / cr.max), 4);
+  if (label) {
+    ctx.font = `bold ${12 / cam.zoom}px "Trebuchet MS", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.lineWidth = 3 / cam.zoom; ctx.strokeStyle = 'rgba(30,15,5,0.85)'; ctx.strokeText(label, cr.x, y - 3);
+    ctx.fillStyle = '#ffe27a'; ctx.fillText(label, cr.x, y - 3);
+  }
+}
+function drawCreature(cr) {
+  const flash = cr.hitFlash > 0;
+  ctx.save();
+  ctx.translate(cr.x, cr.y);
+  if (cr.type === 'spider') {
+    ctx.rotate(cr.ang);
+    ctx.strokeStyle = '#1a1410'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let side = -1; side <= 1; side += 2) for (let i = 0; i < 4; i++) {
+      const sw = Math.sin(cr.t * 3 + i) * 2, bx = 4 - i * 3;
+      ctx.moveTo(bx, side * 4); ctx.lineTo(bx + 6 - i * 4 + sw, side * 18); ctx.lineTo(bx + 12 - i * 9 + sw, side * 26);
+    }
+    ctx.stroke();
+    ctx.fillStyle = flash ? '#ffffff' : '#2a211c';
+    ctx.beginPath(); ctx.ellipse(-9, 0, 13, 11, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, 0, 8, 7, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#8a3a1a'; ctx.beginPath(); ctx.ellipse(-10, 0, 7, 4, 0, 0, TAU); ctx.fill();   // back marking
+    ctx.fillStyle = '#ff3a2a';
+    for (const [ex, ey] of [[11, -2.5], [11, 2.5], [9, -4.5], [9, 4.5]]) { ctx.beginPath(); ctx.arc(ex, ey, 1.3, 0, TAU); ctx.fill(); }
+    if (cr.munch > 0) { ctx.fillStyle = '#e8e0d0'; ctx.fillRect(13, -1, 3, 2); }
+  } else if (cr.type === 'ladybug') {
+    ctx.rotate(cr.ang);
+    if (cr.state === 'flipped') {
+      ctx.fillStyle = '#2a1a14'; ctx.beginPath(); ctx.ellipse(0, 0, 20, 17, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#140c08'; ctx.lineWidth = 2; ctx.beginPath();
+      for (let side = -1; side <= 1; side += 2) for (let i = 0; i < 3; i++) { const w = Math.sin(cr.flipT * 18 + i) * 4; ctx.moveTo(-6 + i * 6, side * 6); ctx.lineTo(-6 + i * 6 + w, side * 16); }
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#140c08'; ctx.lineWidth = 2; ctx.beginPath();
+      for (let side = -1; side <= 1; side += 2) for (let i = 0; i < 3; i++) { const w = Math.sin(cr.t * 8 + i + side) * 2; ctx.moveTo(-6 + i * 6, side * 12); ctx.lineTo(-6 + i * 6 + w, side * 22); }
+      ctx.stroke();
+      ctx.fillStyle = '#140c08'; ctx.beginPath(); ctx.ellipse(17, 0, 7, 9, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = flash ? '#ffffff' : '#e0282e'; ctx.beginPath(); ctx.ellipse(0, 0, 20, 18, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#140c08'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(19, 0); ctx.lineTo(-19, 0); ctx.stroke();
+      ctx.fillStyle = '#140c08';
+      for (const [sx, sy, r] of [[6, -8, 3.2], [6, 8, 3.2], [-7, -9, 3.6], [-7, 9, 3.6], [-14, -3, 2.6], [-14, 3, 2.6]]) { ctx.beginPath(); ctx.arc(sx, sy, r, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.ellipse(4, -9, 7, 3, -0.3, 0, TAU); ctx.fill();
+    }
+  } else if (cr.type === 'wasp' || cr.type === 'drone' || cr.type === 'bee') {
+    const big = cr.type === 'bee', s = big ? 2.4 : cr.type === 'drone' ? 0.8 : 1;
+    ctx.fillStyle = 'rgba(20,10,0,0.25)'; ctx.beginPath(); ctx.ellipse(6 * s, 10 * s, 12 * s, 6 * s, 0, 0, TAU); ctx.fill();   // shadow
+    ctx.rotate(cr.ang); ctx.scale(s, s);
+    const flap = 0.6 + 0.4 * Math.sin(cr.t * 60);
+    ctx.fillStyle = 'rgba(230,245,255,0.55)'; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.ellipse(-2, -8 * flap, 9, 4.5, -0.4, 0, TAU); ctx.moveTo(7, 8 * flap); ctx.ellipse(-2, 8 * flap, 9, 4.5, 0.4, 0, TAU); ctx.fill(); ctx.stroke();
+    const yellow = big ? '#ffc23a' : cr.type === 'drone' ? '#f0b030' : '#ffd21f';
+    ctx.fillStyle = flash ? '#ffffff' : yellow;
+    ctx.beginPath(); ctx.ellipse(-8, 0, big ? 10 : 9, big ? 7 : 5, 0, 0, TAU); ctx.fill();   // abdomen
+    ctx.fillStyle = '#1a1208';
+    for (const bx of [-12, -7]) { ctx.beginPath(); ctx.ellipse(bx, 0, 1.6, big ? 6.6 : 4.7, 0, 0, TAU); ctx.fill(); }
+    if (!big) { ctx.beginPath(); ctx.moveTo(-17, -1); ctx.lineTo(-21, 0); ctx.lineTo(-17, 1); ctx.fill(); }   // stinger
+    ctx.fillStyle = big ? '#7a4a1a' : '#2a1e08'; ctx.beginPath(); ctx.ellipse(1, 0, 4.5, 4, 0, 0, TAU); ctx.fill();   // thorax
+    ctx.fillStyle = '#1a1208'; ctx.beginPath(); ctx.ellipse(7, 0, 3.5, 3.8, 0, 0, TAU); ctx.fill();   // head
+    if (big) {   // the queen wears a crown
+      ctx.fillStyle = '#ffd700'; ctx.strokeStyle = '#7a5200'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(5, -3); ctx.lineTo(9, -3.6); ctx.lineTo(7.5, -1.4); ctx.lineTo(10, 0); ctx.lineTo(7.5, 1.4); ctx.lineTo(9, 3.6); ctx.lineTo(5, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  if (cr.type === 'bee') hpBar(cr, 90, 58, 'Queen Bee');
+  else if (cr.type === 'spider') hpBar(cr, 40, 34);
+  else if (cr.type === 'ladybug' && cr.state !== 'flipped') hpBar(cr, 40, 30);
+  else if (cr.type === 'wasp') hpBar(cr, 26, 22);
+}
+
 // ---- random map events ----
-const EVENT_TYPES = ['rain', 'picnic', 'quake', 'flight'];
+const EVENT_TYPES = ['rain', 'picnic', 'quake', 'flight', 'glass', 'flood', 'migration', 'night', 'blood', 'sugar', 'golden'];
 function startMapEvent(type) {
   lastEvent = type;
   if (state === 'playing') life.events++;
+  if (!['rain', 'picnic', 'quake', 'flight'].includes(type)) return startExtraEvent(type);
   if (type === 'rain') {
     raining = RAIN_TIME;
     addBanner('RAINSTORM!', 'Everyone slows down - food washes toward the edges', '#8fd0ff', 3, 46);
@@ -2191,7 +2706,7 @@ function updateMapEvents(dt) {
   if (state !== 'playing' && state !== 'title') return;
   eventTimer -= dt;
   if (eventTimer <= 0) {
-    eventTimer = rand(100, 140);
+    eventTimer = rand(75, 110);
     const options = EVENT_TYPES.filter(e => e !== lastEvent);
     startMapEvent(options[randInt(0, options.length - 1)]);
   }
@@ -2204,6 +2719,7 @@ function updateMapEvents(dt) {
   }
   if (quakeTime > 0) { quakeTime -= dt; addShake(6 * Math.min(1, quakeTime)); }
   if (picnic && (picnic.t -= dt) <= 0) picnic = null;
+  updateExtraEvents(dt);
 }
 
 function updatePowerAndStructures(dt) {
@@ -2291,6 +2807,7 @@ function update(dt) {
   queenCollisions();
   updatePowerAndStructures(dt);
   updateMapEvents(dt);
+  updateCreatures(dt);
   colonies = colonies.filter(c => c.alive || c.isPlayer);
 
   // food respawn
@@ -2872,14 +3389,14 @@ function render() {
   ctx.fillStyle = 'rgba(120,255,90,0.16)';
   ctx.beginPath();
   for (const f of food) {
-    if (f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
     ctx.moveTo(f.x + f.r * 2 * f.age, f.y); ctx.arc(f.x, f.y, f.r * 2 * f.age, 0, TAU);
   }
   ctx.fill();
   ctx.fillStyle = '#5cc93a';
   ctx.beginPath();
   for (const f of food) {
-    if (f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
     const r = f.r * f.age;
     ctx.moveTo(f.x + r, f.y); ctx.arc(f.x, f.y, r, 0, TAU);
     ctx.moveTo(f.x + f.ox + r * 0.7, f.y + f.oy); ctx.arc(f.x + f.ox, f.y + f.oy, r * 0.7, 0, TAU);
@@ -2888,11 +3405,22 @@ function render() {
   ctx.fillStyle = '#b8ff8c';
   ctx.beginPath();
   for (const f of food) {
-    if (f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
     const r = f.r * f.age * 0.35;
     ctx.moveTo(f.x - r * 0.8 + r, f.y - r); ctx.arc(f.x - r * 0.8, f.y - r, r, 0, TAU);
   }
   ctx.fill();
+
+  // honey drops (worth double)
+  ctx.fillStyle = '#ffc23a'; ctx.strokeStyle = '#9a6a00'; ctx.lineWidth = 1;
+  for (const f of food) {
+    if (!f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r * f.age, 0, TAU); ctx.fill(); ctx.stroke();
+  }
+  // spider webs, flood water, golden crumb
+  for (const cr of creatures) if (cr.type === 'spider' && cr.x > L - 90 && cr.x < R + 90 && cr.y > T - 90 && cr.y < B + 90) drawWeb(cr);
+  if (flood) drawFlood(L, R, T, B);
+  if (golden) drawGolden();
 
   // power-ups
   for (const pu of powerups) {
@@ -3014,6 +3542,9 @@ function render() {
       ctx.drawImage(spr, -SPR_OX * SPR_RES, -SPR_OY * SPR_RES);
     }
   }
+  // ground creatures
+  setCameraTransform();
+  for (const cr of creatures) if ((cr.type === 'spider' || cr.type === 'ladybug') && cr.x > L - 40 && cr.x < R + 40 && cr.y > T - 40 && cr.y < B + 40) drawCreature(cr);
   // queens on top
   for (const c of colonies) {
     if (!c.alive) continue;
@@ -3022,6 +3553,9 @@ function render() {
     drawAnt(q.x, q.y, q.ang, 2.1, c, q.walk, true);
   }
   setCameraTransform();
+  // flying creatures and the burning sunbeam
+  for (const cr of creatures) if ((cr.type === 'wasp' || cr.type === 'bee' || cr.type === 'drone') && cr.x > L - 90 && cr.x < R + 90 && cr.y > T - 90 && cr.y < B + 90) drawCreature(cr);
+  if (magnifier) drawMagnifier();
 
   // flying particles (little squares: much cheaper than arcs)
   for (const p of particles) {
@@ -3102,6 +3636,7 @@ function render() {
 
   // screen space UI
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  drawNightAndMoon();
   if (raining > 0) drawRain();
   if (state === 'dying') {   // dark red vignette during the replay
     const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.7);
@@ -3301,6 +3836,15 @@ function drawHUD() {
   lines.push(player.tunnelCd > 0 ? [`Tunnels: ${Math.ceil(player.tunnelCd)}s`, 'rgba(245,232,200,0.6)'] : ['Tunnels: ready', 'rgba(245,232,200,0.8)']);
   if (raining > 0) lines.push([`Rainstorm: ${Math.ceil(raining)}s (everyone slowed)`, '#8fd0ff']);
   if (picnic) lines.push([`Picnic drop - ${Math.ceil(picnic.t)}s left (see minimap)`, '#ff9a8a']);
+  if (golden) lines.push([`Golden Crumb: ${Math.floor(golden.progress * 100)}% eaten (see minimap)`, '#ffd54a']);
+  if (magnifier) lines.push([`Magnifying glass: ${Math.ceil(magnifier.t)}s`, '#fff2a0']);
+  if (flood) lines.push([`Flood from the ${flood.side}: ${Math.ceil(flood.dur - flood.t)}s`, '#7fc4ff']);
+  if (migration) lines.push([`Migration: ${Math.ceil(migration.t)}s`, '#b8ff8c']);
+  if (nightT > 0) lines.push([`Night: ${Math.ceil(nightT)}s`, '#b0b8ff']);
+  if (bloodMoon > 0) lines.push([`Blood Moon: ${Math.ceil(bloodMoon)}s`, '#ff7a6a']);
+  if (sugarRain > 0) lines.push([`Sugar Rain: ${Math.ceil(sugarRain)}s`, '#8fd8ff']);
+  const boss = creatures.find(k => k.type === 'bee');
+  if (boss) lines.push([`Queen Bee: ${Math.ceil(boss.hp / boss.max * 100)}% health`, '#ffc23a']);
   const sinceConquer = time - stats.lastConquer;
   if (state === 'playing' && stats.streak >= 1 && sinceConquer <= STREAK_WINDOW) {
     lines.push([`Streak x${stats.streak} - next conquest in ${Math.ceil(STREAK_WINDOW - sinceConquer)}s for bonus!`, '#ffb060']);
@@ -3431,6 +3975,22 @@ function drawMinimap() {
   for (const pu of powerups) {
     ctx.fillStyle = POWER_INFO[pu.type].color;
     ctx.fillRect(x + pu.x * sx - 1.5, y + pu.y * sy - 1.5, 3, 3);
+  }
+  if (flood) {
+    const c = floodCov();
+    ctx.fillStyle = 'rgba(80,150,220,0.45)';
+    if (flood.side === 'left') ctx.fillRect(x, y, mw * c, mh); else if (flood.side === 'right') ctx.fillRect(x + mw * (1 - c), y, mw * c, mh);
+    else if (flood.side === 'top') ctx.fillRect(x, y, mw, mh * c); else ctx.fillRect(x, y + mh * (1 - c), mw, mh * c);
+  }
+  for (const cr of creatures) {
+    const big = cr.type === 'bee';
+    ctx.fillStyle = cr.type === 'spider' ? '#d0d0d8' : cr.type === 'ladybug' ? '#ff4a4a' : '#ffd23a';
+    ctx.beginPath(); ctx.arc(x + cr.x * sx, y + cr.y * sy, big ? 4 : cr.type === 'drone' ? 1 : 2, 0, TAU); ctx.fill();
+  }
+  if (magnifier) { ctx.fillStyle = '#fffbe0'; ctx.beginPath(); ctx.arc(x + magnifier.x * sx, y + magnifier.y * sy, 3.5, 0, TAU); ctx.fill(); }
+  if (golden) {
+    ctx.strokeStyle = `rgba(255,213,74,${0.6 + 0.4 * Math.sin(time * 7)})`; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(x + golden.x * sx, y + golden.y * sy, 5 + 2 * Math.sin(time * 7), 0, TAU); ctx.stroke();
   }
   if (picnic) {   // pulsing picnic marker
     ctx.strokeStyle = `rgba(255,120,120,${0.5 + 0.5 * Math.sin(time * 6)})`; ctx.lineWidth = 2;
