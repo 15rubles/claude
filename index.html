@@ -161,6 +161,21 @@
     .title-layout .panel.main { order: -1; }
   }
   .skins-label { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #d8c090; margin: -8px 0 8px; }
+  .best {
+    margin: -4px auto 20px; padding: 8px 16px; max-width: 380px;
+    background: rgba(0,0,0,0.28); border: 1px solid rgba(212,168,67,0.45); border-radius: 12px;
+  }
+  .best-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #d8c090; }
+  .best-main { font-size: 15px; color: #f5e8c8; }
+  .best-main b { font-size: 26px; color: #ffd54a; margin-right: 2px; }
+  .best-sub { font-size: 12px; color: #d8c090; }
+  .best-none { font-size: 13px; color: #e8cf98; font-style: italic; padding: 2px 0; }
+  .newbest {
+    display: inline-block; margin: -4px 0 14px; padding: 4px 14px; border-radius: 20px;
+    background: linear-gradient(180deg, #ffe07a, #f0b429); color: #3a2208; font-weight: bold;
+    box-shadow: 0 0 16px rgba(255,210,80,0.6); animation: pop 0.4s ease-out;
+  }
+  .newbest.hidden { display: none; }
   .skins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 20px; }
   .skin {
     font: inherit; font-size: 11px; font-weight: bold; color: #f5e8c8;
@@ -204,6 +219,7 @@
     <canvas id="logo" width="160" height="90"></canvas>
     <h1>Queen of the Hill</h1>
     <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
+    <div id="bestBox" class="best"></div>
     <div class="skins-label">Choose your colony</div>
     <div class="skins"></div>
     <button id="playBtn">Play</button>
@@ -220,6 +236,7 @@
   <div class="panel lose">
     <h2>Your Queen Has Fallen</h2>
     <p class="tagline" id="overBy">Your colony was absorbed.</p>
+    <div class="newbest hidden">New high score!</div>
     <div class="stats">
       <div class="stat"><div class="v" id="overSize">0</div><div class="l">Final size</div></div>
       <div class="stat"><div class="v" id="overPeak">0</div><div class="l">Peak size</div></div>
@@ -252,6 +269,7 @@
   <div class="panel">
     <h2>Victory!</h2>
     <p class="tagline">Every rival colony bows to you. You are the Queen of the Hill.</p>
+    <div class="newbest hidden">New high score!</div>
     <div class="stats">
       <div class="stat"><div class="v" id="winSize">0</div><div class="l">Colony size</div></div>
       <div class="stat"><div class="v" id="winPeak">0</div><div class="l">Peak size</div></div>
@@ -1193,8 +1211,31 @@ function conquer(win, lose) {
   }
 }
 
+// ---- high score (kept in this browser) ----
+const best = { peak: 0, kills: 0, time: 0, wins: 0 };
+try { Object.assign(best, JSON.parse(localStorage.getItem('qoth-best') || '{}')); } catch (e) {}
+function recordBest(won, survived) {
+  const newRecord = stats.peak > best.peak;
+  best.peak = Math.max(best.peak, stats.peak);
+  best.kills = Math.max(best.kills, stats.kills);
+  best.time = Math.max(best.time, survived);
+  if (won) best.wins++;
+  try { localStorage.setItem('qoth-best', JSON.stringify(best)); } catch (e) {}
+  renderBest();
+  return newRecord;
+}
+function renderBest() {
+  const box = document.getElementById('bestBox');
+  if (!best.peak) { box.innerHTML = '<div class="best-label">High score</div><div class="best-none">No games yet &mdash; set the first record!</div>'; return; }
+  box.innerHTML = `<div class="best-label">High score</div>
+    <div class="best-main"><b>${best.peak}</b> ants</div>
+    <div class="best-sub">${best.kills} conquered in one match &middot; longest reign ${fmtTime(best.time)} &middot; ${best.wins} ${best.wins === 1 ? 'victory' : 'victories'}</div>`;
+}
+
 function endGame(won) {
   stats.endTime = time - stats.start;
+  const isRecord = recordBest(won, stats.endTime);
+  document.querySelectorAll('.newbest').forEach(el => el.classList.toggle('hidden', !isRecord));
   document.getElementById('optionsBtn').classList.add('hidden');
   playSfx(won ? 'victory' : 'lose');
   if (won) {
@@ -2528,6 +2569,7 @@ function closeOptions() {
   document.getElementById('optionsScreen').classList.add('hidden');
 }
 function goToMenu() {
+  if (state === 'paused' && player) recordBest(false, time - stats.start);   // quitting mid-match still counts
   for (const id of ['optionsScreen', 'overScreen', 'winScreen']) document.getElementById(id).classList.add('hidden');
   document.getElementById('optionsBtn').classList.add('hidden');
   resetWorld(false);
@@ -2599,6 +2641,7 @@ function fillSkinPicker(box) {
 }
 
 buildSkinPicker();
+renderBest();
 drawLogo();
 resetWorld(false);   // attract-mode simulation behind the title screen
 cam.zoom = 0.8;
