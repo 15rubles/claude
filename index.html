@@ -145,6 +145,7 @@
       <div><span class="crownicon">Conquer</span><span>If <b>any</b> of your ants touches an enemy queen, her colony is yours</span></div>
       <div><span class="crownicon" style="color:#ff8a70">Pickups</span><span><b style="color:#ff8a70">Rage Nectar</b> makes your ants fight harder &middot; <b style="color:#7fd4ff">Sugar Rush</b> speeds your queen and readies your charge</span></div>
       <div><span class="crownicon" style="color:#9fe08a">Places</span><span>Hold a <b>Fungus Garden</b> alone to farm ants &middot; <b>Tunnels</b> carry your colony to the linked hole</span></div>
+      <div><span class="crownicon"><span class="key">M</span></span><span>Toggle music</span></div>
       <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
     <button id="playBtn">Play</button>
@@ -288,6 +289,9 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
     if (!e.repeat) tryPlayerCharge();
+  } else if (e.code === 'KeyM') {
+    startMusic();
+    toggleMusic();
   } else if (e.code === 'Enter') {
     if (state === 'title' || state === 'over' || state === 'victory') startGame();
   }
@@ -428,6 +432,7 @@ function resetWorld(withPlayer) {
 }
 
 function startGame() {
+  startMusic();
   resetWorld(true);
   state = 'playing';
   stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0 };
@@ -1718,6 +1723,12 @@ function render() {
     ctx.beginPath(); ctx.arc(q.x - tw / 2 - 5 / cam.zoom, ty, 4 / cam.zoom, 0, TAU); ctx.fill();
     ctx.fillStyle = fg;
     ctx.fillText(label, q.x, ty + 0.5 / cam.zoom);
+
+    // status icons to the right of the tag: shield while immune, tunnel while recharging
+    const z = cam.zoom;
+    let ix = q.x + tw / 2 + 11 / z;
+    if (c.grace > 0) { drawShieldIcon(ix, ty, 8 / z, c.grace); ix += 18 / z; }
+    if (c.tunnelCd > 0 || c.isPlayer) drawTunnelIcon(ix, ty, 7 / z, c.tunnelCd / TUNNEL_CD);
   }
 
   // floaters
@@ -1744,8 +1755,51 @@ function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (state === 'playing' || state === 'over' || state === 'victory') {
     drawHUD();
+    drawMusicHint();
     drawLeaderboard();
     drawMinimap();
+  }
+}
+
+// Small shield glyph (immunity). Blinks during its last 2 seconds.
+function drawShieldIcon(x, y, r, remaining) {
+  if (remaining < 2 && Math.sin(time * 18) < 0) return;
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.85, y - r * 0.8);
+  ctx.quadraticCurveTo(x, y - r * 1.15, x + r * 0.85, y - r * 0.8);
+  ctx.lineTo(x + r * 0.8, y - r * 0.1);
+  ctx.quadraticCurveTo(x + r * 0.7, y + r * 0.7, x, y + r * 1.1);
+  ctx.quadraticCurveTo(x - r * 0.7, y + r * 0.7, x - r * 0.8, y - r * 0.1);
+  ctx.closePath();
+  ctx.fillStyle = '#8fdc78';
+  ctx.fill();
+  ctx.lineWidth = r * 0.22;
+  ctx.strokeStyle = '#1e4a14';
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';   // highlight stripe
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.1, y - r * 0.85); ctx.lineTo(x + r * 0.1, y - r * 0.85);
+  ctx.lineTo(x + r * 0.1, y + r * 0.8); ctx.lineTo(x - r * 0.1, y + r * 0.8);
+  ctx.fill();
+}
+
+// Small tunnel-hole glyph; frac = share of cooldown still remaining (0 = ready).
+function drawTunnelIcon(x, y, r, frac) {
+  ctx.fillStyle = '#9a7048';
+  ctx.beginPath(); ctx.arc(x, y, r * 1.25, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#0c0603';
+  ctx.beginPath(); ctx.arc(x, y, r * 0.8, 0, TAU); ctx.fill();
+  if (frac > 0) {
+    ctx.fillStyle = 'rgba(20,12,6,0.7)';    // grey-out wedge for the remaining cooldown
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.arc(x, y, r * 1.3, -Math.PI / 2, -Math.PI / 2 + frac * TAU); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#c9a0ff';
+    ctx.lineWidth = r * 0.3;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.3, -Math.PI / 2 + frac * TAU, Math.PI * 1.5); ctx.stroke();
+  } else {
+    ctx.strokeStyle = '#8fe07a';            // ready
+    ctx.lineWidth = r * 0.3;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.3, 0, TAU); ctx.stroke();
   }
 }
 
@@ -1817,6 +1871,13 @@ function drawHUD() {
   else if (gardens.some(g => g.contested && dist(g.x, g.y, player.queen.x, player.queen.y) < GARDEN_R)) lines.push(['Garden contested!', '#ff8a70']);
   ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
   lines.forEach(([t, col], i) => { ctx.fillStyle = col; ctx.fillText(t, x + 4, y + h + 36 + i * 18); });
+}
+
+function drawMusicHint() {
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = '12px "Trebuchet MS", sans-serif';
+  ctx.fillStyle = 'rgba(245,232,200,0.65)';
+  ctx.fillText(`Music: ${music.on ? 'on' : 'off'}  [M]`, 14, H - 14);
 }
 
 function drawLeaderboard() {
@@ -1924,6 +1985,94 @@ function drawLogo() {
   drawAnt(80, 50, -Math.PI / 2, 3.2, gold, 0, true);
   antCtx = ctx;
   [TZ, TEX, TEY] = saved;
+}
+
+// ============================================================
+//  Background music (Web Audio, generated on the fly - no audio files)
+// ============================================================
+const music = { ctx: null, master: null, noise: null, on: true, next: 0, step: 0 };
+const STEP = 60 / 100 / 2;   // eighth notes at 100 BPM
+const midi = m => 440 * Math.pow(2, (m - 69) / 12);
+// A minor: Am - F - C - G, one bar (8 eighths) each
+const CHORDS = [[45, [57, 60, 64]], [41, [53, 57, 60]], [48, [55, 60, 64]], [43, [55, 59, 62]]];
+const ARP = [0, 1, 2, 1, 0, 1, 2, 1];
+const MELODY = [
+  76, -1, 74, 72, 69, -1, 72, -1,   72, -1, 69, -1, 65, -1, 69, 72,
+  72, -1, 76, -1, 79, -1, 76, 74,   74, -1, 71, -1, 67, -1, -1, -1,
+  76, -1, 74, 72, 69, -1, 72, 76,   77, -1, 76, -1, 72, -1, 69, -1,
+  67, -1, 72, -1, 76, -1, 79, 76,   74, -1, 72, -1, 71, -1, -1, -1,
+];
+
+function startMusic() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  if (!music.ctx) {
+    music.ctx = new AC();
+    music.master = music.ctx.createGain();
+    music.master.gain.value = music.on ? 0.16 : 0;
+    const lp = music.ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 2400;
+    music.master.connect(lp); lp.connect(music.ctx.destination);
+    const len = Math.floor(music.ctx.sampleRate * 0.06);
+    music.noise = music.ctx.createBuffer(1, len, music.ctx.sampleRate);
+    const d = music.noise.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    music.next = music.ctx.currentTime + 0.1;
+    setInterval(scheduleMusic, 40);
+  }
+  if (music.ctx.state === 'suspended') music.ctx.resume();
+}
+
+function toggleMusic() {
+  music.on = !music.on;
+  if (music.master) music.master.gain.setTargetAtTime(music.on ? 0.16 : 0, music.ctx.currentTime, 0.05);
+}
+
+function note(freq, t, dur, type, vol) {
+  const o = music.ctx.createOscillator(), g = music.ctx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(music.master);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+
+function kick(t) {
+  const o = music.ctx.createOscillator(), g = music.ctx.createGain();
+  o.frequency.setValueAtTime(130, t);
+  o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+  g.gain.setValueAtTime(0.55, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  o.connect(g); g.connect(music.master);
+  o.start(t); o.stop(t + 0.2);
+}
+
+function shaker(t, vol) {
+  const src = music.ctx.createBufferSource(), hp = music.ctx.createBiquadFilter(), g = music.ctx.createGain();
+  src.buffer = music.noise; hp.type = 'highpass'; hp.frequency.value = 6000;
+  g.gain.value = vol;
+  src.connect(hp); hp.connect(g); g.connect(music.master);
+  src.start(t);
+}
+
+function scheduleMusic() {
+  if (!music.ctx) return;
+  const now = music.ctx.currentTime;
+  if (music.next < now) music.next = now + 0.05;   // catch up after a stalled tab
+  while (music.next < now + 0.25) {
+    const i = music.step, t = music.next;
+    const [root, tones] = CHORDS[Math.floor(i / 8) % 4];
+    const beat = i % 8;
+    if (beat === 0 || beat === 4) { note(midi(root), t, STEP * 3.5, 'triangle', 0.32); kick(t); }
+    if (beat === 6) note(midi(root + 12), t, STEP * 1.5, 'triangle', 0.18);
+    note(midi(tones[ARP[beat]] + 12), t, STEP * 0.9, 'square', 0.035);
+    if (beat % 2 === 1) shaker(t, 0.05); else if (beat === 2 || beat === 6) shaker(t, 0.08);
+    const m = MELODY[i % MELODY.length];
+    if (m > 0 && state !== 'title') note(midi(m), t, STEP * 1.8, 'triangle', 0.13);
+    music.next += STEP;
+    music.step = (i + 1) % 64;
+  }
 }
 
 // ============================================================
