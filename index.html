@@ -121,6 +121,31 @@
   button:hover { filter: brightness(1.08); transform: translateY(-1px); }
   button:active { transform: translateY(4px); box-shadow: 0 1px 0 #9a6a10, 0 3px 8px rgba(0,0,0,0.45); }
   #logo { display: block; margin: 0 auto; }
+  button.secondary {
+    font-size: 15px; padding: 8px 22px; margin-top: 14px;
+    color: #f5e8c8; background: rgba(0,0,0,0.3); box-shadow: 0 3px 0 rgba(0,0,0,0.35);
+    border: 1px solid rgba(212,168,67,0.5);
+  }
+  .settings { display: flex; flex-direction: column; gap: 8px; margin: 4px auto 0; max-width: 340px; }
+  .settings-label { margin-top: 20px !important; }
+  .slider { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #f5e8c8; }
+  .slider span { width: 58px; text-align: left; }
+  .slider b { width: 42px; text-align: right; color: #ffd54a; font-size: 13px; }
+  .slider.muted b::after { content: ' (M)'; color: #ff8a70; font-size: 10px; }
+  .slider input { flex: 1; accent-color: #f0b429; cursor: pointer; }
+  .panel.options { max-width: 420px; }
+  .panel.options .settings { margin: 8px auto 22px; }
+  #optionsBtn {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 14px; padding: 7px 16px 7px 14px; border-radius: 10px;
+    color: #f5e8c8; background: rgba(30,18,8,0.75); border: 1.5px solid rgba(212,168,67,0.6);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.4); display: flex; align-items: center; gap: 8px;
+  }
+  #optionsBtn.hidden { display: none; }
+  #optionsBtn:hover { transform: translateX(-50%) translateY(-1px); }
+  #optionsBtn:active { transform: translateX(-50%) translateY(1px); }
+  #optionsBtn .bars { width: 14px; height: 10px; border-top: 2px solid #ffd54a; border-bottom: 2px solid #ffd54a; position: relative; }
+  #optionsBtn .bars::after { content: ''; position: absolute; left: 0; right: 0; top: 4px; border-top: 2px solid #ffd54a; }
   .title-layout {
     display: flex; align-items: center; justify-content: center; gap: 22px;
     width: 100%; max-height: 100%;
@@ -165,12 +190,12 @@
     <div class="controls">
       <div><span class="crownicon"><span class="key">Mouse</span></span><span>Your queen follows the cursor</span></div>
       <div><span class="crownicon"><span class="crumb"></span></span><span>Eat green crumbs &mdash; every 3 hatch a new worker</span></div>
-      <div><span class="crownicon"><span class="key">Space</span></span><span>Workers charge the cursor for 2 seconds (your queen is left unguarded!)</span></div>
+      <div><span class="crownicon"><span class="key">Left click</span></span><span>Workers charge the cursor for 2 seconds (your queen is left unguarded!)</span></div>
       <div><span class="crownicon" style="color:#9fd6ff">Guard</span><span>Your workers form rings around your queen to protect her</span></div>
       <div><span class="crownicon">Conquer</span><span>If <b>any</b> of your ants touches an enemy queen, her colony is yours</span></div>
       <div><span class="crownicon" style="color:#ff8a70">Pickups</span><span><b style="color:#ff8a70">Fire Chili</b> makes your ants fight harder &middot; <b style="color:#7fd4ff">Sugar Rush</b> speeds your queen and readies your charge</span></div>
       <div><span class="crownicon" style="color:#9fe08a">Places</span><span>Hold a <b>Fungus Garden</b> alone to farm ants &middot; <b>Tunnels</b> carry your colony to the linked hole</span></div>
-      <div><span class="crownicon"><span class="key">M</span></span><span>Toggle music</span></div>
+      <div><span class="crownicon"><span class="key">M</span></span><span>Toggle music &middot; <b>Esc</b> opens options</span></div>
       <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
       <div class="hint">Tip: stand still to brace your guards. Charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
@@ -182,6 +207,11 @@
     <div class="skins-label">Choose your colony</div>
     <div class="skins"></div>
     <button id="playBtn">Play</button>
+    <div class="skins-label settings-label">Settings</div>
+    <div class="settings">
+      <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
+      <label class="slider"><span>Sounds</span><input type="range" min="0" max="100" data-setting="sfx"><b class="val"></b></label>
+    </div>
   </div>
   </div>
 </div>
@@ -199,8 +229,24 @@
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
     <button id="restartBtn">Restart</button>
+    <div><button class="secondary menuBtn">Main menu</button></div>
   </div>
 </div>
+
+<div id="optionsScreen" class="overlay hidden">
+  <div class="panel options">
+    <h2>Paused</h2>
+    <p class="tagline">Options</p>
+    <div class="settings">
+      <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
+      <label class="slider"><span>Sounds</span><input type="range" min="0" max="100" data-setting="sfx"><b class="val"></b></label>
+    </div>
+    <button id="resumeBtn">Resume</button>
+    <div><button id="quitBtn" class="secondary">End match &amp; main menu</button></div>
+  </div>
+</div>
+
+<button id="optionsBtn" class="hidden" title="Options (Esc)"><span class="bars"></span>Options</button>
 
 <div id="winScreen" class="overlay hidden">
   <div class="panel">
@@ -215,6 +261,7 @@
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
     <button id="againBtn">Play Again</button>
+    <div><button class="secondary menuBtn">Main menu</button></div>
   </div>
 </div>
 
@@ -245,6 +292,12 @@ const SKINS = [
   { id: 'lady',    name: 'Ladybug',  color: '#e0282e', glow: '255,90,90', head: '#15100c', spots: '#15100c' },
   { id: 'ghost',   name: 'Ghost',    color: '#d4ecff', glow: '170,220,255', alpha: 0.55, workerWings: true },
   { id: 'rainbow', name: 'Rainbow',  color: '#ff66cc', glow: '255,160,230', rainbow: true },
+  { id: 'leaf',    name: 'Leafcutter', color: '#b5652a', glow: '150,220,90', head: '#5a2c10', leaf: true },
+  { id: 'frost',   name: 'Frost',    color: '#9fd8ff', glow: '190,235,255', head: '#eaf8ff', stars: '#ffffff' },
+  { id: 'galaxy',  name: 'Galaxy',   color: '#3b1f78', glow: '150,110,255', head: '#1c0f3e', stars: '#fff6b0' },
+  { id: 'robot',   name: 'Robot',    color: '#a3adb7', glow: '120,230,255', head: '#56606a', stripes: '#5f6973', visor: '#3ff0ff' },
+  { id: 'lava',    name: 'Lava',     color: '#2d1a14', glow: '255,120,30', head: '#1a0d08', cracks: '#ff8a1e' },
+  { id: 'candy',   name: 'Candy',    color: '#ff8fc4', glow: '255,170,210', stripes: '#ffffff' },
 ];
 let selectedSkin = 0;
 try { const i = SKINS.findIndex(k => k.id === localStorage.getItem('qoth-skin')); if (i >= 0) selectedSkin = i; } catch (e) {}
@@ -333,6 +386,9 @@ canvas.addEventListener('touchmove', e => {
   const t = e.touches[0];
   mouse.x = t.clientX; mouse.y = t.clientY; e.preventDefault();
 }, { passive: false });
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 0) tryPlayerCharge();
+});
 window.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
@@ -340,6 +396,8 @@ window.addEventListener('keydown', e => {
   } else if (e.code === 'KeyM') {
     startMusic();
     toggleMusic();
+  } else if (e.code === 'Escape') {
+    if (state === 'playing') openOptions(); else if (state === 'paused') closeOptions();
   } else if (e.code === 'Enter') {
     if (state === 'title' || state === 'over' || state === 'victory') startGame();
   }
@@ -348,7 +406,7 @@ window.addEventListener('keydown', e => {
 // ============================================================
 //  Game state
 // ============================================================
-let state = 'title';     // title | playing | over | victory
+let state = 'title';     // title | playing | paused | over | victory
 let colonies = [];
 let food = [];
 let particles = [];      // ground splats + flecks
@@ -484,6 +542,8 @@ function resetWorld(withPlayer) {
 
 function startGame() {
   startMusic();
+  document.getElementById('optionsScreen').classList.add('hidden');
+  document.getElementById('optionsBtn').classList.remove('hidden');
   resetWorld(true);
   state = 'playing';
   stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0 };
@@ -501,6 +561,8 @@ function tryPlayerCharge() {
 }
 
 function startCharge(c, x, y) {
+  if (c.isPlayer) playSfx('charge');
+  else if (state === 'playing' && onScreen(c.queen.x, c.queen.y)) playSfx('charge', 0.5);
   c.charge = CHARGE_TIME;
   c.chargeX = x; c.chargeY = y;
 }
@@ -778,6 +840,7 @@ function fight(a, b) {
   a.vx += dx / d * 120; a.vy += dy / d * 120;
   b.vx -= dx / d * 120; b.vy -= dy / d * 120;
   sparks((a.x + b.x) / 2, (a.y + b.y) / 2);
+  if (state === 'playing' && (a.col.isPlayer || b.col.isPlayer || onScreen(a.x, a.y))) playSfx('fight', a.col.isPlayer || b.col.isPlayer ? 1 : 0.5);
   if (Math.random() < Math.min(0.95, aDie)) killWorker(a, b.col);
   if (Math.random() < Math.min(0.95, bDie)) killWorker(b, a.col);
 }
@@ -802,6 +865,7 @@ function sparks(x, y) {
 function eatFood(c, f) {
   if (f.dead) return;
   f.dead = true;
+  if (c.isPlayer) playSfx('eat');
   c.food++;
   if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
   for (let i = 0; i < 3; i++) {
@@ -899,7 +963,7 @@ function interactions(dt) {
       if (c.workers.length >= MAX_WORKERS) continue;
       const q = c.queen;
       addWorker(c, q.x - Math.cos(q.ang) * 16 + rand(-4, 4), q.y - Math.sin(q.ang) * 16 + rand(-4, 4));
-      if (c.isPlayer) floaters.push({ type: 'text', text: '+1', x: q.x, y: q.y - 24, color: '#ffe27a', life: 0.9, max: 0.9, size: 16 });
+      if (c.isPlayer) { floaters.push({ type: 'text', text: '+1', x: q.x, y: q.y - 24, color: '#ffe27a', life: 0.9, max: 0.9, size: 16 }); playSfx('hatch'); }
     }
   }
   if (food.some(f => f.dead)) food = food.filter(f => !f.dead);
@@ -1111,6 +1175,8 @@ function conquer(win, lose) {
   }
   lose.workers = [];
 
+  if (win.isPlayer) playSfx('conquer');
+  else if (!lose.isPlayer && state === 'playing' && onScreen(lq.x, lq.y, 200)) playSfx('rival');
   if (win.isPlayer) {
     stats.kills++;
     floaters.push({ type: 'text', text: `Conquered ${lose.name}! +${loseSize}`, x: lq.x, y: lq.y - 30, color: '#ffe27a', life: 2, max: 2, size: 22 });
@@ -1124,6 +1190,8 @@ function conquer(win, lose) {
 
 function endGame(won) {
   stats.endTime = time - stats.start;
+  document.getElementById('optionsBtn').classList.add('hidden');
+  playSfx(won ? 'victory' : 'lose');
   if (won) {
     state = 'victory';
     document.getElementById('winSize').textContent = colonySize(player);
@@ -1188,6 +1256,7 @@ function spawnPowerup() {
 
 function applyPower(c, pu) {
   pu.dead = true;
+  if (c.isPlayer) playSfx('power');
   const info = POWER_INFO[pu.type];
   if (pu.type === 'frenzy') c.frenzy = FRENZY_TIME;
   else { c.rush = RUSH_TIME; if (c.charge <= 0) c.chargeCd = 0; }
@@ -1201,6 +1270,7 @@ function applyPower(c, pu) {
 }
 
 function teleport(c, from, to) {
+  if (c.isPlayer) playSfx('tunnel');
   const q = c.queen, s = Math.hypot(q.vx, q.vy);
   // come out the far side, a little past the hole, in the direction she was heading
   const hx = s > 5 ? q.vx / s : Math.cos(q.ang), hy = s > 5 ? q.vy / s : Math.sin(q.ang);
@@ -1265,6 +1335,7 @@ function updatePowerAndStructures(dt) {
         const c = g.owner;
         c.food++;
         if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
+        if (c.isPlayer) playSfx('garden');
         const sh = g.shrooms[randInt(0, g.shrooms.length - 1)];
         particles.push({ type: 'spark', x: g.x + sh.dx, y: g.y + sh.dy, vx: (c.queen.x - g.x - sh.dx) * 1.6, vy: (c.queen.y - g.y - sh.dy) * 1.6, color: '#b8ff8c', life: 0.5, max: 0.5, r: 2.2 });
       }
@@ -1504,6 +1575,34 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
       ctx.fill();
       ctx.strokeStyle = skin.spots; ctx.lineWidth = 0.35;
       ctx.beginPath(); ctx.moveTo(abX + abRx, 0); ctx.lineTo(abX - abRx, 0); ctx.stroke();
+    }
+    if (skin.stars) {    // twinkling specks (frost crystals / galaxy stars)
+      ctx.fillStyle = skin.stars;
+      ctx.beginPath();
+      for (const [fx, fy, r] of [[-0.5, -0.4, 0.3], [-0.1, 0.45, 0.25], [0.35, -0.2, 0.22], [-0.75, 0.3, 0.2], [0.05, -0.6, 0.18]]) {
+        const rr = abRy * r * 0.8;
+        ctx.moveTo(abX + abRx * fx + rr, abRy * fy); ctx.arc(abX + abRx * fx, abRy * fy, rr, 0, TAU);
+      }
+      ctx.moveTo(0.9, -0.3); ctx.arc(0.6, -0.3, 0.3, 0, TAU);
+      ctx.fill();
+    }
+    if (skin.cracks) {   // glowing lava cracks
+      ctx.strokeStyle = skin.cracks; ctx.lineWidth = 0.45;
+      ctx.beginPath();
+      ctx.moveTo(abX + abRx * 0.8, -abRy * 0.1); ctx.lineTo(abX + abRx * 0.3, abRy * 0.3);
+      ctx.lineTo(abX - abRx * 0.1, -abRy * 0.2); ctx.lineTo(abX - abRx * 0.6, abRy * 0.35); ctx.lineTo(abX - abRx * 0.85, 0);
+      ctx.moveTo(abX - abRx * 0.1, -abRy * 0.2); ctx.lineTo(abX - abRx * 0.2, -abRy * 0.7);
+      ctx.moveTo(1.4, -0.5); ctx.lineTo(0.2, 0.4);
+      ctx.stroke();
+    }
+    if (skin.visor) {    // robot eye strip
+      ctx.strokeStyle = skin.visor; ctx.lineWidth = 0.55;
+      ctx.beginPath(); ctx.moveTo(4.3, -1.2); ctx.lineTo(4.6, 0); ctx.lineTo(4.3, 1.2); ctx.stroke();
+    }
+    if (skin.leaf && !isQueen) {   // leafcutter workers carry a leaf fragment
+      ctx.fillStyle = '#5fbf3a'; ctx.strokeStyle = '#2f6e1c'; ctx.lineWidth = 0.35;
+      ctx.beginPath(); ctx.ellipse(7.2, -0.6, 3.1, 2.1, -0.5, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(5.2, 0.6); ctx.lineTo(9.2, -1.8); ctx.stroke();
     }
     if (skin.embers && isQueen) {   // glowing embers on the fire queen
       ctx.fillStyle = `rgba(255,200,60,${0.5 + 0.4 * Math.sin(time * 9)})`;
@@ -1873,7 +1972,7 @@ function render() {
 
   // screen space UI
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (state === 'playing' || state === 'over' || state === 'victory') {
+  if (state === 'playing' || state === 'paused' || state === 'over' || state === 'victory') {
     drawHUD();
     drawMusicHint();
     drawLeaderboard();
@@ -2033,7 +2132,7 @@ function drawHUD() {
   let frac, col, lbl;
   if (player.charge > 0) { frac = player.charge / CHARGE_TIME; col = '#ff9a3c'; lbl = 'CHARGING'; }
   else if (player.chargeCd > 0) { frac = 1 - player.chargeCd / PLAYER_CHARGE_CD; col = '#8a7a5a'; lbl = ''; }
-  else { frac = 1; col = '#f5c542'; lbl = 'READY [SPACE]'; }
+  else { frac = 1; col = '#f5c542'; lbl = 'READY [CLICK]'; }
   if (frac > 0.02) { roundRect(ctx, bx, by, bw * frac, 10, 5); ctx.fillStyle = col; ctx.fill(); }
   if (lbl) {
     ctx.fillStyle = '#3a2208';
@@ -2063,7 +2162,7 @@ function drawMusicHint() {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.font = '12px "Trebuchet MS", sans-serif';
   ctx.fillStyle = 'rgba(245,232,200,0.65)';
-  ctx.fillText(`Music: ${music.on ? 'on' : 'off'}  [M]`, 14, H - 14);
+  ctx.fillText(`Music: ${music.on ? 'on' : 'off'} [M]   Options [Esc]`, 14, H - 14);
 }
 
 function drawLeaderboard() {
@@ -2183,7 +2282,16 @@ function drawLogo() {
 // ============================================================
 //  Background music (Web Audio, generated on the fly - no audio files)
 // ============================================================
-const music = { ctx: null, master: null, noise: null, on: true, next: 0, step: 0 };
+const music = { ctx: null, master: null, sfxBus: null, noise: null, on: true, next: 0, step: 0 };
+const MUSIC_MAX = 0.37, SFX_MAX = 0.55;
+const settings = { music: 0.7, sfx: 0.8 };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('qoth-settings') || '{}')); } catch (e) {}
+function musicLevel() { return music.on ? MUSIC_MAX * settings.music : 0; }
+function applyAudioSettings() {
+  if (!music.ctx) return;
+  music.master.gain.setTargetAtTime(musicLevel(), music.ctx.currentTime, 0.05);
+  music.sfxBus.gain.setTargetAtTime(SFX_MAX * settings.sfx, music.ctx.currentTime, 0.05);
+}
 const STEP = 60 / 116 / 2;   // eighth notes at a bouncy 116 BPM
 const SWING = 0.2;           // off-beat eighths land late for a light swing
 const midi = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -2204,7 +2312,10 @@ function startMusic() {
   if (!music.ctx) {
     music.ctx = new AC();
     music.master = music.ctx.createGain();
-    music.master.gain.value = music.on ? 0.26 : 0;
+    music.master.gain.value = musicLevel();
+    music.sfxBus = music.ctx.createGain();
+    music.sfxBus.gain.value = SFX_MAX * settings.sfx;
+    music.sfxBus.connect(music.ctx.destination);
     const lp = music.ctx.createBiquadFilter();
     lp.type = 'lowpass'; lp.frequency.value = 3200;
     music.master.connect(lp); lp.connect(music.ctx.destination);
@@ -2220,7 +2331,8 @@ function startMusic() {
 
 function toggleMusic() {
   music.on = !music.on;
-  if (music.master) music.master.gain.setTargetAtTime(music.on ? 0.26 : 0, music.ctx.currentTime, 0.05);
+  applyAudioSettings();
+  document.querySelectorAll('input[data-setting="music"]').forEach(el => el.closest('.slider').classList.toggle('muted', !music.on));
 }
 
 function note(freq, t, dur, type, vol, attack = 0.012, vibrato = 0) {
@@ -2300,6 +2412,108 @@ function scheduleMusic() {
 }
 
 // ============================================================
+//  Sound effects (synthesised; routed through their own volume bus)
+// ============================================================
+const sfxLast = {};
+function tone(freq, t, dur, type, vol, endFreq = 0, attack = 0.005) {
+  const o = music.ctx.createOscillator(), g = music.ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  if (endFreq) o.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(music.sfxBus);
+  o.start(t); o.stop(t + dur + 0.03);
+}
+function noiseBurst(t, dur, vol, freq, type = 'highpass') {
+  const src = music.ctx.createBufferSource(), f = music.ctx.createBiquadFilter(), g = music.ctx.createGain();
+  src.buffer = music.noise; src.loop = true;
+  f.type = type; f.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f); f.connect(g); g.connect(music.sfxBus);
+  src.start(t); src.stop(t + dur + 0.03);
+}
+// minimum gap (ms) between repeats of each sound, so swarms don't turn into noise
+const SFX_GAP = { eat: 70, hatch: 110, fight: 80, charge: 150, power: 200, tunnel: 200, conquer: 300, rival: 400, lose: 500, victory: 500, click: 40, garden: 350 };
+function playSfx(name, vol = 1) {
+  if (!music.ctx || settings.sfx <= 0 || music.ctx.state !== 'running') return;
+  const nowMs = performance.now();
+  if (nowMs - (sfxLast[name] || 0) < (SFX_GAP[name] || 50)) return;
+  sfxLast[name] = nowMs;
+  const t = music.ctx.currentTime + 0.01;
+  switch (name) {
+    case 'eat':     tone(rand(820, 980), t, 0.07, 'sine', 0.12 * vol, 1400); break;
+    case 'hatch':   tone(520, t, 0.1, 'triangle', 0.16 * vol, 900); tone(1040, t + 0.05, 0.08, 'sine', 0.07 * vol); break;
+    case 'fight':   noiseBurst(t, 0.05, 0.12 * vol, rand(2500, 4000)); tone(rand(180, 260), t, 0.05, 'square', 0.03 * vol, 90); break;
+    case 'charge':  noiseBurst(t, 0.35, 0.18 * vol, 900, 'bandpass'); tone(220, t, 0.3, 'sawtooth', 0.06 * vol, 520, 0.03); break;
+    case 'power':   [0, 4, 7, 12, 16].forEach((st, i) => tone(midi(76 + st), t + i * 0.045, 0.18, 'sine', 0.1 * vol)); break;
+    case 'tunnel':  tone(700, t, 0.22, 'sine', 0.16 * vol, 160, 0.01); tone(180, t + 0.2, 0.25, 'sine', 0.14 * vol, 820, 0.01); break;
+    case 'conquer': [60, 64, 67, 72].forEach((m, i) => tone(midi(m + 12), t + i * 0.08, 0.3, 'triangle', 0.16 * vol)); break;
+    case 'rival':   tone(midi(55), t, 0.25, 'triangle', 0.08 * vol); tone(midi(52), t + 0.12, 0.3, 'triangle', 0.07 * vol); break;
+    case 'lose':    [67, 64, 60, 55].forEach((m, i) => tone(midi(m), t + i * 0.18, 0.45, 'triangle', 0.16 * vol)); break;
+    case 'victory': [60, 64, 67, 72, 67, 72, 76, 79].forEach((m, i) => tone(midi(m + 12), t + i * 0.11, 0.35, 'triangle', 0.15 * vol)); break;
+    case 'garden':  tone(1500, t, 0.08, 'sine', 0.05 * vol, 1900); break;
+    case 'click':   tone(1100, t, 0.04, 'triangle', 0.08 * vol, 800); break;
+  }
+}
+function onScreen(x, y, pad = 60) {
+  return Math.abs(x - cam.x) < W / 2 / cam.zoom + pad && Math.abs(y - cam.y) < H / 2 / cam.zoom + pad;
+}
+
+// ============================================================
+//  Menus: settings sliders, options (pause), main menu
+// ============================================================
+function saveSettings() { try { localStorage.setItem('qoth-settings', JSON.stringify(settings)); } catch (e) {} }
+function syncSliders() {
+  document.querySelectorAll('input[data-setting]').forEach(el => {
+    const v = Math.round(settings[el.dataset.setting] * 100);
+    el.value = v;
+    el.closest('.slider').querySelector('.val').textContent = v + '%';
+  });
+}
+document.querySelectorAll('input[data-setting]').forEach(el => {
+  el.addEventListener('input', () => {
+    settings[el.dataset.setting] = el.value / 100;
+    startMusic();
+    if (el.dataset.setting === 'music' && !music.on && el.value > 0) { music.on = true; }
+    applyAudioSettings(); syncSliders(); saveSettings();
+  });
+  el.addEventListener('change', () => { if (el.dataset.setting === 'sfx') playSfx('hatch'); });
+});
+syncSliders();
+
+function openOptions() {
+  if (state !== 'playing') return;
+  state = 'paused';
+  document.getElementById('optionsScreen').classList.remove('hidden');
+}
+function closeOptions() {
+  if (state !== 'paused') return;
+  state = 'playing';
+  document.getElementById('optionsScreen').classList.add('hidden');
+}
+function goToMenu() {
+  for (const id of ['optionsScreen', 'overScreen', 'winScreen']) document.getElementById(id).classList.add('hidden');
+  document.getElementById('optionsBtn').classList.add('hidden');
+  resetWorld(false);
+  state = 'title';
+  cam.zoom = 0.8;
+  document.querySelectorAll('.skin').forEach(b => b.classList.toggle('sel', +b.dataset.i === selectedSkin));
+  drawLogo();
+  document.getElementById('titleScreen').classList.remove('hidden');
+}
+document.getElementById('optionsBtn').addEventListener('click', openOptions);
+document.getElementById('resumeBtn').addEventListener('click', closeOptions);
+document.getElementById('quitBtn').addEventListener('click', goToMenu);
+document.querySelectorAll('.menuBtn').forEach(b => b.addEventListener('click', goToMenu));
+// every button gives a little click; the first interaction anywhere starts the menu music
+document.addEventListener('click', e => { if (e.target.closest('button')) { startMusic(); playSfx('click'); } });
+window.addEventListener('pointerdown', startMusic);
+window.addEventListener('keydown', startMusic);
+
+// ============================================================
 //  Loop
 // ============================================================
 let last = performance.now();
@@ -2309,7 +2523,7 @@ function frame(now) {
   if (dt > 0.05) dt = 0.05;
   // sub-step so fast chargers can't skip past guards during a slow frame
   const steps = Math.ceil(dt / (1 / 60) - 0.01);
-  for (let i = 0; i < steps; i++) update(dt / steps);
+  if (state !== 'paused') for (let i = 0; i < steps; i++) update(dt / steps);
   render();
   requestAnimationFrame(frame);
 }
