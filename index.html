@@ -187,6 +187,7 @@ const WORLD_W = 4000, WORLD_H = 2600;          // ~4x a typical screen
 const QUEEN_R = 13, WORKER_R = 5, FOOD_R = 3.5;
 const PLAYER_SPEED = 220;
 const AI_SPEED = 185, AI_FLEE_SPEED = 180;
+const PLAYER_GRACE = 20, SPAWN_GRACE = 10;   // seconds new colonies are ignored by AI hunters
 const WORKER_SPEED = 270, CHARGE_SPEED = 380;
 const CHARGE_TIME = 2, PLAYER_CHARGE_CD = 1, AI_CHARGE_CD = 3;
 const RING0 = 36, RING_GAP = 11, RING_SPACING = 10.5;   // guard ring layout around the queen
@@ -307,12 +308,12 @@ function makeColony(x, y, workers, name, color, isPlayer) {
     id: uid++, name, color, isPlayer,
     dark: shade(color, color === '#26262b' ? -0.6 : -0.5),
     light: shade(color, 0.45),
-    alive: true, food: 0, births: 0,
+    alive: true, food: 0, births: 0, grace: 0,
     charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
     workers: [],
     queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 }, outerR: RING0,
     ai: { mode: 'wander', target: null, food: null, think: 0, react: rand(0, 0.2), wx: x, wy: y,
-          chargeTarget: null, aggro: rand(0.85, 1.3), orbit: Math.random() < 0.5 ? -1 : 1 },
+          chargeTarget: null, aggro: rand(0.7, 1.1), orbit: Math.random() < 0.5 ? -1 : 1 },
   };
   for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
   return c;
@@ -365,6 +366,7 @@ function spawnEnemy(size) {
   const p = findSpawnPos(900, 380);
   const pal = pickPalette();
   const c = makeColony(p.x, p.y, size, pal.name, pal.color, false);
+  c.grace = SPAWN_GRACE;
   colonies.push(c);
   if (state === 'playing') {
     floaters.push({ type: 'ring', x: p.x, y: p.y, color: pal.color, life: 1.5, max: 1.5, r: 80 });
@@ -392,6 +394,7 @@ function resetWorld(withPlayer) {
 
   if (withPlayer) {
     player = makeColony(WORLD_W / 2 + rand(-600, 600), WORLD_H / 2 + rand(-400, 400), 5, 'You', PLAYER_COLOR, true);
+    player.grace = PLAYER_GRACE;
     colonies.push(player);
   }
   // 8 rivals with sizes spread from 3 to 30
@@ -453,7 +456,7 @@ function updatePlayer(c, dt) {
   const q = c.queen;
   const m = screenToWorld(mouse.x, mouse.y);
   const dx = m.x - q.x, dy = m.y - q.y, d = Math.hypot(dx, dy);
-  const sp = Math.min(PLAYER_SPEED, Math.max(0, d - 4) * 3);
+  const sp = Math.min(PLAYER_SPEED * speedFactor(c), Math.max(0, d - 4) * 3);
   steerQueen(q, d > 1 ? dx / d * sp : 0, d > 1 ? dy / d * sp : 0, dt, 7);
   if (c.charge > 0) { c.chargeX = m.x; c.chargeY = m.y; }
 }
@@ -485,17 +488,18 @@ function aiStrike(c) {
   const q = c.queen, my = c.workers.length;
   let best = null, bestOdds = 0;
   for (const o of colonies) {
-    if (o === c || !o.alive) continue;
+    if (o === c || !o.alive || o.grace > 0) continue;
     const tq = o.queen, d = dist(q.x, q.y, tq.x, tq.y);
     if (d > STRIKE_RANGE) continue;
     const blockers = blockersOnPath(q, o);
     let odds = my * c.ai.aggro * (1.5 - d / STRIKE_RANGE) / (2.5 * blockers + 2);
-    if (o.charge > 0) odds *= 1.5;                                        // her guard is away: she's exposed
-    if (colonySize(o) > my && d < 220) odds *= 1.6;                       // cornered: strike first
-    if (o.charge > 0 && dist(o.chargeX, o.chargeY, q.x, q.y) < 200) odds *= 1.5; // counter-attack
+    if (o.charge > 0) odds *= 1.25;                                       // her guard is away: she's exposed
+    if (colonySize(o) > my && d < 200) odds *= 1.3;                       // cornered: strike first
+    if (o.charge > 0 && dist(o.chargeX, o.chargeY, q.x, q.y) < 200) odds *= 1.2; // counter-attack
     if (odds > bestOdds) { bestOdds = odds; best = o; }
   }
-  if (best && bestOdds > 1) {
+  // not every opening is spotted: hesitate sometimes and need clearly good odds
+  if (best && bestOdds > 1.5 && Math.random() < 0.6) {
     c.ai.chargeTarget = best;
     startCharge(c, best.queen.x, best.queen.y);
     return true;
@@ -510,7 +514,7 @@ function aiThink(c) {
   // 1) an enemy charge is coming at us: back away and let the guard ring absorb it
   for (const o of colonies) {
     if (o === c || !o.alive || o.charge <= 0) continue;
-    if (dist(o.chargeX, o.chargeY, q.x, q.y) < 220) { ai.mode = 'evade'; ai.target = o; return; }
+    if (dist(o.chargeX, o.chargeY, q.x, q.y) < 220 && Math.random() < 0.6) { ai.mode = 'evade'; ai.target = o; return; }
   }
 
   let threat = null, threatD = Infinity, prey = null, preyScore = -Infinity;
@@ -518,9 +522,10 @@ function aiThink(c) {
     if (o === c || !o.alive) continue;
     const d = dist(q.x, q.y, o.queen.x, o.queen.y);
     const os = colonySize(o);
+    if (o.grace > 0 && os <= my) continue;   // fresh colonies get time to grow
     if (os > my * 1.4 * ai.aggro && d < 360 && d < threatD) { threat = o; threatD = d; }
-    if (os <= my * 1.4 * ai.aggro && d < 650) {
-      const score = (my + 5) / (os + 5) - d / 650 + (o.isPlayer ? 0.15 : 0);
+    if (os <= my * 1.2 * ai.aggro && d < 480) {
+      const score = (my + 5) / (os + 5) - d / 480;
       if (score > preyScore) { preyScore = score; prey = o; }
     }
   }
@@ -564,10 +569,10 @@ function wallAvoid(q, v) {
 function updateAI(c, dt) {
   const q = c.queen, ai = c.ai;
   ai.think -= dt;
-  if (ai.think <= 0) { ai.think = rand(0.2, 0.4); aiThink(c); }
+  if (ai.think <= 0) { ai.think = rand(0.35, 0.7); aiThink(c); }
   // quick reflexes: check for openings several times a second
   ai.react -= dt;
-  if (ai.react <= 0) { ai.react = rand(0.08, 0.16); if (aiStrike(c)) ai.think = 0; }
+  if (ai.react <= 0) { ai.react = rand(0.25, 0.5); if (aiStrike(c)) ai.think = 0; }
 
   // steer our charge onto where the target queen is heading
   if (c.charge > 0 && ai.chargeTarget && ai.chargeTarget.alive) {
@@ -613,6 +618,7 @@ function updateAI(c, dt) {
     v.x = ai.wx - q.x; v.y = ai.wy - q.y; sp = AI_SPEED * 0.6;
     if (Math.hypot(v.x, v.y) < 50) ai.think = 0;
   }
+  sp *= speedFactor(c);
   const n = Math.hypot(v.x, v.y);
   steerQueen(q, n > 0.001 ? v.x / n * sp : 0, n > 0.001 ? v.y / n * sp : 0, dt, 4);
 }
@@ -843,7 +849,7 @@ function updateWorkers(c, dt) {
         // so the queen stays centred in her colony even at full speed
         dvx = q.vx + dx * 8 + w.sx * 0.5 + w.fx * 0.5;
         dvy = q.vy + dy * 8 + w.sy * 0.5 + w.fy * 0.5;
-        const m = Math.hypot(dvx, dvy), cap = PLAYER_SPEED + 140;
+        const m = Math.hypot(dvx, dvy), cap = PLAYER_SPEED * 1.3 + 140;
         if (m > cap) { dvx *= cap / m; dvy *= cap / m; }
         w.vx += (dvx - w.vx) * kRing; w.vy += (dvy - w.vy) * kRing;
       } else {
@@ -867,6 +873,11 @@ function updateWorkers(c, dt) {
 // ============================================================
 //  Enemy ant touches a queen: that queen's colony is conquered
 // ============================================================
+// Smaller colonies move faster: ~1.3x with a handful of ants, down to 0.85x at 150+.
+function speedFactor(c) {
+  return 0.85 + 0.45 * (1 - Math.sqrt(Math.min(1, c.workers.length / 150)));
+}
+
 // Count ants of colony `col` within `r` of (x, y) using the ant grid,
 // optionally only those within `maxQ` of the point (qx, qy).
 function countNear(col, x, y, r, qx = 0, qy = 0, maxQ = Infinity) {
@@ -929,7 +940,7 @@ function antQueenContacts() {
         }
       }
     }
-    if (hit) conquer(hit.col, c);
+    if (hit && c.grace <= 0) conquer(hit.col, c);   // colonies in their grace period can't be taken
   }
 }
 
@@ -946,8 +957,8 @@ function queenCollisions() {
       const dx = a.queen.x - b.queen.x, dy = a.queen.y - b.queen.y, d = Math.hypot(dx, dy);
       if (d >= QUEEN_R * 2) continue;
       const sa = colonySize(a), sb = colonySize(b);
-      if (sa > sb) conquer(a, b);
-      else if (sb > sa) conquer(b, a);
+      if (sa > sb && b.grace <= 0) conquer(a, b);
+      else if (sb > sa && a.grace <= 0) conquer(b, a);
       else {  // evenly matched: bump apart
         const nx = dx / (d || 1), ny = dy / (d || 1), push = (QUEEN_R * 2 - d) / 2 + 0.5;
         a.queen.x += nx * push; a.queen.y += ny * push;
@@ -1017,6 +1028,7 @@ function update(dt) {
   for (const c of colonies) {
     if (!c.alive) continue;
     if (c.isPlayer) updatePlayer(c, dt); else updateAI(c, dt);
+    if (c.grace > 0) c.grace -= dt;
     if (c.charge > 0) {
       c.charge -= dt;
       if (c.charge <= 0) { c.charge = 0; c.chargeCd = c.isPlayer ? PLAYER_CHARGE_CD : AI_CHARGE_CD * rand(0.8, 1.3); }
@@ -1319,6 +1331,16 @@ function render() {
     }
   }
 
+  // grace-period shield bubbles
+  for (const c of colonies) {
+    if (!c.alive || c.grace <= 0) continue;
+    const q = c.queen, fade = Math.min(1, c.grace / 2);
+    ctx.fillStyle = `rgba(160,230,140,${0.07 * fade})`;
+    ctx.strokeStyle = `rgba(170,240,150,${(0.35 + 0.15 * Math.sin(time * 5)) * fade})`;
+    ctx.lineWidth = 2 / cam.zoom;
+    ctx.beginPath(); ctx.arc(q.x, q.y, 24, 0, TAU); ctx.fill(); ctx.stroke();
+  }
+
   // queen shadows / glows
   for (const c of colonies) {
     if (!c.alive) continue;
@@ -1472,10 +1494,15 @@ function drawHUD() {
     ctx.textAlign = 'left';
   }
 
-  // rivals remaining
+  // rivals remaining, speed, grace period
   ctx.fillStyle = 'rgba(245,232,200,0.8)';
   ctx.font = '12px "Trebuchet MS", sans-serif';
-  ctx.fillText(`Rival colonies: ${enemyCount()}`, x + 4, y + h + 18);
+  ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%`, x + 4, y + h + 18);
+  if (player.alive && player.grace > 0) {
+    ctx.fillStyle = '#9fe08a';
+    ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
+    ctx.fillText(`Protected: ${Math.ceil(player.grace)}s`, x + 4, y + h + 36);
+  }
 }
 
 function drawLeaderboard() {
