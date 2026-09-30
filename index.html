@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Queen of the Hill</title>
+<title>Colony.io</title>
 <style>
   html, body {
     margin: 0;
@@ -408,7 +408,7 @@
   </div>
   <div class="panel main">
     <canvas id="logo" width="160" height="90"></canvas>
-    <h1>Queen of the Hill</h1>
+    <h1>Colony.io</h1>
     <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
     <div class="skins-label">Choose your colony</div>
     <div class="skins"></div>
@@ -494,7 +494,7 @@
 <div id="winScreen" class="overlay hidden">
   <div class="panel">
     <h2>Victory!</h2>
-    <p class="tagline">Every rival colony bows to you. You are the Queen of the Hill.</p>
+    <p class="tagline">Every rival colony bows to you. Your colony rules the map.</p>
     <div class="newbest hidden">New high score!</div>
     <div class="stats">
       <div class="stat"><div class="v" id="winSize">0</div><div class="l">Colony size</div></div>
@@ -4156,9 +4156,12 @@ function drawLogo(sk = SKINS[selectedSkin]) {
   lc.width = 160 * d; lc.height = 90 * d;   // (resizing also clears the old picture)
   lc.style.width = '160px'; lc.style.height = '90px';
   l.setTransform(d, 0, 0, d, 0, 0);
-  const g = l.createRadialGradient(80, 95, 5, 80, 95, 80);
-  g.addColorStop(0, '#8a5d34'); g.addColorStop(1, 'rgba(138,93,52,0)');
-  l.fillStyle = g; l.beginPath(); l.ellipse(80, 92, 80, 40, 0, 0, TAU); l.fill();
+  // soft neutral ground shadow that fades out fully inside the canvas (reads on every theme)
+  l.save(); l.translate(80, 74); l.scale(1, 0.2);
+  const g = l.createRadialGradient(0, 0, 0, 0, 0, 72);
+  g.addColorStop(0, 'rgba(0,0,0,0.32)'); g.addColorStop(0.6, 'rgba(0,0,0,0.14)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  l.fillStyle = g; l.beginPath(); l.arc(0, 0, 72, 0, TAU); l.fill();
+  l.restore();
 
   const saved = [TZ, TEX, TEY];
   TZ = d; TEX = 0; TEY = 0;
