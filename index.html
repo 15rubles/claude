@@ -202,6 +202,8 @@
   .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; font-size: 13px; color: #f5e8c8; }
   .cgrid div { display: flex; align-items: center; gap: 7px; }
   .cgrid .key { min-width: 0; padding: 1px 7px; font-size: 11px; }
+  .cgrid .wide { grid-column: 1 / -1; }
+  .cgrid .or { font-size: 11px; color: #c8ae7a; margin: 0 -2px; }
   .rrow { display: flex; align-items: center; gap: 10px; font-size: 13px; line-height: 1.35; color: #f5e8c8; margin: 3px 0; }
   .rrow canvas { width: 30px; height: 30px; flex-shrink: 0; }
   .rrow b { color: #ffe7a8; }
@@ -305,9 +307,8 @@
       <div class="rhead">Controls</div>
       <div class="cgrid">
         <div><span class="key">Mouse</span>Move your queen</div>
-        <div><span class="key">Left click</span>Charge</div>
-        <div><span class="key">Space</span>Charge</div>
         <div><span class="key">Esc</span>Pause &amp; options</div>
+        <div class="wide"><span class="key">Left click</span><span class="or">or</span><span class="key">Space</span>Charge</div>
         <div><span class="key">M</span>Music on / off</div>
         <div><span class="key">Enter</span>Start / restart</div>
       </div>
