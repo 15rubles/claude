@@ -39,8 +39,10 @@
     color: #f5e8c8;
     text-align: center;
     box-shadow: 0 14px 50px rgba(0,0,0,0.65), inset 0 2px 0 rgba(255,230,160,0.25);
-    max-width: 520px;
+    max-width: 560px;
     width: 100%;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
     box-sizing: border-box;
     animation: pop 0.35s ease-out;
   }
@@ -141,6 +143,8 @@
       <div><span class="crownicon"><span class="key">Space</span></span><span>Workers charge the cursor for 2 seconds (your queen is left unguarded!)</span></div>
       <div><span class="crownicon" style="color:#9fd6ff">Guard</span><span>Your workers form rings around your queen to protect her</span></div>
       <div><span class="crownicon">Conquer</span><span>If <b>any</b> of your ants touches an enemy queen, her colony is yours</span></div>
+      <div><span class="crownicon" style="color:#ff8a70">Pickups</span><span><b style="color:#ff8a70">Rage Nectar</b> makes your ants fight harder &middot; <b style="color:#7fd4ff">Sugar Rush</b> speeds your queen and readies your charge</span></div>
+      <div><span class="crownicon" style="color:#9fe08a">Places</span><span>Hold a <b>Fungus Garden</b> alone to farm ants &middot; <b>Tunnels</b> carry your colony to the linked hole</span></div>
       <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
     <button id="playBtn">Play</button>
@@ -197,6 +201,14 @@ const START_ENEMIES = 8, MAX_ENEMIES = 14;
 const PLAYER_COLOR = '#f5c542';
 const SEP_DIST = 10, FIGHT_DIST = 10;
 const CELL = 40;
+// power-ups & structures
+const POWERUP_MAX = 5, FRENZY_TIME = 10, RUSH_TIME = 8, RUSH_SPEED = 1.35, FRENZY_POWER = 1.5;
+const GARDEN_R = 75, GARDEN_RATE = 1.0, HOLE_R = 18, TUNNEL_CD = 12;
+const POWER_INFO = {
+  frenzy: { name: 'Rage Nectar', color: '#ff4a3d', glow: 'rgba(255,80,60,', msg: 'Rage Nectar! Your ants fight harder' },
+  rush:   { name: 'Sugar Rush',  color: '#4fc8ff', glow: 'rgba(80,200,255,', msg: 'Sugar Rush! Faster queen, charge ready' },
+};
+const TUNNEL_COLORS = ['#c9a0ff', '#8fe0c8'];
 const GCOLS = Math.ceil(WORLD_W / CELL), GROWS = Math.ceil(WORLD_H / CELL);
 
 const PALETTE = [
@@ -294,6 +306,8 @@ let uid = 1;
 let time = 0;
 let spawnTimer = 10;
 let foodAccum = 0;
+let powerups = [], gardens = [], tunnels = [];
+let powerTimer = 5;
 let stats = { start: 0, kills: 0, peak: 0, finalSize: 0, killedBy: '', endTime: 0 };
 const cam = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.8 };
 
@@ -308,12 +322,13 @@ function makeColony(x, y, workers, name, color, isPlayer) {
     id: uid++, name, color, isPlayer,
     dark: shade(color, color === '#26262b' ? -0.6 : -0.5),
     light: shade(color, 0.45),
-    alive: true, food: 0, births: 0, grace: 0,
+    alive: true, food: 0, births: 0, grace: 0, frenzy: 0, rush: 0, tunnelCd: 3,
     charge: 0, chargeCd: rand(0, 2), chargeX: x, chargeY: y,
     workers: [],
     queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 }, outerR: RING0,
     ai: { mode: 'wander', target: null, food: null, think: 0, react: rand(0, 0.2), wx: x, wy: y,
-          chargeTarget: null, aggro: rand(0.7, 1.1), orbit: Math.random() < 0.5 ? -1 : 1 },
+          chargeTarget: null, aggro: rand(0.7, 1.1), orbit: Math.random() < 0.5 ? -1 : 1,
+          likesFarm: Math.random() < 0.5, power: null, garden: null },
   };
   for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
   return c;
@@ -389,6 +404,9 @@ function colonySize(c) { return c.workers.length; }
 function resetWorld(withPlayer) {
   colonies = []; food = []; particles = []; floaters = [];
   player = null; time = 0; foodAccum = 0;
+  placeStructures();
+  powerups = []; powerTimer = 3;
+  for (let i = 0; i < 2; i++) spawnPowerup();
   for (let i = 0; i < FOOD_MAX; i++) spawnFood();
   for (const f of food) f.age = 1;
 
@@ -534,7 +552,26 @@ function aiThink(c) {
   // 3) hunt: overwhelm smaller colonies, stalk comparable ones and wait for an opening
   if (prey) { ai.mode = colonySize(prey) < my * 0.7 ? 'chase' : 'stalk'; ai.target = prey; return; }
 
-  // 4) food
+  // 4) power-ups nearby are worth a detour
+  let bp = null, bpd = 450;
+  for (const pu of powerups) {
+    const d = dist(q.x, q.y, pu.x, pu.y);
+    if (d < bpd) { bpd = d; bp = pu; }
+  }
+  if (bp) { ai.mode = 'powerup'; ai.power = bp; return; }
+
+  // 5) some colonies like to settle on a fungus garden nobody else holds
+  if (ai.likesFarm) {
+    let bg = null, bgd = 900;
+    for (const g of gardens) {
+      if (g.owner && g.owner !== c) continue;
+      const d = dist(q.x, q.y, g.x, g.y);
+      if (d < bgd) { bgd = d; bg = g; }
+    }
+    if (bg) { ai.mode = 'farm'; ai.garden = bg; return; }
+  }
+
+  // 6) food
   let best = null, bestD = 340;
   const gx = (q.x / CELL) | 0, gy = (q.y / CELL) | 0;
   for (let yy = gy - 8; yy <= gy + 8; yy++) {
@@ -554,6 +591,11 @@ function aiThink(c) {
   if (ai.mode !== 'wander' || dist(q.x, q.y, ai.wx, ai.wy) < 60) {
     ai.wx = clamp(q.x + rand(-700, 700), 150, WORLD_W - 150);
     ai.wy = clamp(q.y + rand(-700, 700), 150, WORLD_H - 150);
+    // now and then, explore through a nearby tunnel
+    if (c.tunnelCd <= 0 && Math.random() < 0.35) {
+      const h = tunnels.find(t => dist(q.x, q.y, t.x, t.y) < 600);
+      if (h) { ai.wx = h.x; ai.wy = h.y; }
+    }
   }
   ai.mode = 'wander';
 }
@@ -597,6 +639,13 @@ function updateAI(c, dt) {
   } else if (ai.mode === 'flee' && tgt) {
     const dx = q.x - tgt.queen.x, dy = q.y - tgt.queen.y, d = Math.hypot(dx, dy) || 1;
     v.x = dx / d; v.y = dy / d; sp = AI_FLEE_SPEED;
+    // duck into a nearby tunnel if it isn't back toward the threat
+    if (c.tunnelCd <= 0) {
+      for (const h of tunnels) {
+        const hx = h.x - q.x, hy = h.y - q.y, hd = Math.hypot(hx, hy) || 1;
+        if (hd < 240 && (hx * dx + hy * dy) / (hd * d) > -0.2) { v.x = hx / hd; v.y = hy / hd; break; }
+      }
+    }
     wallAvoid(q, v);
   } else if (ai.mode === 'chase' && tgt) {
     const tq = tgt.queen;
@@ -611,6 +660,12 @@ function updateAI(c, dt) {
     v.y = dy / d * radial + dx / d * ai.orbit * 0.8;
     sp = AI_SPEED;
     wallAvoid(q, v);
+  } else if (ai.mode === 'powerup' && ai.power && !ai.power.dead) {
+    v.x = ai.power.x - q.x; v.y = ai.power.y - q.y; sp = AI_SPEED * 0.9;
+  } else if (ai.mode === 'farm' && ai.garden) {
+    const g = ai.garden, d = dist(q.x, q.y, g.x, g.y);
+    v.x = g.x - q.x; v.y = g.y - q.y;
+    sp = d > GARDEN_R * 0.4 ? AI_SPEED * 0.8 : Math.min(30, d);   // settle in and brace
   } else if (ai.mode === 'food' && ai.food && !ai.food.dead) {
     v.x = ai.food.x - q.x; v.y = ai.food.y - q.y; sp = AI_SPEED * 0.8;
   } else {
@@ -652,6 +707,9 @@ function fight(a, b) {
   const ac = a.col.charge > 0, bc = b.col.charge > 0;
   if (ac && !bc) { aDie *= 1.25; bDie *= 0.75; }
   if (bc && !ac) { bDie *= 1.25; aDie *= 0.75; }
+  // Rage Nectar: enraged ants shrug off hits and hit harder
+  if (a.col.frenzy > 0) { aDie *= 0.6; bDie *= 1.4; }
+  if (b.col.frenzy > 0) { bDie *= 0.6; aDie *= 1.4; }
   // knock apart
   const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1;
   a.vx += dx / d * 120; a.vy += dy / d * 120;
@@ -849,7 +907,7 @@ function updateWorkers(c, dt) {
         // so the queen stays centred in her colony even at full speed
         dvx = q.vx + dx * 8 + w.sx * 0.5 + w.fx * 0.5;
         dvy = q.vy + dy * 8 + w.sy * 0.5 + w.fy * 0.5;
-        const m = Math.hypot(dvx, dvy), cap = PLAYER_SPEED * 1.3 + 140;
+        const m = Math.hypot(dvx, dvy), cap = PLAYER_SPEED * 1.3 * RUSH_SPEED + 140;
         if (m > cap) { dvx *= cap / m; dvy *= cap / m; }
         w.vx += (dvx - w.vx) * kRing; w.vy += (dvy - w.vy) * kRing;
       } else {
@@ -875,7 +933,8 @@ function updateWorkers(c, dt) {
 // ============================================================
 // Smaller colonies move faster: ~1.3x with a handful of ants, down to 0.85x at 150+.
 function speedFactor(c) {
-  return 0.85 + 0.45 * (1 - Math.sqrt(Math.min(1, c.workers.length / 150)));
+  const base = 0.85 + 0.45 * (1 - Math.sqrt(Math.min(1, c.workers.length / 150)));
+  return c.rush > 0 ? base * RUSH_SPEED : base;
 }
 
 // Count ants of colony `col` within `r` of (x, y) using the ant grid,
@@ -909,7 +968,8 @@ function guardWalls() {
           if (d >= wallR) continue;
           const defenders = countNear(c, e.x, e.y, 32);
           const attackers = countNear(e.col, e.x, e.y, 32, q.x, q.y, wallR + 10);   // only the front line
-          if (defenders * brace >= attackers) {
+          const dPow = c.frenzy > 0 ? FRENZY_POWER : 1, aPow = e.col.frenzy > 0 ? FRENZY_POWER : 1;
+          if (defenders * brace * dPow >= attackers * aPow) {
             const nx = d > 0.01 ? dx / d : 1, ny = d > 0.01 ? dy / d : 0;
             e.x = q.x + nx * wallR; e.y = q.y + ny * wallR;
             const vin = e.vx * nx + e.vy * ny;
@@ -1020,6 +1080,144 @@ function endGame(won) {
 }
 
 // ============================================================
+//  Power-ups & structures
+// ============================================================
+function placeStructures() {
+  gardens = []; tunnels = [];
+  const taken = [];
+  const pick = (margin, minD) => {
+    for (let t = 0; t < 300; t++) {
+      const x = rand(margin, WORLD_W - margin), y = rand(margin, WORLD_H - margin);
+      if (taken.every(p => dist(x, y, p.x, p.y) >= minD)) return { x, y };
+    }
+    return { x: rand(margin, WORLD_W - margin), y: rand(margin, WORLD_H - margin) };
+  };
+  for (let i = 0; i < 3; i++) {
+    const p = pick(300, 800);
+    taken.push(p);
+    const shrooms = [];
+    for (let k = 0; k < 9; k++) {
+      const a = rand(0, TAU), r = rand(20, GARDEN_R - 12);
+      shrooms.push({ dx: Math.cos(a) * r, dy: Math.sin(a) * r, r: rand(6, 11), tone: rand(0, 1) });
+    }
+    gardens.push({ x: p.x, y: p.y, owner: null, contested: false, acc: 0, shrooms });
+  }
+  for (let pair = 0; pair < 2; pair++) {
+    let a, b;
+    for (let t = 0; t < 60; t++) {
+      a = pick(220, 450); b = pick(220, 450);
+      if (dist(a.x, a.y, b.x, b.y) > 1900) break;
+    }
+    taken.push(a, b);
+    const i = tunnels.length;
+    tunnels.push({ x: a.x, y: a.y, pair: i + 1, group: pair }, { x: b.x, y: b.y, pair: i, group: pair });
+  }
+}
+
+function spawnPowerup() {
+  for (let t = 0; t < 40; t++) {
+    const x = rand(150, WORLD_W - 150), y = rand(150, WORLD_H - 150);
+    if (tunnels.some(h => dist(x, y, h.x, h.y) < 80) || gardens.some(g => dist(x, y, g.x, g.y) < GARDEN_R + 30)) continue;
+    powerups.push({ x, y, type: Math.random() < 0.5 ? 'frenzy' : 'rush', age: 0, dead: false, bob: rand(0, TAU) });
+    return;
+  }
+}
+
+function applyPower(c, pu) {
+  pu.dead = true;
+  const info = POWER_INFO[pu.type];
+  if (pu.type === 'frenzy') c.frenzy = FRENZY_TIME;
+  else { c.rush = RUSH_TIME; if (c.charge <= 0) c.chargeCd = 0; }
+  floaters.push({ type: 'ring', x: pu.x, y: pu.y, color: info.color, life: 0.8, max: 0.8, r: 60 });
+  for (let i = 0; i < 12; i++) {
+    const a = rand(0, TAU), sp = rand(60, 160);
+    particles.push({ type: 'spark', x: pu.x, y: pu.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: info.color, life: 0.6, max: 0.6, r: 2 });
+  }
+  if (c.isPlayer) floaters.push({ type: 'text', text: info.msg, x: c.queen.x, y: c.queen.y - 50, color: info.color, life: 2, max: 2, size: 18 });
+  else if (state === 'playing') floaters.push({ type: 'text', text: `${c.name} took ${info.name}`, x: pu.x, y: pu.y - 20, color: info.color, life: 1.6, max: 1.6, size: 13 });
+}
+
+function teleport(c, from, to) {
+  const q = c.queen, s = Math.hypot(q.vx, q.vy);
+  // come out the far side, a little past the hole, in the direction she was heading
+  const hx = s > 5 ? q.vx / s : Math.cos(q.ang), hy = s > 5 ? q.vy / s : Math.sin(q.ang);
+  const ex = clamp(to.x + hx * (HOLE_R + 16), 40, WORLD_W - 40), ey = clamp(to.y + hy * (HOLE_R + 16), 40, WORLD_H - 40);
+  const dx = ex - q.x, dy = ey - q.y;
+  q.x = ex; q.y = ey;
+  for (const w of c.workers) { w.x = clamp(w.x + dx, 3, WORLD_W - 3); w.y = clamp(w.y + dy, 3, WORLD_H - 3); }
+  c.tunnelCd = TUNNEL_CD;
+  if (c.charge > 0) { c.charge = 0; c.chargeCd = Math.max(c.chargeCd, 0.5); }
+  for (const h of [from, to]) {
+    floaters.push({ type: 'ring', x: h.x, y: h.y, color: TUNNEL_COLORS[h.group], life: 0.7, max: 0.7, r: 50 });
+    for (let i = 0; i < 10; i++) {
+      const a = rand(0, TAU), sp = rand(40, 120);
+      particles.push({ type: 'fleck', x: h.x, y: h.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: '#8a6440', life: 0.6, max: 0.6, r: 2 });
+    }
+  }
+  if (c.isPlayer) { cam.x += dx; cam.y += dy; }
+}
+
+function updatePowerAndStructures(dt) {
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    if (c.frenzy > 0) c.frenzy -= dt;
+    if (c.rush > 0) c.rush -= dt;
+    if (c.tunnelCd > 0) c.tunnelCd -= dt;
+  }
+
+  // power-ups: a few on the map at a time
+  powerTimer -= dt;
+  if (powerTimer <= 0) {
+    powerTimer = rand(6, 11);
+    if (powerups.length < POWERUP_MAX) spawnPowerup();
+  }
+  for (const pu of powerups) {
+    pu.age += dt;
+    if (pu.dead) continue;
+    let taker = null;
+    for (const c of colonies) {
+      if (c.alive && dist(c.queen.x, c.queen.y, pu.x, pu.y) < QUEEN_R + 10) { taker = c; break; }
+    }
+    if (!taker) {
+      const gx = clamp((pu.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((pu.y / CELL) | 0, 0, GROWS - 1);
+      for (let yy = Math.max(0, gy - 1); yy <= Math.min(GROWS - 1, gy + 1) && !taker; yy++)
+        for (let xx = Math.max(0, gx - 1); xx <= Math.min(GCOLS - 1, gx + 1) && !taker; xx++)
+          for (const w of antGrid[yy * GCOLS + xx])
+            if (!w.dead && w.col.alive && dist(w.x, w.y, pu.x, pu.y) < WORKER_R + 9) { taker = w.col; break; }
+    }
+    if (taker) applyPower(taker, pu);
+  }
+  if (powerups.some(p => p.dead)) powerups = powerups.filter(p => !p.dead);
+
+  // fungus gardens feed a queen who holds one alone
+  for (const g of gardens) {
+    const inside = colonies.filter(c => c.alive && dist(c.queen.x, c.queen.y, g.x, g.y) < GARDEN_R);
+    g.contested = inside.length > 1;
+    if (inside.length === 1) {
+      if (g.owner !== inside[0]) g.acc = 0;
+      g.owner = inside[0];
+      g.acc += dt;
+      if (g.acc >= GARDEN_RATE) {
+        g.acc -= GARDEN_RATE;
+        const c = g.owner;
+        c.food++;
+        if (c.food >= FOOD_PER_WORKER) { c.food -= FOOD_PER_WORKER; c.births++; }
+        const sh = g.shrooms[randInt(0, g.shrooms.length - 1)];
+        particles.push({ type: 'spark', x: g.x + sh.dx, y: g.y + sh.dy, vx: (c.queen.x - g.x - sh.dx) * 1.6, vy: (c.queen.y - g.y - sh.dy) * 1.6, color: '#b8ff8c', life: 0.5, max: 0.5, r: 2.2 });
+      }
+    } else { g.owner = null; g.acc = 0; }
+  }
+
+  // tunnels: a queen stepping into a hole brings her whole colony out the linked one
+  for (const c of colonies) {
+    if (!c.alive || c.tunnelCd > 0) continue;
+    for (const h of tunnels) {
+      if (dist(c.queen.x, c.queen.y, h.x, h.y) < HOLE_R) { teleport(c, h, tunnels[h.pair]); break; }
+    }
+  }
+}
+
+// ============================================================
 //  Main update
 // ============================================================
 function update(dt) {
@@ -1041,6 +1239,7 @@ function update(dt) {
   buildGrids();
   antQueenContacts();
   queenCollisions();
+  updatePowerAndStructures(dt);
   colonies = colonies.filter(c => c.alive || c.isPlayer);
 
   // food respawn
@@ -1265,6 +1464,61 @@ function render() {
   ctx.lineWidth = 8;
   ctx.strokeRect(-4, -4, WORLD_W + 8, WORLD_H + 8);
 
+  // fungus gardens
+  for (const g of gardens) {
+    if (g.x + GARDEN_R < L || g.x - GARDEN_R > R || g.y + GARDEN_R < T || g.y - GARDEN_R > B) continue;
+    const grd = ctx.createRadialGradient(g.x, g.y, 5, g.x, g.y, GARDEN_R);
+    grd.addColorStop(0, 'rgba(120,160,70,0.5)');
+    grd.addColorStop(0.75, 'rgba(95,130,55,0.35)');
+    grd.addColorStop(1, 'rgba(90,120,50,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(g.x, g.y, GARDEN_R, 0, TAU); ctx.fill();
+    ctx.lineWidth = 2 / cam.zoom;
+    ctx.setLineDash([6 / cam.zoom, 6 / cam.zoom]);
+    ctx.strokeStyle = g.contested ? 'rgba(255,90,70,0.7)' : g.owner ? g.owner.color : 'rgba(200,230,150,0.45)';
+    ctx.beginPath(); ctx.arc(g.x, g.y, GARDEN_R, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    for (const m of g.shrooms) {
+      const mx = g.x + m.dx, my = g.y + m.dy;
+      ctx.fillStyle = '#e8dcc0';
+      ctx.fillRect(mx - m.r * 0.18, my, m.r * 0.36, m.r * 0.8);
+      ctx.fillStyle = m.tone < 0.5 ? '#c9674a' : '#d9b27a';
+      ctx.beginPath(); ctx.ellipse(mx, my, m.r, m.r * 0.65, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(255,245,220,0.7)';
+      ctx.beginPath(); ctx.arc(mx - m.r * 0.35, my - m.r * 0.2, m.r * 0.18, 0, TAU); ctx.arc(mx + m.r * 0.3, my - m.r * 0.1, m.r * 0.13, 0, TAU); ctx.fill();
+    }
+    if (g.owner) {  // harvest progress
+      ctx.strokeStyle = g.owner.color;
+      ctx.lineWidth = 4 / cam.zoom;
+      ctx.beginPath(); ctx.arc(g.x, g.y, GARDEN_R + 6, -Math.PI / 2, -Math.PI / 2 + (g.acc / GARDEN_RATE) * TAU); ctx.stroke();
+    }
+  }
+  // tunnel holes
+  for (const h of tunnels) {
+    if (h.x < L || h.x > R || h.y < T || h.y > B) continue;
+    ctx.fillStyle = '#8a6440';
+    ctx.beginPath(); ctx.arc(h.x, h.y, HOLE_R + 12, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#a07650';
+    ctx.beginPath(); ctx.arc(h.x - 3, h.y - 3, HOLE_R + 8, 0, TAU); ctx.fill();
+    const hg = ctx.createRadialGradient(h.x, h.y, 2, h.x, h.y, HOLE_R);
+    hg.addColorStop(0, '#050201'); hg.addColorStop(1, '#2a180a');
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.arc(h.x, h.y, HOLE_R, 0, TAU); ctx.fill();
+    ctx.strokeStyle = TUNNEL_COLORS[h.group];
+    ctx.lineWidth = 2.5 / cam.zoom;
+    ctx.beginPath(); ctx.arc(h.x, h.y, HOLE_R + 12, 0, TAU); ctx.stroke();
+    // pair marks: one or two dots
+    ctx.fillStyle = TUNNEL_COLORS[h.group];
+    for (let i = 0; i <= h.group; i++) {
+      ctx.beginPath(); ctx.arc(h.x - h.group * 5 + i * 10, h.y + HOLE_R + 20, 3.5, 0, TAU); ctx.fill();
+    }
+    if (player && player.alive && player.tunnelCd > 0 && dist(player.queen.x, player.queen.y, h.x, h.y) < 400) {
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.beginPath(); ctx.moveTo(h.x, h.y);
+      ctx.arc(h.x, h.y, HOLE_R, -Math.PI / 2, -Math.PI / 2 + (player.tunnelCd / TUNNEL_CD) * TAU); ctx.fill();
+    }
+  }
+
   // ground splats
   for (const p of particles) {
     if (p.type !== 'splat' || p.x < L || p.x > R || p.y < T || p.y > B) continue;
@@ -1300,6 +1554,61 @@ function render() {
     ctx.moveTo(f.x - r * 0.8 + r, f.y - r); ctx.arc(f.x - r * 0.8, f.y - r, r, 0, TAU);
   }
   ctx.fill();
+
+  // power-ups
+  for (const pu of powerups) {
+    if (pu.x < L || pu.x > R || pu.y < T || pu.y > B) continue;
+    const info = POWER_INFO[pu.type];
+    const pop = Math.min(1, pu.age * 3), by = pu.y + Math.sin(time * 3 + pu.bob) * 3;
+    const glow = ctx.createRadialGradient(pu.x, by, 2, pu.x, by, 26 * pop);
+    glow.addColorStop(0, info.glow + '0.55)'); glow.addColorStop(1, info.glow + '0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(pu.x, by, 26 * pop, 0, TAU); ctx.fill();
+    ctx.fillStyle = info.color;
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    if (pu.type === 'frenzy') {   // nectar droplet
+      const r = 7 * pop;
+      ctx.moveTo(pu.x, by - r * 1.9);
+      ctx.quadraticCurveTo(pu.x + r * 1.1, by - r * 0.3, pu.x + r, by + r * 0.2);
+      ctx.arc(pu.x, by + r * 0.2, r, 0, Math.PI);
+      ctx.quadraticCurveTo(pu.x - r * 1.1, by - r * 0.3, pu.x, by - r * 1.9);
+    } else {                       // sugar crystal
+      const r = 9 * pop;
+      ctx.moveTo(pu.x, by - r); ctx.lineTo(pu.x + r * 0.7, by); ctx.lineTo(pu.x, by + r); ctx.lineTo(pu.x - r * 0.7, by);
+      ctx.closePath();
+    }
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath(); ctx.arc(pu.x - 2.5 * pop, by - 2.5 * pop, 1.8 * pop, 0, TAU); ctx.fill();
+  }
+
+  // active power-up auras
+  for (const c of colonies) {
+    if (!c.alive) continue;
+    const q = c.queen;
+    if (q.x < L - 200 || q.x > R + 200 || q.y < T - 200 || q.y > B + 200) continue;
+    if (c.frenzy > 0) {
+      ctx.strokeStyle = `rgba(255,70,50,${0.35 + 0.25 * Math.sin(time * 10)})`;
+      ctx.lineWidth = 5 / cam.zoom;
+      ctx.beginPath(); ctx.arc(q.x, q.y, c.outerR + 8, 0, TAU); ctx.stroke();
+    }
+    if (c.rush > 0) {
+      const s = Math.hypot(q.vx, q.vy);
+      if (s > 30) {
+        ctx.strokeStyle = 'rgba(120,215,255,0.55)';
+        ctx.lineWidth = 2 / cam.zoom;
+        ctx.beginPath();
+        for (let i = -2; i <= 2; i++) {
+          const ox = -q.vy / s * i * 6, oy = q.vx / s * i * 6;
+          ctx.moveTo(q.x - q.vx / s * 16 + ox, q.y - q.vy / s * 16 + oy);
+          ctx.lineTo(q.x - q.vx / s * (40 + Math.abs(i) * -5) + ox, q.y - q.vy / s * (40 + Math.abs(i) * -5) + oy);
+        }
+        ctx.stroke();
+      }
+    }
+  }
 
   // player charge target marker
   if (player && player.alive && player.charge > 0) {
@@ -1498,11 +1807,16 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(245,232,200,0.8)';
   ctx.font = '12px "Trebuchet MS", sans-serif';
   ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%`, x + 4, y + h + 18);
-  if (player.alive && player.grace > 0) {
-    ctx.fillStyle = '#9fe08a';
-    ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
-    ctx.fillText(`Protected: ${Math.ceil(player.grace)}s`, x + 4, y + h + 36);
-  }
+  const lines = [];
+  if (player.alive && player.grace > 0) lines.push([`Protected: ${Math.ceil(player.grace)}s`, '#9fe08a']);
+  if (player.frenzy > 0) lines.push([`Rage Nectar: ${Math.ceil(player.frenzy)}s`, '#ff7a64']);
+  if (player.rush > 0) lines.push([`Sugar Rush: ${Math.ceil(player.rush)}s`, '#7fd4ff']);
+  lines.push(player.tunnelCd > 0 ? [`Tunnels: ${Math.ceil(player.tunnelCd)}s`, 'rgba(245,232,200,0.6)'] : ['Tunnels: ready', 'rgba(245,232,200,0.8)']);
+  const onGarden = gardens.find(g => g.owner === player);
+  if (onGarden) lines.push(['Farming fungus garden', '#b8ff8c']);
+  else if (gardens.some(g => g.contested && dist(g.x, g.y, player.queen.x, player.queen.y) < GARDEN_R)) lines.push(['Garden contested!', '#ff8a70']);
+  ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
+  lines.forEach(([t, col], i) => { ctx.fillStyle = col; ctx.fillText(t, x + 4, y + h + 36 + i * 18); });
 }
 
 function drawLeaderboard() {
@@ -1552,6 +1866,20 @@ function drawMinimap() {
   // food as faint specks
   ctx.fillStyle = 'rgba(120,230,90,0.35)';
   for (let i = 0; i < food.length; i += 2) ctx.fillRect(x + food[i].x * sx, y + food[i].y * sy, 1, 1);
+
+  // structures and power-ups
+  for (const g of gardens) {
+    ctx.fillStyle = 'rgba(140,200,90,0.5)';
+    ctx.beginPath(); ctx.arc(x + g.x * sx, y + g.y * sy, Math.max(3, GARDEN_R * sx), 0, TAU); ctx.fill();
+  }
+  for (const h of tunnels) {
+    ctx.fillStyle = '#120a04'; ctx.strokeStyle = TUNNEL_COLORS[h.group]; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x + h.x * sx, y + h.y * sy, 3, 0, TAU); ctx.fill(); ctx.stroke();
+  }
+  for (const pu of powerups) {
+    ctx.fillStyle = POWER_INFO[pu.type].color;
+    ctx.fillRect(x + pu.x * sx - 1.5, y + pu.y * sy - 1.5, 3, 3);
+  }
 
   // viewport
   const vw = W / cam.zoom, vh = H / cam.zoom;
