@@ -121,6 +121,18 @@
   button:hover { filter: brightness(1.08); transform: translateY(-1px); }
   button:active { transform: translateY(4px); box-shadow: 0 1px 0 #9a6a10, 0 3px 8px rgba(0,0,0,0.45); }
   #logo { display: block; margin: 0 auto; }
+  .skins-label { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #d8c090; margin: -8px 0 8px; }
+  .skins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 20px; }
+  .skin {
+    font: inherit; font-size: 11px; font-weight: bold; color: #f5e8c8;
+    background: rgba(0,0,0,0.28); border: 2px solid transparent; border-radius: 10px;
+    padding: 4px 4px 3px; width: 70px; cursor: pointer; box-shadow: none;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+  }
+  .skin:hover { filter: none; transform: none; background: rgba(0,0,0,0.4); }
+  .skin:active { transform: none; box-shadow: none; }
+  .skin.sel { border-color: #ffd54a; background: rgba(255,213,74,0.18); }
+  .skin canvas { width: 56px; height: 48px; }
   .hint { margin-top: 14px; font-size: 12px; color: #c8ae7a; }
   @media (max-width: 480px) {
     .panel { padding: 20px 18px 24px; }
@@ -143,11 +155,13 @@
       <div><span class="crownicon"><span class="key">Space</span></span><span>Workers charge the cursor for 2 seconds (your queen is left unguarded!)</span></div>
       <div><span class="crownicon" style="color:#9fd6ff">Guard</span><span>Your workers form rings around your queen to protect her</span></div>
       <div><span class="crownicon">Conquer</span><span>If <b>any</b> of your ants touches an enemy queen, her colony is yours</span></div>
-      <div><span class="crownicon" style="color:#ff8a70">Pickups</span><span><b style="color:#ff8a70">Rage Nectar</b> makes your ants fight harder &middot; <b style="color:#7fd4ff">Sugar Rush</b> speeds your queen and readies your charge</span></div>
+      <div><span class="crownicon" style="color:#ff8a70">Pickups</span><span><b style="color:#ff8a70">Fire Chili</b> makes your ants fight harder &middot; <b style="color:#7fd4ff">Sugar Rush</b> speeds your queen and readies your charge</span></div>
       <div><span class="crownicon" style="color:#9fe08a">Places</span><span>Hold a <b>Fungus Garden</b> alone to farm ants &middot; <b>Tunnels</b> carry your colony to the linked hole</span></div>
       <div><span class="crownicon"><span class="key">M</span></span><span>Toggle music</span></div>
       <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
+    <div class="skins-label">Choose your colony</div>
+    <div id="skinPicker" class="skins"></div>
     <button id="playBtn">Play</button>
     <div class="hint">Tip: stand still to brace your guards. Charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
   </div>
@@ -200,13 +214,24 @@ const FOOD_MAX = 420, FOOD_RESPAWN_RATE = 9;   // crumbs per second while below 
 const FOOD_PER_WORKER = 3, MAX_WORKERS = 400;
 const START_ENEMIES = 8, MAX_ENEMIES = 14;
 const PLAYER_COLOR = '#f5c542';
+// Player skins: restyle the queen and every worker in her colony
+const SKINS = [
+  { id: 'gold',    name: 'Golden',   color: '#f5c542', glow: '255,220,90' },
+  { id: 'fire',    name: 'Fire Ant', color: '#ff5a26', glow: '255,110,40', head: '#8a1a05', embers: true },
+  { id: 'bee',     name: 'Bumblebee', color: '#ffd21f', glow: '255,215,60', stripes: '#1b1408', workerWings: true },
+  { id: 'lady',    name: 'Ladybug',  color: '#e0282e', glow: '255,90,90', head: '#15100c', spots: '#15100c' },
+  { id: 'ghost',   name: 'Ghost',    color: '#d4ecff', glow: '170,220,255', alpha: 0.55, workerWings: true },
+  { id: 'rainbow', name: 'Rainbow',  color: '#ff66cc', glow: '255,160,230', rainbow: true },
+];
+let selectedSkin = 0;
+try { const i = SKINS.findIndex(k => k.id === localStorage.getItem('qoth-skin')); if (i >= 0) selectedSkin = i; } catch (e) {}
 const SEP_DIST = 10, FIGHT_DIST = 10;
 const CELL = 40;
 // power-ups & structures
 const POWERUP_MAX = 5, FRENZY_TIME = 10, RUSH_TIME = 8, RUSH_SPEED = 1.35, FRENZY_POWER = 1.5;
 const GARDEN_R = 75, GARDEN_RATE = 1.0, HOLE_R = 18, TUNNEL_CD = 12;
 const POWER_INFO = {
-  frenzy: { name: 'Rage Nectar', color: '#ff4a3d', glow: 'rgba(255,80,60,', msg: 'Rage Nectar! Your ants fight harder' },
+  frenzy: { name: 'Fire Chili', color: '#ff4a3d', glow: 'rgba(255,80,60,', msg: 'Fire Chili! Your ants fight harder' },
   rush:   { name: 'Sugar Rush',  color: '#4fc8ff', glow: 'rgba(80,200,255,', msg: 'Sugar Rush! Faster queen, charge ready' },
 };
 const TUNNEL_COLORS = ['#c9a0ff', '#8fe0c8'];
@@ -415,7 +440,9 @@ function resetWorld(withPlayer) {
   for (const f of food) f.age = 1;
 
   if (withPlayer) {
-    player = makeColony(WORLD_W / 2 + rand(-600, 600), WORLD_H / 2 + rand(-400, 400), 5, 'You', PLAYER_COLOR, true);
+    const skin = SKINS[selectedSkin];
+    player = makeColony(WORLD_W / 2 + rand(-600, 600), WORLD_H / 2 + rand(-400, 400), 5, 'You', skin.color, true);
+    player.skin = skin;
     player.grace = PLAYER_GRACE;
     colonies.push(player);
   }
@@ -712,7 +739,7 @@ function fight(a, b) {
   const ac = a.col.charge > 0, bc = b.col.charge > 0;
   if (ac && !bc) { aDie *= 1.25; bDie *= 0.75; }
   if (bc && !ac) { bDie *= 1.25; aDie *= 0.75; }
-  // Rage Nectar: enraged ants shrug off hits and hit harder
+  // Fire Chili: enraged ants shrug off hits and hit harder
   if (a.col.frenzy > 0) { aDie *= 0.6; bDie *= 1.4; }
   if (b.col.frenzy > 0) { bDie *= 0.6; aDie *= 1.4; }
   // knock apart
@@ -1363,13 +1390,20 @@ function setCameraTransform() {
 
 let antCtx = ctx;   // target context for drawAnt (swapped for the title logo)
 // Draw an ant in its own local frame (facing +x). Worker body length ~13 units.
-function drawAnt(x, y, ang, s, c, walk, isQueen) {
+function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
   const ctx = antCtx;
+  const skin = c.skin;
+  let body = c.color, dark = c.dark;
+  if (skin && skin.rainbow) {
+    const hue = (time * 70 + seed * 23) % 360;
+    body = `hsl(${hue},85%,62%)`; dark = `hsl(${hue},70%,28%)`;
+  }
+  if (skin && skin.alpha) ctx.globalAlpha = skin.alpha + (isQueen ? 0.2 : 0);
   const co = Math.cos(ang) * s * TZ, si = Math.sin(ang) * s * TZ;
   ctx.setTransform(co, si, -si, co, x * TZ + TEX, y * TZ + TEY);
 
   // legs (tripod gait) + antennae
-  ctx.strokeStyle = c.dark;
+  ctx.strokeStyle = dark;
   ctx.lineWidth = isQueen ? 0.75 : 0.95;
   ctx.beginPath();
   const roots = [1.1, 0, -1.1], feet = [4.2, 0.2, -4.4];
@@ -1390,8 +1424,8 @@ function drawAnt(x, y, ang, s, c, walk, isQueen) {
   }
   ctx.stroke();
 
-  if (isQueen) {  // wings folded over the abdomen
-    ctx.fillStyle = 'rgba(235,245,255,0.38)';
+  if (isQueen || (skin && skin.workerWings)) {  // wings folded over the abdomen
+    ctx.fillStyle = skin && skin.id === 'bee' ? 'rgba(220,240,255,0.5)' : 'rgba(235,245,255,0.38)';
     ctx.strokeStyle = 'rgba(255,255,255,0.55)';
     ctx.lineWidth = 0.35;
     const fl = Math.sin(time * 18) * 0.04;
@@ -1404,16 +1438,51 @@ function drawAnt(x, y, ang, s, c, walk, isQueen) {
 
   // body: abdomen, petiole, thorax, head
   const abX = isQueen ? -5.4 : -4.3, abRx = isQueen ? 4.9 : 3.6, abRy = isQueen ? 3.3 : 2.6;
-  ctx.fillStyle = c.color;
+  ctx.fillStyle = body;
   ctx.beginPath();
   ctx.moveTo(abX + abRx, 0); ctx.ellipse(abX, 0, abRx, abRy, 0, 0, TAU);
   ctx.moveTo(-0.7 + 0.8, 0); ctx.ellipse(-0.9, 0, 0.8, 0.7, 0, 0, TAU);
   ctx.moveTo(2.3, 0); ctx.ellipse(0.4, 0, 1.9, 1.4, 0, 0, TAU);
   ctx.moveTo(5.4, 0); ctx.ellipse(3.6, 0, 1.8, 1.7, 0, 0, TAU);
   ctx.fill();
-  ctx.strokeStyle = c.dark;
+  ctx.strokeStyle = dark;
   ctx.lineWidth = 0.5;
   ctx.stroke();
+
+  if (skin) {
+    if (skin.head) {     // contrasting head
+      ctx.fillStyle = skin.head;
+      ctx.beginPath(); ctx.moveTo(5.4, 0); ctx.ellipse(3.6, 0, 1.8, 1.7, 0, 0, TAU); ctx.fill();
+    }
+    if (skin.stripes) {  // bumblebee bands across the abdomen
+      ctx.fillStyle = skin.stripes;
+      ctx.beginPath();
+      for (const f of [-0.45, 0.1]) {
+        const sx = abX + abRx * f, ry = abRy * Math.sqrt(1 - f * f) * 0.97;
+        ctx.moveTo(sx + abRx * 0.16, 0); ctx.ellipse(sx, 0, abRx * 0.16, ry, 0, 0, TAU);
+      }
+      ctx.fill();
+    }
+    if (skin.spots) {    // ladybug spots and centre seam
+      ctx.fillStyle = skin.spots;
+      ctx.beginPath();
+      for (const [fx, fy] of [[-0.45, -0.45], [-0.45, 0.45], [0.15, -0.5], [0.15, 0.5], [-0.8, 0]]) {
+        const r = abRy * 0.2;
+        ctx.moveTo(abX + abRx * fx + r, abRy * fy); ctx.arc(abX + abRx * fx, abRy * fy, r, 0, TAU);
+      }
+      ctx.fill();
+      ctx.strokeStyle = skin.spots; ctx.lineWidth = 0.35;
+      ctx.beginPath(); ctx.moveTo(abX + abRx, 0); ctx.lineTo(abX - abRx, 0); ctx.stroke();
+    }
+    if (skin.embers && isQueen) {   // glowing embers on the fire queen
+      ctx.fillStyle = `rgba(255,200,60,${0.5 + 0.4 * Math.sin(time * 9)})`;
+      ctx.beginPath();
+      for (const [fx, fy] of [[-0.3, -0.3], [-0.6, 0.35], [0.1, 0.2]]) {
+        ctx.moveTo(abX + abRx * fx + 0.6, abRy * fy); ctx.arc(abX + abRx * fx, abRy * fy, 0.6, 0, TAU);
+      }
+      ctx.fill();
+    }
+  }
 
   // shine
   ctx.fillStyle = 'rgba(255,255,255,0.32)';
@@ -1441,6 +1510,7 @@ function drawAnt(x, y, ang, s, c, walk, isQueen) {
     ctx.fillStyle = c.isPlayer ? '#e0283c' : '#3de0ff';
     ctx.beginPath(); ctx.arc(3.2, 0, 0.55, 0, TAU); ctx.fill();
   }
+  ctx.globalAlpha = 1;
 }
 
 function render() {
@@ -1569,24 +1639,10 @@ function render() {
     glow.addColorStop(0, info.glow + '0.55)'); glow.addColorStop(1, info.glow + '0)');
     ctx.fillStyle = glow;
     ctx.beginPath(); ctx.arc(pu.x, by, 26 * pop, 0, TAU); ctx.fill();
-    ctx.fillStyle = info.color;
-    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    if (pu.type === 'frenzy') {   // nectar droplet
-      const r = 7 * pop;
-      ctx.moveTo(pu.x, by - r * 1.9);
-      ctx.quadraticCurveTo(pu.x + r * 1.1, by - r * 0.3, pu.x + r, by + r * 0.2);
-      ctx.arc(pu.x, by + r * 0.2, r, 0, Math.PI);
-      ctx.quadraticCurveTo(pu.x - r * 1.1, by - r * 0.3, pu.x, by - r * 1.9);
-    } else {                       // sugar crystal
-      const r = 9 * pop;
-      ctx.moveTo(pu.x, by - r); ctx.lineTo(pu.x + r * 0.7, by); ctx.lineTo(pu.x, by + r); ctx.lineTo(pu.x - r * 0.7, by);
-      ctx.closePath();
-    }
-    ctx.fill(); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.beginPath(); ctx.arc(pu.x - 2.5 * pop, by - 2.5 * pop, 1.8 * pop, 0, TAU); ctx.fill();
+    const k = pop * 1.3;
+    ctx.lineJoin = 'round';
+    if (pu.type === 'frenzy') drawChili(pu.x, by, k); else drawSugarBag(pu.x, by, k);
+    ctx.lineJoin = 'miter';
   }
 
   // active power-up auras
@@ -1662,8 +1718,9 @@ function render() {
     if (q.x < L || q.x > R || q.y < T || q.y > B) continue;
     if (c.isPlayer) {
       const g = ctx.createRadialGradient(q.x, q.y, 4, q.x, q.y, 36);
-      g.addColorStop(0, 'rgba(255,220,90,0.45)');
-      g.addColorStop(1, 'rgba(255,220,90,0)');
+      const gc = c.skin ? c.skin.glow : '255,220,90';
+      g.addColorStop(0, `rgba(${gc},0.45)`);
+      g.addColorStop(1, `rgba(${gc},0)`);
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(q.x, q.y, 36, 0, TAU); ctx.fill();
     }
@@ -1676,7 +1733,7 @@ function render() {
     if (!c.alive) continue;
     for (const w of c.workers) {
       if (w.x < L || w.x > R || w.y < T || w.y > B) continue;
-      drawAnt(w.x, w.y, w.ang, 0.95, w.col, w.walk, false);
+      drawAnt(w.x, w.y, w.ang, 0.95, w.col, w.walk, false, w.id);
     }
   }
   // queens on top
@@ -1712,7 +1769,7 @@ function render() {
     const tw = ctx.measureText(label).width + 12 / cam.zoom, th = 18 / cam.zoom;
     const ty = q.y - (c.workers.length ? c.outerR + 16 : 34);
     let bg = 'rgba(30,20,10,0.75)', fg = '#fff';
-    if (c.isPlayer) { bg = 'rgba(245,197,66,0.95)'; fg = '#3a2208'; }
+    if (c.isPlayer) { bg = player.color; fg = '#2a1606'; }
     else if (psize >= 0 && state === 'playing') {
       if (s < psize) { bg = 'rgba(40,120,40,0.85)'; fg = '#e8ffd8'; }
       else if (s > psize) { bg = 'rgba(150,30,25,0.85)'; fg = '#ffe0da'; }
@@ -1803,6 +1860,72 @@ function drawTunnelIcon(x, y, r, frac) {
   }
 }
 
+// Fire Chili pickup: a curved red pepper with a green stem
+function drawChili(x, y, k) {
+  ctx.fillStyle = '#e8261c';
+  ctx.strokeStyle = '#6e0c06';
+  ctx.lineWidth = 1.2 * k;
+  ctx.beginPath();
+  ctx.moveTo(x - 7 * k, y - 6 * k);
+  ctx.bezierCurveTo(x + 2 * k, y - 9 * k, x + 9 * k, y - 2 * k, x + 7 * k, y + 5 * k);
+  ctx.bezierCurveTo(x + 6 * k, y + 9 * k, x + 3 * k, y + 11 * k, x + 1 * k, y + 12 * k);
+  ctx.bezierCurveTo(x + 2 * k, y + 6 * k, x - 1 * k, y - 1 * k, x - 7 * k, y - 1 * k);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,220,200,0.75)';   // shine
+  ctx.lineWidth = 1.3 * k;
+  ctx.beginPath(); ctx.moveTo(x - 3 * k, y - 5 * k); ctx.quadraticCurveTo(x + 3 * k, y - 5 * k, x + 4.5 * k, y); ctx.stroke();
+  ctx.fillStyle = '#3f9e2a';                    // calyx + stem
+  ctx.strokeStyle = '#1d4d12';
+  ctx.lineWidth = 0.9 * k;
+  ctx.beginPath(); ctx.ellipse(x - 7 * k, y - 3.5 * k, 2.2 * k, 3.4 * k, 0.3, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#3f9e2a';
+  ctx.lineWidth = 1.6 * k;
+  ctx.beginPath(); ctx.moveTo(x - 8 * k, y - 6 * k); ctx.quadraticCurveTo(x - 11 * k, y - 9 * k, x - 9 * k, y - 12 * k); ctx.stroke();
+  // little flame licks while it waits to be eaten
+  const f = 0.6 + 0.4 * Math.sin(time * 12 + x);
+  ctx.fillStyle = `rgba(255,170,40,${0.7 * f})`;
+  ctx.beginPath();
+  ctx.moveTo(x + 2 * k, y - 8 * k); ctx.quadraticCurveTo(x + 5 * k, y - 12 * k * f, x + 3 * k, y - 15 * k * f);
+  ctx.quadraticCurveTo(x + 7 * k, y - 11 * k, x + 6 * k, y - 7 * k); ctx.closePath(); ctx.fill();
+}
+
+// Sugar Rush pickup: a tied paper sack of sugar with cubes spilling out
+function drawSugarBag(x, y, k) {
+  ctx.fillStyle = '#f3ead6';
+  ctx.strokeStyle = '#7a6448';
+  ctx.lineWidth = 1.2 * k;
+  ctx.beginPath();
+  ctx.moveTo(x - 4 * k, y - 7 * k);
+  ctx.bezierCurveTo(x - 11 * k, y - 2 * k, x - 11 * k, y + 10 * k, x, y + 10 * k);
+  ctx.bezierCurveTo(x + 11 * k, y + 10 * k, x + 11 * k, y - 2 * k, x + 4 * k, y - 7 * k);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // gathered neck and tie
+  ctx.beginPath();
+  ctx.moveTo(x - 4 * k, y - 7 * k); ctx.lineTo(x - 6 * k, y - 12 * k); ctx.lineTo(x - 2 * k, y - 10 * k);
+  ctx.lineTo(x, y - 13 * k); ctx.lineTo(x + 2 * k, y - 10 * k); ctx.lineTo(x + 6 * k, y - 12 * k); ctx.lineTo(x + 4 * k, y - 7 * k);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#2f8fd8';
+  ctx.lineWidth = 1.8 * k;
+  ctx.beginPath(); ctx.moveTo(x - 4.5 * k, y - 7.5 * k); ctx.lineTo(x + 4.5 * k, y - 7.5 * k); ctx.stroke();
+  // blue label with a white "S"
+  ctx.fillStyle = '#3aa8ff';
+  ctx.beginPath(); ctx.arc(x, y + 2.5 * k, 4.4 * k, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `bold ${7 * k}px "Trebuchet MS", sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('S', x, y + 2.8 * k);
+  // spilled sugar cubes
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#b8c8d8';
+  ctx.lineWidth = 0.6 * k;
+  for (const [dx, dy, r] of [[10, 8, 2.4], [13, 4, 1.8], [-11, 9, 2]]) {
+    ctx.fillRect(x + (dx - r) * k, y + (dy - r) * k, 2 * r * k, 2 * r * k);
+    ctx.strokeRect(x + (dx - r) * k, y + (dy - r) * k, 2 * r * k, 2 * r * k);
+  }
+}
+
 function panel(x, y, w, h) {
   roundRect(ctx, x, y, w, h, 12);
   ctx.fillStyle = 'rgba(30,18,8,0.72)';
@@ -1820,7 +1943,7 @@ function drawHUD() {
   ctx.fillStyle = '#d8c090';
   ctx.font = 'bold 12px "Trebuchet MS", sans-serif';
   ctx.fillText('COLONY SIZE', x + 14, y + 22);
-  ctx.fillStyle = PLAYER_COLOR;
+  ctx.fillStyle = player.color;
   ctx.font = 'bold 34px "Trebuchet MS", sans-serif';
   const sizeText = String(player.alive ? colonySize(player) : stats.finalSize);
   ctx.fillText(sizeText, x + 14, y + 56);
@@ -1863,7 +1986,7 @@ function drawHUD() {
   ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%`, x + 4, y + h + 18);
   const lines = [];
   if (player.alive && player.grace > 0) lines.push([`Protected: ${Math.ceil(player.grace)}s`, '#9fe08a']);
-  if (player.frenzy > 0) lines.push([`Rage Nectar: ${Math.ceil(player.frenzy)}s`, '#ff7a64']);
+  if (player.frenzy > 0) lines.push([`Fire Chili: ${Math.ceil(player.frenzy)}s`, '#ff7a64']);
   if (player.rush > 0) lines.push([`Sugar Rush: ${Math.ceil(player.rush)}s`, '#7fd4ff']);
   lines.push(player.tunnelCd > 0 ? [`Tunnels: ${Math.ceil(player.tunnelCd)}s`, 'rgba(245,232,200,0.6)'] : ['Tunnels: ready', 'rgba(245,232,200,0.8)']);
   const onGarden = gardens.find(g => g.owner === player);
@@ -1977,7 +2100,8 @@ function drawLogo() {
   const saved = [TZ, TEX, TEY];
   TZ = d; TEX = 0; TEY = 0;
   antCtx = l;
-  const gold = { color: PLAYER_COLOR, dark: shade(PLAYER_COLOR, -0.5), isPlayer: true };
+  const sk = SKINS[selectedSkin];
+  const gold = { color: sk.color, dark: shade(sk.color, -0.5), isPlayer: true, skin: sk };
   drawAnt(34, 64, -Math.PI / 2 - 0.5, 1.5, gold, 1.2, false);
   drawAnt(126, 64, -Math.PI / 2 + 0.5, 1.5, gold, 2.4, false);
   drawAnt(16, 80, -Math.PI / 2 - 0.2, 1.2, gold, 0.4, false);
@@ -2094,6 +2218,37 @@ document.getElementById('playBtn').addEventListener('click', startGame);
 document.getElementById('restartBtn').addEventListener('click', startGame);
 document.getElementById('againBtn').addEventListener('click', startGame);
 
+// Title-screen skin picker: each option shows its queen and two workers
+function buildSkinPicker() {
+  const box = document.getElementById('skinPicker');
+  box.innerHTML = '';
+  SKINS.forEach((sk, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'skin' + (i === selectedSkin ? ' sel' : '');
+    const cv = document.createElement('canvas');
+    const d = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = 56 * d; cv.height = 48 * d;
+    btn.appendChild(cv);
+    btn.appendChild(document.createTextNode(sk.name));
+    btn.addEventListener('click', () => {
+      selectedSkin = i;
+      try { localStorage.setItem('qoth-skin', sk.id); } catch (e) {}
+      document.querySelectorAll('.skin').forEach((b, j) => b.classList.toggle('sel', j === i));
+      drawLogo();
+    });
+    box.appendChild(btn);
+    const colony = { color: sk.color, dark: shade(sk.color, -0.5), isPlayer: true, skin: sk };
+    const saved = [TZ, TEX, TEY];
+    const g = cv.getContext('2d');
+    antCtx = g; TZ = d; TEX = 0; TEY = 0;
+    drawAnt(13, 32, -Math.PI / 2 - 0.3, 1.1, colony, 1, false, 3);
+    drawAnt(43, 32, -Math.PI / 2 + 0.3, 1.1, colony, 2, false, 9);
+    drawAnt(28, 26, -Math.PI / 2, 1.9, colony, 0, true, 0);
+    antCtx = ctx; [TZ, TEX, TEY] = saved;
+  });
+}
+
+buildSkinPicker();
 drawLogo();
 resetWorld(false);   // attract-mode simulation behind the title screen
 cam.zoom = 0.8;
