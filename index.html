@@ -4107,7 +4107,7 @@ function drawMinimap() {
       for (let gy = 400; gy < WORLD_H; gy += 400) { m.moveTo(0, gy * sy); m.lineTo(mw, gy * sy); }
       m.stroke();
     }
-    m.fillStyle = TH === 'war' ? 'rgba(90,100,40,0.6)' : TH === 'picnic' ? 'rgba(210,255,150,0.6)' : 'rgba(120,230,90,0.35)';
+    m.fillStyle = TH === 'war' ? 'rgba(90,100,40,0.6)' : TH === 'picnic' ? 'rgba(200,120,255,0.8)' : 'rgba(120,230,90,0.35)';
     for (let i = 0; i < food.length; i += 2) m.fillRect(food[i].x * sx, food[i].y * sy, 1, 1);
     m.fillStyle = 'rgba(140,200,90,0.5)';
     for (const g of gardens) { m.beginPath(); m.arc(g.x * sx, g.y * sy, Math.max(3, GARDEN_R * sx), 0, TAU); m.fill(); }
@@ -4694,8 +4694,8 @@ function picnicFood(L, R, T, B) {
     ctx.moveTo(f.x + r, f.y); ctx.arc(f.x, f.y, r, 0, TAU);
     ctx.moveTo(f.x + f.ox + r * 0.8, f.y + f.oy); ctx.arc(f.x + f.ox, f.y + f.oy, r * 0.8, 0, TAU);
   }
-  ctx.fillStyle = '#9fd84a'; ctx.fill();
-  ctx.strokeStyle = '#3f7a1e'; ctx.lineWidth = 0.8; ctx.stroke();
+  ctx.fillStyle = '#a24ad0'; ctx.fill();
+  ctx.strokeStyle = '#4a1466'; ctx.lineWidth = 0.9; ctx.stroke();
   ctx.beginPath();
   for (const f of food) {
     if (f.honey || f.x < L || f.x > R || f.y < T || f.y > B) continue;
@@ -4729,7 +4729,7 @@ function look() { return TH_LOOK[TH] || TH_LOOK.default; }
 function themedRuleIcon(g, icon, dot) {
   if (TH === 'picnic') {
     if (icon !== 'crumb') return false;
-    for (const [x, y] of [[11, 17], [18, 18], [14.5, 11]]) { g.fillStyle = '#9fd84a'; g.strokeStyle = '#3f7a1e'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 5, 0, TAU); g.fill(); g.stroke(); dot(x - 1.6, y - 1.8, 1.4, 'rgba(255,255,255,0.75)'); }
+    for (const [x, y] of [[11, 17], [18, 18], [14.5, 11]]) { g.fillStyle = '#a24ad0'; g.strokeStyle = '#4a1466'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, 5, 0, TAU); g.fill(); g.stroke(); dot(x - 1.6, y - 1.8, 1.4, 'rgba(255,255,255,0.75)'); }
     g.strokeStyle = '#7a5a2a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(14.5, 6); g.lineTo(17, 2.5); g.stroke();
     return true;
   }
