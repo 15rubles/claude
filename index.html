@@ -121,6 +121,20 @@
   button:hover { filter: brightness(1.08); transform: translateY(-1px); }
   button:active { transform: translateY(4px); box-shadow: 0 1px 0 #9a6a10, 0 3px 8px rgba(0,0,0,0.45); }
   #logo { display: block; margin: 0 auto; }
+  .title-layout {
+    display: flex; align-items: center; justify-content: center; gap: 22px;
+    width: 100%; max-height: 100%;
+  }
+  .title-layout .panel.rules { max-width: 460px; text-align: left; padding: 22px 26px; }
+  .title-layout .panel.main { max-width: 570px; }
+  .panel h3 { margin: 0 0 12px; color: #ffd54a; font-size: 22px; text-align: center; letter-spacing: 1px; }
+  .panel.rules .controls { margin: 0 0 12px; }
+  .panel.rules .hint { margin-top: 0; text-align: center; }
+  @media (max-width: 1000px) {
+    .title-layout { flex-direction: column; justify-content: flex-start; overflow-y: auto; height: 100%; }
+    .title-layout .panel { max-height: none; flex-shrink: 0; }
+    .title-layout .panel.main { order: -1; }
+  }
   .skins-label { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #d8c090; margin: -8px 0 8px; }
   .skins { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 20px; }
   .skin {
@@ -145,10 +159,9 @@
 <canvas id="game"></canvas>
 
 <div id="titleScreen" class="overlay">
-  <div class="panel">
-    <canvas id="logo" width="160" height="90"></canvas>
-    <h1>Queen of the Hill</h1>
-    <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
+  <div class="title-layout">
+  <div class="panel rules">
+    <h3>How to play</h3>
     <div class="controls">
       <div><span class="crownicon"><span class="key">Mouse</span></span><span>Your queen follows the cursor</span></div>
       <div><span class="crownicon"><span class="crumb"></span></span><span>Eat green crumbs &mdash; every 3 hatch a new worker</span></div>
@@ -160,10 +173,16 @@
       <div><span class="crownicon"><span class="key">M</span></span><span>Toggle music</span></div>
       <div><span class="crownicon" style="color:#ff7a6a">Beware</span><span>One enemy ant reaching <b>your</b> queen ends your reign</span></div>
     </div>
+      <div class="hint">Tip: stand still to brace your guards. Charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
+  </div>
+  <div class="panel main">
+    <canvas id="logo" width="160" height="90"></canvas>
+    <h1>Queen of the Hill</h1>
+    <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
     <div class="skins-label">Choose your colony</div>
     <div class="skins"></div>
     <button id="playBtn">Play</button>
-    <div class="hint">Tip: stand still to brace your guards. Charge through a guard ring to reach the queen inside. Size tags are green when your colony is bigger, red when it is smaller.</div>
+  </div>
   </div>
 </div>
 
