@@ -139,6 +139,10 @@
     color: #f5e8c8; background: rgba(0,0,0,0.3); border: 1px solid rgba(212,168,67,0.4);
   }
   .seg button:hover { transform: none; }
+  .diffrow { display: flex; align-items: center; gap: 10px; max-width: 380px; margin: 10px auto 4px; font-size: 14px; color: #f5e8c8; }
+  .diffrow .seg button { font-size: 13px; padding: 6px 0; }
+  .seg button[data-diff="nightmare"].on { background: linear-gradient(180deg, #ff7a6a, #c0281c); color: #fff; }
+  .diffhint { font-size: 12px; color: #d8c090; margin: 0 0 14px; min-height: 16px; }
   .seg button.on { background: linear-gradient(180deg, #ffe07a, #f0b429); color: #3a2208; border-color: transparent; }
   .panel.options { max-width: 420px; }
   .panel.options .settings { margin: 8px auto 22px; }
@@ -154,18 +158,47 @@
   #optionsBtn .bars { width: 14px; height: 10px; border-top: 2px solid #ffd54a; border-bottom: 2px solid #ffd54a; position: relative; }
   #optionsBtn .bars::after { content: ''; position: absolute; left: 0; right: 0; top: 4px; border-top: 2px solid #ffd54a; }
   .title-layout {
-    display: flex; align-items: center; justify-content: center; gap: 22px;
-    width: 100%; max-height: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+    width: 100%; max-height: 100%; flex-wrap: wrap; align-content: safe center; align-items: safe center; overflow-y: auto;
   }
-  .title-layout .panel.rules { max-width: 460px; text-align: left; padding: 22px 26px; }
+  .title-layout .panel.rules { max-width: 410px; text-align: left; padding: 22px 22px; }
+  .title-layout .panel.profile { max-width: 340px; padding: 22px 22px; }
+  .lvlbox { display: flex; gap: 12px; align-items: center; background: rgba(0,0,0,0.28); border: 1px solid rgba(201,160,255,0.45); border-radius: 12px; padding: 10px 12px; text-align: left; }
+  .lvlbadge { width: 58px; height: 58px; border-radius: 50%; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 35% 30%, #d9c0ff, #7a4ad0); box-shadow: 0 0 14px rgba(170,120,255,0.5); color: #fff; }
+  .lvlbadge small { font-size: 9px; letter-spacing: 1px; }
+  .lvlbadge b { font-size: 24px; line-height: 1; }
+  .lvlinfo { flex: 1; min-width: 0; }
+  .lvltitle { color: #e7d6ff; font-weight: bold; font-size: 16px; }
+  .xpbar { height: 8px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden; margin: 5px 0 3px; }
+  .xpbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #a070ff, #e0c8ff); transition: width 1.1s ease-out; }
+  .xpsmall { font-size: 11px; color: #d8c090; }
+  .xpsmall.next { margin: 6px 0 12px; color: #c9b0f0; }
+  .cosm { display: flex; flex-direction: column; gap: 6px; margin: 0 0 4px; }
+  .cosrow { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f5e8c8; }
+  .cosrow span { width: 92px; text-align: left; }
+  .cosrow b { flex: 1; text-align: center; color: #ffd54a; }
+  .cosrow em { font-style: normal; font-size: 11px; color: #c8ae7a; width: 30px; text-align: right; }
+  .cosbtn { font-size: 16px; padding: 0 9px; line-height: 22px; border-radius: 7px; box-shadow: none; color: #f5e8c8; background: rgba(0,0,0,0.3); border: 1px solid rgba(212,168,67,0.4); }
+  .cosbtn:hover { transform: none; }
+  .xpbox:empty { display: none; }
+  .xpbox { max-width: 440px; margin: -4px auto 16px; padding: 8px 14px; border-radius: 10px; background: rgba(160,110,255,0.12); border: 1px solid rgba(201,160,255,0.45); }
+  .xphead { color: #e7d6ff; font-weight: bold; font-size: 17px; }
+  .xphead small { display: block; font-weight: normal; font-size: 11px; color: #d8c090; }
+  .xprow { display: flex; align-items: center; gap: 8px; color: #e7d6ff; font-size: 13px; }
+  .xprow .xpbar { flex: 1; }
+  .lvlup { margin-top: 6px; color: #ffe27a; font-weight: bold; animation: pop 0.5s ease-out; }
+  .lvlup small { color: #f5e8c8; font-weight: normal; }
+  .achcard.nm { border-color: rgba(255,110,90,0.55); }
   .title-layout .panel.main { max-width: 570px; }
   .panel h3 { margin: 0 0 12px; color: #ffd54a; font-size: 22px; text-align: center; letter-spacing: 1px; }
   .panel.rules .controls { margin: 0 0 12px; }
   .panel.rules .hint { margin-top: 0; text-align: center; }
   @media (max-width: 1000px) {
-    .title-layout { flex-direction: column; justify-content: flex-start; overflow-y: auto; height: 100%; }
+    .title-layout { flex-direction: column; flex-wrap: nowrap; justify-content: flex-start; align-items: center; overflow-y: auto; height: 100%; }
     .title-layout .panel { max-height: none; flex-shrink: 0; }
-    .title-layout .panel.main { order: -1; }
+    .title-layout .panel.main { order: -2; }
+    .title-layout .panel.profile { order: -1; }
   }
   .skins-label { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #d8c090; margin: -8px 0 8px; }
   .deathtip {
@@ -252,11 +285,27 @@
     <canvas id="logo" width="160" height="90"></canvas>
     <h1>Queen of the Hill</h1>
     <p class="tagline">Grow the mightiest colony. Conquer every rival.</p>
-    <div id="bestBox" class="best"></div>
     <div class="skins-label">Choose your colony</div>
     <div class="skins"></div>
+    <div class="diffrow"><span>Difficulty</span><div class="seg"><button data-diff="easy">Easy</button><button data-diff="normal">Normal</button><button data-diff="nightmare">Nightmare</button></div></div>
+    <div class="diffhint" id="diffHint"></div>
     <button id="playBtn">Play</button>
     <div><button id="achBtn" class="secondary">Achievements</button></div>
+  </div>
+  <div class="panel profile">
+    <h3>Your Colony</h3>
+    <div class="lvlbox">
+      <div class="lvlbadge"><small>LEVEL</small><b id="lvlNum">1</b></div>
+      <div class="lvlinfo">
+        <div class="lvltitle" id="lvlTitle">Larva</div>
+        <div class="xpbar"><i id="lvlBar"></i></div>
+        <div class="xpsmall" id="lvlXp"></div>
+      </div>
+    </div>
+    <div class="xpsmall next" id="lvlNext"></div>
+    <div id="bestBox" class="best"></div>
+    <div class="skins-label">Cosmetics</div>
+    <div class="cosm" id="cosmBox"></div>
     <div class="skins-label settings-label">Settings</div>
     <div class="settings">
       <label class="slider"><span>Music</span><input type="range" min="0" max="100" data-setting="music"><b class="val"></b></label>
@@ -282,6 +331,7 @@
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
     <p class="streakline" id="overStreak"></p>
+    <div class="xpbox" id="overXp"></div>
     <p class="achline" id="overAch"></p>
     <button id="restartBtn">Restart</button>
     <div><button class="secondary menuBtn">Main menu</button></div>
@@ -327,6 +377,7 @@
     <div class="skins-label">Change skin</div>
     <div class="skins"></div>
     <p class="streakline" id="winStreak"></p>
+    <div class="xpbox" id="winXp"></div>
     <p class="achline" id="winAch"></p>
     <button id="againBtn">Play Again</button>
     <div><button class="secondary menuBtn">Main menu</button></div>
@@ -401,7 +452,7 @@ const POWER_INFO = {
   frenzy: { name: 'Fire Chili', color: '#ff4a3d', glow: 'rgba(255,80,60,', msg: 'Fire Chili! Your ants fight harder' },
   rush:   { name: 'Sugar Rush',  color: '#4fc8ff', glow: 'rgba(80,200,255,', msg: 'Sugar Rush! Faster queen, charge ready' },
 };
-const TUNNEL_COLORS = ['#c9a0ff', '#8fe0c8'];
+const TUNNEL_COLORS = ['#c9a0ff', '#8fe0c8', '#ffb870'];
 const GCOLS = Math.ceil(WORLD_W / CELL), GROWS = Math.ceil(WORLD_H / CELL);
 
 const PALETTE = [
@@ -533,6 +584,10 @@ function addBanner(text, sub, color, life = 2.2, size = 44) {
   if (banners.length > 4) banners.shift();
 }
 let powerTimer = 5;
+// terrain obstacles and map events
+let rocks = [], puddles = [];
+let eventTimer = 60, raining = 0, quakeTime = 0, picnic = null, lastEvent = '';
+const RAIN_TIME = 20, RAIN_SLOW = 0.78, PUDDLE_SLOW = 0.55;
 let stats = { start: 0, kills: 0, peak: 0, finalSize: 0, killedBy: '', endTime: 0 };
 const cam = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.8 };
 
@@ -552,7 +607,7 @@ function makeColony(x, y, workers, name, color, isPlayer) {
     workers: [],
     queen: { x, y, vx: 0, vy: 0, ang: rand(0, TAU), walk: 0 }, outerR: RING0,
     ai: { mode: 'wander', target: null, food: null, think: 0, react: rand(0, 0.2), wx: x, wy: y,
-          chargeTarget: null, aggro: rand(0.7, 1.1), orbit: Math.random() < 0.5 ? -1 : 1,
+          chargeTarget: null, aggro: rand(0.7, 1.1) * (isPlayer ? 1 : diff().aggro), orbit: Math.random() < 0.5 ? -1 : 1,
           likesFarm: Math.random() < 0.5, power: null, garden: null },
   };
   for (let i = 0; i < workers; i++) addWorker(c, x + rand(-30, 30), y + rand(-30, 30));
@@ -572,8 +627,11 @@ function addWorker(c, x, y) {
 }
 
 function spawnFood(x, y) {
+  if (x === undefined) {   // random crumb: not inside a rock
+    for (let t = 0; t < 6; t++) { x = rand(20, WORLD_W - 20); y = rand(20, WORLD_H - 20); if (!inRock(x, y, 6)) break; }
+  } else if (inRock(x, y, 4)) return;
   food.push({
-    x: x ?? rand(20, WORLD_W - 20), y: y ?? rand(20, WORLD_H - 20),
+    x, y,
     r: rand(2.6, 4.2), ox: rand(-1.5, 1.5), oy: rand(-1.5, 1.5), age: 0, dead: false,
   });
 }
@@ -589,6 +647,7 @@ function findSpawnPos(minFromPlayer, minFromQueens) {
   let best = null, bestScore = -1;
   for (let t = 0; t < 80; t++) {
     const x = rand(180, WORLD_W - 180), y = rand(180, WORLD_H - 180);
+    if (inRock(x, y, 70)) continue;
     let score = Infinity;
     for (const c of colonies) {
       if (!c.alive) continue;
@@ -633,16 +692,20 @@ function resetWorld(withPlayer) {
   placeStructures();
   bgCanvas && buildBackground();
   powerups = []; powerTimer = 3;
+  raining = 0; quakeTime = 0; picnic = null; eventTimer = rand(55, 75); lastEvent = '';
   for (let i = 0; i < 2; i++) spawnPowerup();
   for (let i = 0; i < FOOD_MAX; i++) spawnFood();
   for (const f of food) f.age = 1;
 
   if (withPlayer) {
     const skin = SKINS[selectedSkin];
-    player = makeColony(WORLD_W / 2 + rand(-600, 600), WORLD_H / 2 + rand(-400, 400), 5, 'You', skin.color, true);
+    let px, py;
+    for (let t = 0; t < 50; t++) { px = WORLD_W / 2 + rand(-600, 600); py = WORLD_H / 2 + rand(-400, 400); if (!inRock(px, py, 80)) break; }
+    player = makeColony(px, py, 5, 'You', skin.color, true);
     player.skin = skin;
+    player.crownColor = (COSMETICS.crown.find(o => o.id === prog.crown) || COSMETICS.crown[0]).color;
     player.chargeCd = 0;   // charge is ready from the start
-    player.grace = PLAYER_GRACE;
+    player.grace = diff().grace;
     colonies.push(player);
   }
   // 8 rivals with sizes spread from 3 to 30
@@ -651,7 +714,7 @@ function resetWorld(withPlayer) {
   for (const s of sizes) {
     const p = findSpawnPos(700, 450);
     const pal = pickPalette();
-    colonies.push(makeColony(p.x, p.y, s, pal.name, pal.color, false));
+    colonies.push(makeColony(p.x, p.y, Math.max(3, Math.round(s * diff().startSize)), pal.name, pal.color, false));
   }
   spawnTimer = rand(3, 7);
   if (player) { cam.x = player.queen.x; cam.y = player.queen.y; }
@@ -659,13 +722,14 @@ function resetWorld(withPlayer) {
 
 function startGame() {
   startMusic();
+  stats = { diff: settings.diff };   // rivals are created with this match's difficulty
   document.getElementById('optionsScreen').classList.add('hidden');
   document.getElementById('optionsBtn').classList.remove('hidden');
   resetWorld(true);
   state = 'playing';
   stats = { start: time, kills: 0, peak: 5, finalSize: 0, killedBy: '', endTime: 0,
             streak: 0, bestStreak: 0, lastConquer: -99, milestone: 0, deathCause: '', deathX: 0, deathY: 0,
-            charges: 0, newAch: [], achTimer: 0 };
+            charges: 0, newAch: [], achTimer: 0, diff: settings.diff, ghostSpawned: false, ghostBeaten: false, trailT: 0 };
   life.games++;
   banners = []; shake = 0; hitStop = 0;
   checkAchievements();
@@ -699,10 +763,24 @@ function screenToWorld(sx, sy) {
 //  Queen movement
 // ============================================================
 function steerQueen(q, tvx, tvy, dt, resp) {
+  // slide around rocks that lie ahead instead of pushing into them
+  const ts = Math.hypot(tvx, tvy);
+  if (ts > 1) {
+    for (const r of rocks) {
+      const dx = r.x - q.x, dy = r.y - q.y, d = Math.hypot(dx, dy), clear = r.r + QUEEN_R + 45;
+      if (d > clear || d < 1 || (dx * tvx + dy * tvy) / (d * ts) < 0.25) continue;
+      const side = dx * tvy - dy * tvx > 0 ? 1 : -1;
+      const w = 0.4 + (1 - d / clear) * 1.6;
+      tvx += -dy / d * side * ts * w; tvy += dx / d * side * ts * w;
+      const n = Math.hypot(tvx, tvy); tvx = tvx / n * ts; tvy = tvy / n * ts;
+    }
+  }
   const k = 1 - Math.exp(-resp * dt);
   q.vx += (tvx - q.vx) * k;
   q.vy += (tvy - q.vy) * k;
-  q.x += q.vx * dt; q.y += q.vy * dt;
+  const tf = terrainFactor(q.x, q.y);
+  q.x += q.vx * dt * tf; q.y += q.vy * dt * tf;
+  if (rocks.length) pushOutOfRocks(q, QUEEN_R);
   if (q.x < QUEEN_R) { q.x = QUEEN_R; q.vx = 0; }
   if (q.x > WORLD_W - QUEEN_R) { q.x = WORLD_W - QUEEN_R; q.vx = 0; }
   if (q.y < QUEEN_R) { q.y = QUEEN_R; q.vy = 0; }
@@ -759,7 +837,7 @@ function aiStrike(c) {
     if (odds > bestOdds) { bestOdds = odds; best = o; }
   }
   // not every opening is spotted: hesitate sometimes and need clearly good odds
-  if (best && bestOdds > 1.5 && Math.random() < 0.6) {
+  if (best && bestOdds > diff().strike && Math.random() < 0.6) {
     c.ai.chargeTarget = best;
     startCharge(c, best.queen.x, best.queen.y);
     return true;
@@ -856,7 +934,7 @@ function updateAI(c, dt) {
   if (ai.think <= 0) { ai.think = rand(0.35, 0.7); aiThink(c); }
   // quick reflexes: check for openings several times a second
   ai.react -= dt;
-  if (ai.react <= 0) { ai.react = rand(0.25, 0.5); if (aiStrike(c)) ai.think = 0; }
+  if (ai.react <= 0) { ai.react = rand(0.25, 0.5) * diff().react; if (aiStrike(c)) ai.think = 0; }
 
   // steer our charge onto where the target queen is heading
   if (c.charge > 0 && ai.chargeTarget && ai.chargeTarget.alive) {
@@ -915,7 +993,7 @@ function updateAI(c, dt) {
     v.x = ai.wx - q.x; v.y = ai.wy - q.y; sp = AI_SPEED * 0.6;
     if (Math.hypot(v.x, v.y) < 50) ai.think = 0;
   }
-  sp *= speedFactor(c);
+  sp *= speedFactor(c) * diff().speed;
   const n = Math.hypot(v.x, v.y);
   steerQueen(q, n > 0.001 ? v.x / n * sp : 0, n > 0.001 ? v.y / n * sp : 0, dt, 4);
 }
@@ -1170,8 +1248,10 @@ function updateWorkers(c, dt) {
         dvy = (d > 0.01 ? dy / d * sp : 0) + w.sy + w.fy;
         w.vx += (dvx - w.vx) * k; w.vy += (dvy - w.vy) * k;
       }
-      w.x = clamp(w.x + w.vx * dt, 3, WORLD_W - 3);
-      w.y = clamp(w.y + w.vy * dt, 3, WORLD_H - 3);
+      const tf = terrainFactor(w.x, w.y);
+      w.x = clamp(w.x + w.vx * dt * tf, 3, WORLD_W - 3);
+      w.y = clamp(w.y + w.vy * dt * tf, 3, WORLD_H - 3);
+      if (rocks.length) pushOutOfRocks(w, WORKER_R);
       const s = Math.hypot(w.vx, w.vy);
       if (s > 25) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), 1 - Math.exp(-12 * dt));
       else w.ang = lerpAngle(w.ang, a, 1 - Math.exp(-6 * dt));   // at rest: face outward on guard
@@ -1314,6 +1394,10 @@ function conquer(win, lose, how = { via: 'ant' }) {
     life.conquests++;
     life.bestStreak = Math.max(life.bestStreak, stats.streak);
     if (loseSize > winSize) life.giant = 1;
+    if (lose.ghost) {
+      stats.ghostBeaten = true; life.ghostKills++;
+      addBanner('PAST SELF DEFEATED!', 'You have surpassed your best run', '#bfe0ff', 2.8, 42);
+    }
     if (loseSize >= 50) life.bigGame = 1;
     if (winSize < 10) life.underdog = 1;
     if (stats.streak >= 2) {
@@ -1323,6 +1407,7 @@ function conquer(win, lose, how = { via: 'ant' }) {
       playSfx('combo');
     }
     addShake(9 + Math.min(stats.streak, 5) * 2);
+    playKillFx(lq.x, lq.y);
     hitStop = Math.max(hitStop, 0.12);
     if (enemyCount() === 0) endGame(true);
   } else if (lose.isPlayer && state === 'playing') {
@@ -1352,6 +1437,21 @@ function reachMilestone(m) {
   floaters.push({ type: 'ring', x: q.x, y: q.y, color: '#9fe08a', life: 1, max: 1, r: 140 });
 }
 
+// ---- ghost rival: your best run returns to hunt you ----
+function spawnGhost() {
+  stats.ghostSpawned = true;
+  const sk = SKINS.find(k => k.id === best.skin) || SKINS[0];
+  const size = Math.round(Math.min(best.peak, Math.max(20, colonySize(player) * 1.25)));
+  const p = findSpawnPos(750, 300);
+  const c = makeColony(p.x, p.y, size, 'Your Past Self', sk.color, false);
+  c.skin = { ...sk, id: sk.id + '-ghost', alpha: 0.6 };
+  c.ghost = true; c.ai.aggro = 1.3 * diff().aggro; c.grace = 4;
+  colonies.push(c);
+  floaters.push({ type: 'ring', x: p.x, y: p.y, color: '#bfe0ff', life: 1.6, max: 1.6, r: 140 });
+  addBanner('YOUR PAST SELF APPEARS', `The ghost of your best run (${best.peak} ants) is hunting you`, '#bfe0ff', 3.2, 40);
+  playSfx('event');
+}
+
 // ---- death replay: slow-motion zoom on whoever got you, then Game Over ----
 const DEATH_TIPS = {
   queen: 'Tip: never touch a queen whose colony is bigger - red size tags mean danger.',
@@ -1376,6 +1476,7 @@ const best = { peak: 0, kills: 0, time: 0, wins: 0 };
 try { Object.assign(best, JSON.parse(localStorage.getItem('qoth-best') || '{}')); } catch (e) {}
 function recordBest(won, survived) {
   const newRecord = stats.peak > best.peak;
+  if (newRecord && player && player.skin) best.skin = player.skin.id;   // the ghost rival wears this
   best.peak = Math.max(best.peak, stats.peak);
   best.kills = Math.max(best.kills, stats.kills);
   best.time = Math.max(best.time, survived);
@@ -1384,6 +1485,133 @@ function recordBest(won, survived) {
   renderBest();
   return newRecord;
 }
+// ---- colony level / XP and cosmetics ----
+const prog = { xp: 0, level: 1, crown: 'gold', trail: 'none', kfx: 'none' };
+try { Object.assign(prog, JSON.parse(localStorage.getItem('qoth-prog') || '{}')); } catch (e) {}
+function saveProg() { try { localStorage.setItem('qoth-prog', JSON.stringify(prog)); } catch (e) {} }
+function xpNeeded(l) { return 150 + (l - 1) * 90; }
+const TITLES = [[1, 'Larva'], [2, 'Egg Carrier'], [3, 'Forager'], [5, 'Soldier'], [7, 'Hive Mother'], [10, 'Swarm Lord'], [14, 'Empress'], [18, 'Queen of Queens']];
+function titleFor(l) { let t = TITLES[0][1]; for (const [lv, n] of TITLES) if (l >= lv) t = n; return t; }
+const COSMETICS = {
+  crown: [
+    { id: 'gold', name: 'Gold', level: 1, color: '#ffd700' },
+    { id: 'silver', name: 'Silver', level: 3, color: '#e4ebf2' },
+    { id: 'ruby', name: 'Ruby', level: 6, color: '#e0304a' },
+    { id: 'emerald', name: 'Emerald', level: 9, color: '#2ed070' },
+    { id: 'diamond', name: 'Diamond', level: 13, color: '#c8f6ff' },
+    { id: 'obsidian', name: 'Obsidian', level: 17, color: '#3a2c5a' },
+  ],
+  trail: [
+    { id: 'none', name: 'None', level: 1 },
+    { id: 'sparkle', name: 'Sparkle', level: 2 },
+    { id: 'fire', name: 'Fire', level: 5 },
+    { id: 'leaves', name: 'Leaves', level: 8 },
+    { id: 'rainbow', name: 'Rainbow', level: 11 },
+    { id: 'stars', name: 'Starfall', level: 15 },
+  ],
+  kfx: [
+    { id: 'none', name: 'Classic', level: 1 },
+    { id: 'confetti', name: 'Confetti', level: 4 },
+    { id: 'shock', name: 'Shockwave', level: 7 },
+    { id: 'fireworks', name: 'Fireworks', level: 12 },
+    { id: 'crown', name: 'Crown Rain', level: 16 },
+  ],
+};
+const COS_LABEL = { crown: 'Crown', trail: 'Trail', kfx: 'Conquest FX' };
+function levelRewards(l) {
+  const out = [];
+  for (const [lv, n] of TITLES) if (lv === l) out.push(`Title: ${n}`);
+  for (const k of Object.keys(COSMETICS)) for (const o of COSMETICS[k]) if (o.level === l) out.push(`${COS_LABEL[k]}: ${o.name}`);
+  return out;
+}
+function awardXP(amount) {
+  const from = prog.level, fromXp = prog.xp;
+  prog.xp += Math.round(amount);
+  while (prog.xp >= xpNeeded(prog.level)) { prog.xp -= xpNeeded(prog.level); prog.level++; }
+  saveProg(); renderProfile();
+  const rewards = [];
+  for (let l = from + 1; l <= prog.level; l++) rewards.push(...levelRewards(l));
+  return { from, fromXp, to: prog.level, rewards };
+}
+function matchXP(won) {
+  const parts = [['Growth', stats.peak * 2], ['Conquests', stats.kills * 25], ['Survival', Math.floor((stats.endTime || 0) / 2)]];
+  if (won) parts.push(['Victory', 300]);
+  if (stats.ghostBeaten) parts.push(['Past Self', 150]);
+  const base = parts.reduce((a, p) => a + p[1], 0), mult = diff().xp;
+  return { parts, mult, total: Math.round(base * mult) };
+}
+function cycleCos(kind, dir) {
+  const opts = COSMETICS[kind].filter(o => prog.level >= o.level);
+  let i = opts.findIndex(o => o.id === prog[kind]);
+  i = (i + dir + opts.length) % opts.length;
+  prog[kind] = opts[i].id;
+  saveProg(); renderProfile();
+}
+function renderProfile() {
+  const need = xpNeeded(prog.level);
+  document.getElementById('lvlNum').textContent = prog.level;
+  document.getElementById('lvlTitle').textContent = titleFor(prog.level);
+  document.getElementById('lvlBar').style.width = (prog.xp / need * 100) + '%';
+  document.getElementById('lvlXp').textContent = `${prog.xp} / ${need} XP to level ${prog.level + 1}`;
+  let next = null;
+  for (let l = prog.level + 1; l < prog.level + 30 && !next; l++) { const r = levelRewards(l); if (r.length) next = `Next at Lv ${l}: ${r.join(', ')}`; }
+  document.getElementById('lvlNext').textContent = next || '';
+  const box = document.getElementById('cosmBox');
+  box.innerHTML = '';
+  for (const kind of Object.keys(COSMETICS)) {
+    const all = COSMETICS[kind], cur = all.find(o => o.id === prog[kind]) || all[0];
+    const have = all.filter(o => prog.level >= o.level).length;
+    const row = document.createElement('div');
+    row.className = 'cosrow';
+    row.innerHTML = `<span>${COS_LABEL[kind]}</span><button class="cosbtn" data-k="${kind}" data-d="-1">&lsaquo;</button>
+      <b ${kind === 'crown' ? `style="color:${cur.color}"` : ''}>${cur.name}</b><button class="cosbtn" data-k="${kind}" data-d="1">&rsaquo;</button><em>${have}/${all.length}</em>`;
+    box.appendChild(row);
+  }
+  box.querySelectorAll('.cosbtn').forEach(b => b.addEventListener('click', () => cycleCos(b.dataset.k, +b.dataset.d)));
+}
+function showXP(boxId, x, res) {
+  const box = document.getElementById(boxId);
+  const need = xpNeeded(prog.level);
+  const detail = x.parts.filter(p => p[1] > 0).map(p => `${p[0]} ${p[1]}`).join(' · ') + (x.mult !== 1 ? ` · ${diff().name} x${x.mult}` : '');
+  const startPct = res.to > res.from ? 0 : (res.fromXp / need * 100);
+  box.innerHTML = `<div class="xphead">+${x.total} XP <small>${detail}</small></div>
+    <div class="xprow"><b>Lv ${prog.level}</b><div class="xpbar"><i style="width:${startPct}%"></i></div></div>
+    ${res.to > res.from ? `<div class="lvlup">LEVEL UP! Level ${res.to} - ${titleFor(res.to)}${res.rewards.length ? '<br><small>Unlocked: ' + res.rewards.join(', ') + '</small>' : ''}</div>` : ''}`;
+  const bar = box.querySelector('.xpbar i');
+  requestAnimationFrame(() => requestAnimationFrame(() => { bar.style.width = (prog.xp / need * 100) + '%'; }));
+  if (res.to > res.from) setTimeout(() => playSfx('milestone'), 500);
+}
+
+// cosmetic effects in play
+const TRAIL_COLORS = { sparkle: ['#ffffff', '#fff2a0'], fire: ['#ff9a2a', '#ff5a1a', '#ffd23a'], leaves: ['#6fbf3a', '#9fd84a', '#4a9a2a'], stars: ['#ffffff', '#ffe27a'] };
+function spawnTrail(q) {
+  const s = Math.hypot(q.vx, q.vy) || 1, bx = q.x - q.vx / s * 16, by = q.y - q.vy / s * 16;
+  const t = prog.trail;
+  const color = t === 'rainbow' ? `hsl(${(time * 300) % 360},90%,62%)` : TRAIL_COLORS[t][randInt(0, TRAIL_COLORS[t].length - 1)];
+  const big = t === 'stars' && Math.random() < 0.2;
+  particles.push({ type: 'trail', x: bx + rand(-5, 5), y: by + rand(-5, 5), vx: rand(-15, 15), vy: t === 'fire' ? rand(-50, -20) : rand(-15, 15),
+    color, life: t === 'leaves' || t === 'stars' ? 0.9 : 0.55, max: t === 'leaves' || t === 'stars' ? 0.9 : 0.55, r: big ? 3.2 : rand(1.3, 2.4) });
+}
+function playKillFx(x, y) {
+  const k = prog.kfx;
+  if (k === 'confetti') {
+    const cols = ['#ffd54a', '#ff6a8a', '#6ad0ff', '#9fe08a', '#c9a0ff', '#ffffff'];
+    for (let i = 0; i < 60; i++) { const a = rand(0, TAU), sp = rand(150, 380); particles.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: cols[i % cols.length], life: rand(1, 1.6), max: 1.6, r: rand(2, 3.2) }); }
+  } else if (k === 'shock') {
+    [[160, 0.6, '#ffffff'], [240, 0.8, '#ffd54a'], [330, 1, '#ffffff']].forEach(([r, l, c]) => floaters.push({ type: 'ring', x, y, color: c, life: l, max: l, r }));
+    addShake(5);
+  } else if (k === 'fireworks') {
+    const cols = ['#ff5a5a', '#5ad0ff', '#ffe24a', '#9f7aff', '#6aff9a'];
+    for (let b = 0; b < 4; b++) {
+      const cx = x + rand(-130, 130), cy = y + rand(-130, 130), col = cols[randInt(0, cols.length - 1)];
+      for (let i = 0; i < 22; i++) { const a = i / 22 * TAU, sp = rand(160, 230); particles.push({ type: 'spark', x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color: col, life: 1.1, max: 1.1, r: 2.2 }); }
+      floaters.push({ type: 'ring', x: cx, y: cy, color: col, life: 0.5, max: 0.5, r: 50 });
+    }
+  } else if (k === 'crown') {
+    for (let i = 0; i < 14; i++) particles.push({ type: 'crown', x: x + rand(-90, 90), y: y + rand(-90, 60), vx: rand(-20, 20), vy: rand(-160, -60), color: '#ffd700', life: 1.6, max: 1.6, r: rand(5, 8) });
+  }
+}
+
 // ---- achievements: lifetime progress unlocks skins ----
 const ACHIEVEMENTS = [
   { id: 'first',     name: 'First Steps',      desc: 'Play your first match',                    key: 'games',      goal: 1,    skin: 'bee' },
@@ -1412,9 +1640,16 @@ const ACHIEVEMENTS = [
   { id: 'dedicated', name: 'Dedicated',        desc: 'Play 10 matches',                          key: 'games',      goal: 10,   skin: 'jewel' },
   { id: 'bigGame',   name: 'Big Game Hunter',  desc: 'Conquer a colony of 50+ ants',             key: 'bigGame',    goal: 1,    skin: 'moth' },
   { id: 'underdog',  name: 'Underdog',         desc: 'Conquer a colony while you have under 10 ants', key: 'underdog', goal: 1, skin: 'frost' },
+  // XP-reward achievements
+  { id: 'events',    name: 'Weather Watcher',  desc: 'Experience 10 map events',                 key: 'events',     goal: 10,   xp: 250 },
+  { id: 'ghost',     name: 'Beat Your Past Self', desc: 'Conquer the ghost of your best run',    key: 'ghostKills', goal: 1,    xp: 300 },
+  { id: 'nm5',       name: 'Nightmare Survivor', desc: 'Survive 5 minutes on Nightmare',         key: 'nmLongest',  goal: 300,  xp: 500 },
+  { id: 'nm100',     name: 'Nightmare Horde',  desc: 'Reach 100 ants on Nightmare',              key: 'nmPeak',     goal: 100,  xp: 700 },
+  { id: 'nmwin',     name: 'Nightmare Queen',  desc: 'Win a match on Nightmare',                 key: 'nmWins',     goal: 1,    xp: 1500 },
 ];
 const life = { games: 0, crumbs: 0, conquests: 0, wins: 0, chili: 0, sugar: 0, tunnels: 0, gardenFood: 0, charges: 0,
-               bestStreak: 0, bestPeak: 0, longest: 0, blitz: 0, pacifist: 0, giant: 0, bigGame: 0, underdog: 0 };
+               bestStreak: 0, bestPeak: 0, longest: 0, blitz: 0, pacifist: 0, giant: 0, bigGame: 0, underdog: 0,
+               events: 0, nmLongest: 0, nmPeak: 0, nmWins: 0, ghostKills: 0 };
 try { Object.assign(life, JSON.parse(localStorage.getItem('qoth-life') || '{}')); } catch (e) {}
 // carry over earlier records
 life.bestPeak = Math.max(life.bestPeak, best.peak);
@@ -1437,9 +1672,10 @@ function checkAchievements(announce = true) {
   if (!fresh.length) return;
   saveLife();
   for (const a of fresh) {
-    const sk = SKINS.find(k => k.id === a.skin);
+    const sk = a.skin && SKINS.find(k => k.id === a.skin);
+    if (a.xp) awardXP(a.xp);
     if (announce) {
-      addBanner('Achievement: ' + a.name, sk ? `New skin unlocked: ${sk.name}` : a.desc, '#c9a0ff', 3, 34);
+      addBanner('Achievement: ' + a.name, sk ? `New skin unlocked: ${sk.name}` : `Reward: +${a.xp} XP`, '#c9a0ff', 3, 34);
       stats.newAch.push(a.name);
     }
   }
@@ -1457,10 +1693,10 @@ function openAchievements() {
   document.getElementById('achCount').textContent = `${achDone.size} of ${ACHIEVEMENTS.length} unlocked`;
   const d = Math.min(2, window.devicePixelRatio || 1);
   for (const a of ACHIEVEMENTS) {
-    const done = achDone.has(a.id), sk = SKINS.find(k => k.id === a.skin);
+    const done = achDone.has(a.id), sk = a.skin && SKINS.find(k => k.id === a.skin);
     const cur = Math.min(a.goal, life[a.key] || 0);
     const card = document.createElement('div');
-    card.className = 'achcard' + (done ? ' done' : '');
+    card.className = 'achcard' + (done ? ' done' : '') + (a.id.startsWith('nm') ? ' nm' : '');
     const cv = document.createElement('canvas');
     cv.width = 56 * d; cv.height = 48 * d;
     card.appendChild(cv);
@@ -1469,12 +1705,22 @@ function openAchievements() {
     const prog = a.goal > 1 ? `${cur}/${a.goal}` : '';
     txt.innerHTML = `<b>${a.name}</b><span>${a.desc}</span>
       <div class="achbar"><i style="width:${(cur / a.goal) * 100}%"></i></div>
-      <em>${done ? 'Unlocked' : prog || 'Locked'} &middot; ${sk.name} skin</em>`;
+      <em>${done ? 'Unlocked' : prog || 'Locked'} &middot; ${sk ? sk.name + ' skin' : '+' + a.xp + ' XP'}</em>`;
     card.appendChild(txt);
     list.appendChild(card);
-    drawSkinPreview(cv, sk, d);
+    if (sk) drawSkinPreview(cv, sk, d); else drawXpStar(cv, d);
   }
   document.getElementById('achScreen').classList.remove('hidden');
+}
+
+function drawXpStar(cv, d) {
+  const g = cv.getContext('2d');
+  g.setTransform(d, 0, 0, d, 0, 0);
+  g.beginPath();
+  for (let i = 0; i < 10; i++) { const r = i % 2 ? 8 : 18, a = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(28 + Math.cos(a) * r, 25 + Math.sin(a) * r); }
+  g.closePath();
+  g.fillStyle = '#c9a0ff'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#6a3ab0'; g.stroke();
+  g.fillStyle = '#fff'; g.font = 'bold 10px "Trebuchet MS", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('XP', 28, 26);
 }
 
 function renderBest() {
@@ -1486,9 +1732,11 @@ function renderBest() {
 }
 
 function endGame(won) {
-  if (won) { stats.endTime = time - stats.start; life.wins++; }
+  if (won) { stats.endTime = time - stats.start; life.wins++; if (stats.diff === 'nightmare') life.nmWins++; }
   checkAchievements();
   saveLife();
+  const xp = matchXP(won), xpRes = awardXP(xp.total);
+  showXP(won ? 'winXp' : 'overXp', xp, xpRes);
   const achText = stats.newAch.length ? 'Achievements unlocked: ' + stats.newAch.join(', ') : '';
   document.getElementById('overAch').textContent = achText;
   document.getElementById('winAch').textContent = achText;
@@ -1521,18 +1769,20 @@ function endGame(won) {
 //  Power-ups & structures
 // ============================================================
 function placeStructures() {
-  gardens = []; tunnels = [];
-  const taken = [];
-  const pick = (margin, minD) => {
+  gardens = []; tunnels = []; rocks = []; puddles = [];
+  const taken = [];   // {x, y, r} footprints already used
+  const pick = (margin, r, gap) => {
     for (let t = 0; t < 300; t++) {
       const x = rand(margin, WORLD_W - margin), y = rand(margin, WORLD_H - margin);
-      if (taken.every(p => dist(x, y, p.x, p.y) >= minD)) return { x, y };
+      if (taken.every(p => dist(x, y, p.x, p.y) >= p.r + r + gap)) return { x, y };
     }
     return { x: rand(margin, WORLD_W - margin), y: rand(margin, WORLD_H - margin) };
   };
-  for (let i = 0; i < 3; i++) {
-    const p = pick(300, 800);
-    taken.push(p);
+  // every map is different: 2-5 gardens, 1-3 tunnel pairs, rocks and puddles
+  const nGardens = randInt(2, 5);
+  for (let i = 0; i < nGardens; i++) {
+    const p = pick(300, GARDEN_R, 500);
+    taken.push({ x: p.x, y: p.y, r: GARDEN_R });
     const shrooms = [];
     for (let k = 0; k < 9; k++) {
       const a = rand(0, TAU), r = rand(20, GARDEN_R - 12);
@@ -1540,22 +1790,72 @@ function placeStructures() {
     }
     gardens.push({ x: p.x, y: p.y, owner: null, contested: false, acc: 0, shrooms });
   }
-  for (let pair = 0; pair < 2; pair++) {
-    let a, b;
-    for (let t = 0; t < 60; t++) {
-      a = pick(220, 450); b = pick(220, 450);
-      if (dist(a.x, a.y, b.x, b.y) > 1900) break;
+  const nRocks = randInt(6, 14);
+  for (let i = 0; i < nRocks; i++) {
+    const r = rand(30, 72), p = pick(160, r, 120);
+    const pts = [];
+    for (let k = 0; k < 9; k++) { const a = k / 9 * TAU + rand(-0.2, 0.2); pts.push([Math.cos(a) * r * rand(0.85, 1.12), Math.sin(a) * r * rand(0.85, 1.12)]); }
+    rocks.push({ x: p.x, y: p.y, r, pts, tone: randInt(95, 135) });
+    taken.push({ x: p.x, y: p.y, r });
+  }
+  const nPuddles = randInt(3, 6);
+  for (let i = 0; i < nPuddles; i++) {
+    const rx = rand(60, 130), ry = rand(40, 80), p = pick(200, rx, 60);
+    puddles.push({ x: p.x, y: p.y, rx, ry, rot: rand(0, Math.PI) });
+    taken.push({ x: p.x, y: p.y, r: rx });
+  }
+  placeTunnels(randInt(1, 3));
+}
+
+// (re)place tunnel pairs away from gardens, rocks and puddles; earthquakes call this too
+function placeTunnels(pairs) {
+  tunnels = [];
+  const blockers = [...gardens.map(g => ({ x: g.x, y: g.y, r: GARDEN_R })), ...rocks.map(k => ({ x: k.x, y: k.y, r: k.r })), ...puddles.map(p => ({ x: p.x, y: p.y, r: p.rx }))];
+  const pick = () => {
+    for (let t = 0; t < 300; t++) {
+      const x = rand(220, WORLD_W - 220), y = rand(220, WORLD_H - 220);
+      if (blockers.every(p => dist(x, y, p.x, p.y) >= p.r + 120)) return { x, y };
     }
-    taken.push(a, b);
+    return { x: rand(220, WORLD_W - 220), y: rand(220, WORLD_H - 220) };
+  };
+  for (let pair = 0; pair < pairs; pair++) {
+    let a, b;
+    for (let t = 0; t < 60; t++) { a = pick(); b = pick(); if (dist(a.x, a.y, b.x, b.y) > 1700) break; }
+    blockers.push({ x: a.x, y: a.y, r: 40 }, { x: b.x, y: b.y, r: 40 });
     const i = tunnels.length;
     tunnels.push({ x: a.x, y: a.y, pair: i + 1, group: pair }, { x: b.x, y: b.y, pair: i, group: pair });
+  }
+}
+
+// terrain helpers
+function inRock(x, y, pad = 0) { return rocks.some(k => (x - k.x) ** 2 + (y - k.y) ** 2 < (k.r + pad) ** 2); }
+function terrainFactor(x, y) {
+  let f = raining > 0 ? RAIN_SLOW : 1;
+  for (const p of puddles) {
+    const dx = x - p.x, dy = y - p.y;
+    if (Math.abs(dx) > p.rx || Math.abs(dy) > p.rx) continue;
+    const c = Math.cos(p.rot), sn = Math.sin(p.rot), u = (dx * c + dy * sn) / p.rx, v = (-dx * sn + dy * c) / p.ry;
+    if (u * u + v * v < 1) { f *= PUDDLE_SLOW; break; }
+  }
+  return f;
+}
+function pushOutOfRocks(o, rad) {
+  for (const k of rocks) {
+    const dx = o.x - k.x, dy = o.y - k.y, rr = k.r + rad;
+    if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
+    const d2 = dx * dx + dy * dy;
+    if (d2 >= rr * rr) continue;
+    const d = Math.sqrt(d2) || 0.01, nx = dx / d, ny = dy / d;
+    o.x = k.x + nx * rr; o.y = k.y + ny * rr;
+    const vn = o.vx * nx + o.vy * ny;
+    if (vn < 0) { o.vx -= vn * nx; o.vy -= vn * ny; }
   }
 }
 
 function spawnPowerup() {
   for (let t = 0; t < 40; t++) {
     const x = rand(150, WORLD_W - 150), y = rand(150, WORLD_H - 150);
-    if (tunnels.some(h => dist(x, y, h.x, h.y) < 80) || gardens.some(g => dist(x, y, g.x, g.y) < GARDEN_R + 30)) continue;
+    if (tunnels.some(h => dist(x, y, h.x, h.y) < 80) || gardens.some(g => dist(x, y, g.x, g.y) < GARDEN_R + 30) || inRock(x, y, 30)) continue;
     powerups.push({ x, y, type: Math.random() < 0.5 ? 'frenzy' : 'rush', age: 0, dead: false, bob: rand(0, TAU) });
     return;
   }
@@ -1595,6 +1895,59 @@ function teleport(c, from, to) {
     }
   }
   if (c.isPlayer) { cam.x += dx; cam.y += dy; }
+}
+
+// ---- random map events ----
+const EVENT_TYPES = ['rain', 'picnic', 'quake', 'flight'];
+function startMapEvent(type) {
+  lastEvent = type;
+  if (state === 'playing') life.events++;
+  if (type === 'rain') {
+    raining = RAIN_TIME;
+    addBanner('RAINSTORM!', 'Everyone slows down - food washes toward the edges', '#8fd0ff', 3, 46);
+    playSfx('thunder'); addShake(4);
+  } else if (type === 'picnic') {
+    let x, y;
+    for (let t = 0; t < 40; t++) { x = rand(400, WORLD_W - 400); y = rand(350, WORLD_H - 350); if (!inRock(x, y, 120)) break; }
+    for (let i = 0; i < 90; i++) { const a = rand(0, TAU), r = Math.sqrt(Math.random()) * 95; spawnFood(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+    picnic = { x, y, t: 25 };
+    floaters.push({ type: 'ring', x, y, color: '#ff8a8a', life: 1.5, max: 1.5, r: 160 });
+    addBanner('PICNIC DROP!', 'A feast just landed - check the minimap and race for it!', '#ff9a8a', 3, 46);
+    playSfx('event');
+  } else if (type === 'quake') {
+    quakeTime = 2.2;
+    placeTunnels(Math.max(1, tunnels.length / 2));
+    buildBackground(); miniCache.t = -1;
+    for (const c of colonies) c.tunnelCd = Math.max(c.tunnelCd, 1.5);
+    addBanner('EARTHQUAKE!', 'The tunnels have shifted', '#e0b070', 3, 46);
+    playSfx('thunder'); addShake(14);
+  } else if (type === 'flight') {
+    for (let i = 0; i < 4; i++) {
+      const c = spawnEnemy(randInt(3, 6));
+      floaters.push({ type: 'ring', x: c.queen.x, y: c.queen.y, color: '#fff2b0', life: 1.6, max: 1.6, r: 110 });
+    }
+    addBanner('MATING FLIGHT!', 'New queens are settling all over the map', '#fff2b0', 3, 46);
+    playSfx('event');
+  }
+}
+
+function updateMapEvents(dt) {
+  if (state !== 'playing' && state !== 'title') return;
+  eventTimer -= dt;
+  if (eventTimer <= 0) {
+    eventTimer = rand(100, 140);
+    const options = EVENT_TYPES.filter(e => e !== lastEvent);
+    startMapEvent(options[randInt(0, options.length - 1)]);
+  }
+  if (raining > 0) {
+    raining -= dt;
+    for (const f of food) {   // crumbs wash toward the nearest edge
+      if (Math.min(f.x, WORLD_W - f.x) < Math.min(f.y, WORLD_H - f.y)) f.x = clamp(f.x + (f.x < WORLD_W / 2 ? -1 : 1) * 14 * dt, 12, WORLD_W - 12);
+      else f.y = clamp(f.y + (f.y < WORLD_H / 2 ? -1 : 1) * 14 * dt, 12, WORLD_H - 12);
+    }
+  }
+  if (quakeTime > 0) { quakeTime -= dt; addShake(6 * Math.min(1, quakeTime)); }
+  if (picnic && (picnic.t -= dt) <= 0) picnic = null;
 }
 
 function updatePowerAndStructures(dt) {
@@ -1681,6 +2034,7 @@ function update(dt) {
   antQueenContacts();
   queenCollisions();
   updatePowerAndStructures(dt);
+  updateMapEvents(dt);
   colonies = colonies.filter(c => c.alive || c.isPlayer);
 
   // food respawn
@@ -1701,7 +2055,7 @@ function update(dt) {
     spawnTimer -= dt;
     if (spawnTimer <= 0) {
       const psize = player && player.alive ? colonySize(player) : 0;
-      spawnTimer = rand(3, 8) + Math.min(5, psize * 0.02);    // random gaps between new rivals
+      spawnTimer = (rand(3, 8) + Math.min(5, psize * 0.02)) * diff().spawn;    // random gaps between new rivals
       if (enemyCount() < MAX_ENEMIES) spawnEnemy(randInt(3, 10));
     }
   }
@@ -1713,6 +2067,12 @@ function update(dt) {
     life.longest = Math.max(life.longest, elapsed);
     if (n >= 50 && elapsed <= 120) life.blitz = 1;
     if (n >= 30 && stats.charges === 0) life.pacifist = 1;
+    if (stats.diff === 'nightmare') { life.nmPeak = Math.max(life.nmPeak, n); life.nmLongest = Math.max(life.nmLongest, elapsed); }
+    if (!stats.ghostSpawned && best.peak >= 15 && elapsed > 100) spawnGhost();
+    if (prog.trail !== 'none' && (stats.trailT -= dt) <= 0) {
+      const q = player.queen;
+      if (Math.hypot(q.vx, q.vy) > 40) { stats.trailT = 0.03; spawnTrail(q); }
+    }
     stats.achTimer -= dt;
     if (stats.achTimer <= 0) { stats.achTimer = 0.5; checkAchievements(); }
     while (stats.milestone < MILESTONES.length && colonySize(player) >= MILESTONES[stats.milestone].at) {
@@ -2070,7 +2430,7 @@ function drawAnt(x, y, ang, s, c, walk, isQueen, seed = 0) {
       ctx.fillStyle = `rgba(255,220,90,${0.35 + 0.2 * Math.sin(time * 6)})`;
       ctx.beginPath(); ctx.arc(4 + hx - 3.6, 0, 3.6 * cs, 0, TAU); ctx.fill();
     }
-    ctx.fillStyle = '#ffd700';
+    ctx.fillStyle = c.crownColor || '#ffd700';
     ctx.strokeStyle = '#7a5200';
     ctx.lineWidth = 0.35;
     ctx.beginPath();
@@ -2144,6 +2504,27 @@ function buildBackground() {
   for (let x = 100; x < WORLD_W; x += 100) { g.moveTo(x, 0); g.lineTo(x, WORLD_H); }
   for (let y = 100; y < WORLD_H; y += 100) { g.moveTo(0, y); g.lineTo(WORLD_W, y); }
   g.stroke();
+  // puddles
+  for (const pd of puddles) {
+    g.save(); g.translate(pd.x, pd.y); g.rotate(pd.rot);
+    g.fillStyle = 'rgba(40,30,20,0.35)'; g.beginPath(); g.ellipse(2, 3, pd.rx + 6, pd.ry + 5, 0, 0, TAU); g.fill();
+    const pg = g.createRadialGradient(-pd.rx * 0.3, -pd.ry * 0.3, 4, 0, 0, pd.rx);
+    pg.addColorStop(0, 'rgba(150,190,215,0.85)'); pg.addColorStop(1, 'rgba(70,105,135,0.85)');
+    g.fillStyle = pg; g.beginPath(); g.ellipse(0, 0, pd.rx, pd.ry, 0, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(210,235,250,0.5)'; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(-pd.rx * 0.25, -pd.ry * 0.3, pd.rx * 0.45, pd.ry * 0.25, 0, Math.PI * 1.1, Math.PI * 1.8); g.stroke();
+    g.restore();
+  }
+  // rocks
+  for (const rk of rocks) {
+    const poly = (ox, oy, sc) => { g.beginPath(); rk.pts.forEach(([px, py], i) => i ? g.lineTo(rk.x + ox + px * sc, rk.y + oy + py * sc) : g.moveTo(rk.x + ox + px * sc, rk.y + oy + py * sc)); g.closePath(); };
+    g.fillStyle = 'rgba(25,15,5,0.45)'; poly(6, 8, 1); g.fill();                        // shadow
+    g.fillStyle = `rgb(${rk.tone},${rk.tone - 8},${rk.tone - 20})`; poly(0, 0, 1); g.fill();
+    g.fillStyle = 'rgba(255,245,225,0.22)'; poly(-rk.r * 0.18, -rk.r * 0.2, 0.62); g.fill();   // lit top
+    g.strokeStyle = 'rgba(40,30,20,0.55)'; g.lineWidth = 2; poly(0, 0, 1); g.stroke();
+    g.strokeStyle = 'rgba(40,30,20,0.35)'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(rk.x - rk.r * 0.3, rk.y - rk.r * 0.1); g.lineTo(rk.x + rk.r * 0.05, rk.y + rk.r * 0.2); g.lineTo(rk.x + rk.r * 0.35, rk.y + rk.r * 0.1); g.stroke();
+  }
   // fungus gardens
   for (const gd of gardens) {
     const grd = g.createRadialGradient(gd.x, gd.y, 5, gd.x, gd.y, GARDEN_R);
@@ -2391,7 +2772,12 @@ function render() {
     if (p.type === 'splat' || p.x < L || p.x > R || p.y < T || p.y > B) continue;
     ctx.globalAlpha = Math.max(0, p.life / p.max);
     ctx.fillStyle = p.color;
-    ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    if (p.type === 'crown') {   // falling crowns (conquest effect)
+      const r = p.r;
+      ctx.beginPath();
+      ctx.moveTo(p.x - r, p.y + r * 0.6); ctx.lineTo(p.x - r, p.y - r * 0.4); ctx.lineTo(p.x - r * 0.5, p.y); ctx.lineTo(p.x, p.y - r * 0.8);
+      ctx.lineTo(p.x + r * 0.5, p.y); ctx.lineTo(p.x + r, p.y - r * 0.4); ctx.lineTo(p.x + r, p.y + r * 0.6); ctx.closePath(); ctx.fill();
+    } else ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
   }
   ctx.globalAlpha = 1;
 
@@ -2425,6 +2811,12 @@ function render() {
     ctx.fillStyle = fg;
     ctx.fillText(label, q.x, ty + 0.5 / cam.zoom);
 
+    if (c.ghost) {
+      ctx.font = `bold ${12 / cam.zoom}px "Trebuchet MS", sans-serif`;
+      ctx.lineWidth = 3 / cam.zoom; ctx.strokeStyle = 'rgba(20,30,50,0.85)';
+      ctx.strokeText(`Your Past Self (best ${best.peak})`, q.x, ty - 16 / cam.zoom);
+      ctx.fillStyle = '#cfe6ff'; ctx.fillText(`Your Past Self (best ${best.peak})`, q.x, ty - 16 / cam.zoom);
+    }
     // status icons to the right of the tag: shield while immune, tunnel while recharging
     const z = cam.zoom;
     let ix = q.x + tw / 2 + 11 / z;
@@ -2454,6 +2846,7 @@ function render() {
 
   // screen space UI
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (raining > 0) drawRain();
   if (state === 'dying') {   // dark red vignette during the replay
     const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.7);
     g.addColorStop(0, 'rgba(60,0,0,0)'); g.addColorStop(1, 'rgba(60,0,0,0.65)');
@@ -2644,12 +3037,14 @@ function drawHUD() {
   // rivals remaining, speed, grace period
   ctx.fillStyle = 'rgba(245,232,200,0.8)';
   ctx.font = '12px "Trebuchet MS", sans-serif';
-  ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%`, x + 4, y + h + 18);
-  const lines = [];
+  ctx.fillText(`Rival colonies: ${enemyCount()}   Speed: ${Math.round(speedFactor(player) * 100)}%   ${diff().name}`, x + 4, y + h + 18);
+  const lines = [[`Lv ${prog.level} ${titleFor(prog.level)}`, '#d9c0ff']];
   if (player.alive && player.grace > 0) lines.push([`Protected: ${Math.ceil(player.grace)}s`, '#9fe08a']);
   if (player.frenzy > 0) lines.push([`Fire Chili: ${Math.ceil(player.frenzy)}s`, '#ff7a64']);
   if (player.rush > 0) lines.push([`Sugar Rush: ${Math.ceil(player.rush)}s`, '#7fd4ff']);
   lines.push(player.tunnelCd > 0 ? [`Tunnels: ${Math.ceil(player.tunnelCd)}s`, 'rgba(245,232,200,0.6)'] : ['Tunnels: ready', 'rgba(245,232,200,0.8)']);
+  if (raining > 0) lines.push([`Rainstorm: ${Math.ceil(raining)}s (everyone slowed)`, '#8fd0ff']);
+  if (picnic) lines.push([`Picnic drop - ${Math.ceil(picnic.t)}s left (see minimap)`, '#ff9a8a']);
   const sinceConquer = time - stats.lastConquer;
   if (state === 'playing' && stats.streak >= 1 && sinceConquer <= STREAK_WINDOW) {
     lines.push([`Streak x${stats.streak} - next conquest in ${Math.ceil(STREAK_WINDOW - sinceConquer)}s for bonus!`, '#ffb060']);
@@ -2659,6 +3054,21 @@ function drawHUD() {
   else if (gardens.some(g => g.contested && dist(g.x, g.y, player.queen.x, player.queen.y) < GARDEN_R)) lines.push(['Garden contested!', '#ff8a70']);
   ctx.font = 'bold 13px "Trebuchet MS", sans-serif';
   lines.forEach(([t, col], i) => { ctx.fillStyle = col; ctx.fillText(t, x + 4, y + h + 36 + i * 18); });
+}
+
+function drawRain() {
+  const fade = Math.min(1, raining / 2, (RAIN_TIME - raining) / 1.5);
+  ctx.fillStyle = `rgba(30,50,80,${0.22 * fade})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = `rgba(200,225,255,${0.45 * fade})`;
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  for (let i = 0; i < 140; i++) {   // streaks that fall with time
+    const sx = (i * 137.5 + time * 90) % (W + 60) - 30, sy = (i * 71.3 + time * 900 * (0.8 + (i % 5) * 0.08)) % (H + 40) - 20;
+    ctx.moveTo(sx, sy); ctx.lineTo(sx - 5, sy + 16);
+  }
+  ctx.stroke();
+  if (RAIN_TIME - raining < 0.25) { ctx.fillStyle = `rgba(255,255,255,${0.5 * (1 - (RAIN_TIME - raining) / 0.25)})`; ctx.fillRect(0, 0, W, H); }   // lightning
 }
 
 function drawBanners() {
@@ -2746,6 +3156,10 @@ function drawMinimap() {
     for (let i = 0; i < food.length; i += 2) m.fillRect(food[i].x * sx, food[i].y * sy, 1, 1);
     m.fillStyle = 'rgba(140,200,90,0.5)';
     for (const g of gardens) { m.beginPath(); m.arc(g.x * sx, g.y * sy, Math.max(3, GARDEN_R * sx), 0, TAU); m.fill(); }
+    m.fillStyle = 'rgba(120,170,210,0.6)';
+    for (const pd of puddles) { m.beginPath(); m.ellipse(pd.x * sx, pd.y * sy, pd.rx * sx, pd.ry * sy, pd.rot, 0, TAU); m.fill(); }
+    m.fillStyle = 'rgba(150,140,125,0.9)';
+    for (const rk of rocks) { m.beginPath(); m.arc(rk.x * sx, rk.y * sy, Math.max(1.5, rk.r * sx), 0, TAU); m.fill(); }
     m.lineWidth = 1.5;
     for (const h of tunnels) {
       m.fillStyle = '#120a04'; m.strokeStyle = TUNNEL_COLORS[h.group];
@@ -2757,6 +3171,10 @@ function drawMinimap() {
   for (const pu of powerups) {
     ctx.fillStyle = POWER_INFO[pu.type].color;
     ctx.fillRect(x + pu.x * sx - 1.5, y + pu.y * sy - 1.5, 3, 3);
+  }
+  if (picnic) {   // pulsing picnic marker
+    ctx.strokeStyle = `rgba(255,120,120,${0.5 + 0.5 * Math.sin(time * 6)})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x + picnic.x * sx, y + picnic.y * sy, 6 + 2 * Math.sin(time * 6), 0, TAU); ctx.stroke();
   }
 
   // viewport
@@ -2810,8 +3228,19 @@ function drawLogo() {
 // ============================================================
 const music = { ctx: null, master: null, sfxBus: null, noise: null, on: true, next: 0, step: 0 };
 const MUSIC_MAX = 0.2, SFX_MAX = 0.55;
-const settings = { music: 0.7, sfx: 0.8, gfx: 'auto' };
+const settings = { music: 0.7, sfx: 0.8, gfx: 'auto', diff: 'normal' };
 try { Object.assign(settings, JSON.parse(localStorage.getItem('qoth-settings') || '{}')); } catch (e) {}
+// Difficulty presets: AI aggression, reflexes, rival spawn rate and starting sizes, plus XP reward
+const DIFFS = {
+  easy:      { name: 'Easy',      aggro: 0.7,  strike: 1.9, react: 1.4, spawn: 1.5, startSize: 0.7, grace: 30, xp: 0.75, speed: 0.95,
+               hint: 'Calmer rivals, fewer spawns, 30s protection. XP x0.75' },
+  normal:    { name: 'Normal',    aggro: 1,    strike: 1.5, react: 1,   spawn: 1,   startSize: 1,   grace: 20, xp: 1,    speed: 1,
+               hint: 'The standard challenge. XP x1' },
+  nightmare: { name: 'Nightmare', aggro: 1.35, strike: 1.1, react: 0.6, spawn: 0.6, startSize: 1.4, grace: 10, xp: 1.6,  speed: 1.06,
+               hint: 'Ruthless, fast rivals everywhere. XP x1.6 and exclusive achievements' },
+};
+function diff() { return DIFFS[(stats && stats.diff) || settings.diff] || DIFFS.normal; }
+
 function musicLevel() { return music.on ? MUSIC_MAX * settings.music : 0; }
 function applyAudioSettings() {
   if (!music.ctx) return;
@@ -2976,7 +3405,7 @@ function noiseBurst(t, dur, vol, freq, type = 'highpass') {
   src.start(t); src.stop(t + dur + 0.03);
 }
 // minimum gap (ms) between repeats of each sound, so swarms don't turn into noise
-const SFX_GAP = { combo: 300, milestone: 400, eat: 70, hatch: 110, fight: 80, charge: 150, power: 200, tunnel: 200, conquer: 300, rival: 400, lose: 500, victory: 500, click: 40, garden: 350 };
+const SFX_GAP = { thunder: 800, event: 500, combo: 300, milestone: 400, eat: 70, hatch: 110, fight: 80, charge: 150, power: 200, tunnel: 200, conquer: 300, rival: 400, lose: 500, victory: 500, click: 40, garden: 350 };
 function playSfx(name, vol = 1) {
   if (!music.ctx || settings.sfx <= 0 || music.ctx.state !== 'running') return;
   const nowMs = performance.now();
@@ -2997,6 +3426,8 @@ function playSfx(name, vol = 1) {
     case 'garden':  tone(1500, t, 0.08, 'sine', 0.05 * vol, 1900); break;
     case 'combo':     [72, 76, 79, 84, 88].forEach((m, i) => tone(midi(m), t + i * 0.05, 0.25, 'square', 0.07 * vol)); tone(midi(96), t + 0.25, 0.4, 'triangle', 0.1 * vol); break;
     case 'milestone': [60, 67, 72, 76, 79, 84].forEach((m, i) => tone(midi(m + 12), t + i * 0.07, 0.5, 'triangle', 0.13 * vol)); noiseBurst(t, 0.6, 0.05 * vol, 6000); break;
+    case 'thunder':   noiseBurst(t, 1.6, 0.35 * vol, 180, 'lowpass'); tone(55, t, 1.2, 'sine', 0.25 * vol, 35); break;
+    case 'event':     [67, 72, 76, 79].forEach((m, i) => tone(midi(m), t + i * 0.09, 0.35, 'triangle', 0.14 * vol)); break;
     case 'click':   tone(1100, t, 0.04, 'triangle', 0.08 * vol, 800); break;
   }
 }
@@ -3025,6 +3456,14 @@ document.querySelectorAll('input[data-setting]').forEach(el => {
   el.addEventListener('change', () => { if (el.dataset.setting === 'sfx') playSfx('hatch'); });
 });
 syncSliders();
+function applyDiffUI() {
+  document.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('on', b.dataset.diff === settings.diff));
+  document.getElementById('diffHint').textContent = (DIFFS[settings.diff] || DIFFS.normal).hint;
+}
+document.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => {
+  settings.diff = b.dataset.diff; saveSettings(); applyDiffUI();
+}));
+applyDiffUI();
 function applyGfx() {
   document.querySelectorAll('[data-gfx]').forEach(b => b.classList.toggle('on', b.dataset.gfx === settings.gfx));
   if (settings.gfx === 'high') quality = 1;
@@ -3047,7 +3486,11 @@ function closeOptions() {
   document.getElementById('optionsScreen').classList.add('hidden');
 }
 function goToMenu() {
-  if (state === 'paused' && player) { recordBest(false, time - stats.start); checkAchievements(false); saveLife(); }
+  if (state === 'paused' && player) {
+    stats.endTime = time - stats.start;
+    recordBest(false, stats.endTime); checkAchievements(false); saveLife();
+    awardXP(matchXP(false).total);
+  }
   for (const id of ['optionsScreen', 'overScreen', 'winScreen']) document.getElementById(id).classList.add('hidden');
   document.getElementById('optionsBtn').classList.add('hidden');
   resetWorld(false);
@@ -3149,6 +3592,7 @@ function drawSkinPreview(cv, sk, d) {
 }
 
 applyGfx();
+renderProfile();
 checkAchievements(false);
 if (!skinUnlocked(SKINS[selectedSkin])) selectedSkin = 0;
 buildSkinPicker();
