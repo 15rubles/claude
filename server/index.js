@@ -45,6 +45,37 @@ function visitorId(req) {
   // a salted hash, so the server never keeps anyone's IP address
   return crypto.createHash('sha256').update(salt + ip + (req.headers['user-agent'] || '')).digest('hex').slice(0, 16);
 }
+// Device, OS and browser from the User-Agent header the browser already sends with every request.
+// No location, no IP stored, no third-party calls, no client-side collection.
+function parseUA(ua = '') {
+  ua = String(ua);
+  let browser = 'Other', os = 'Other', device = 'Computer';
+  if (/iPhone|iPod/.test(ua)) os = 'iOS';
+  else if (/iPad/.test(ua)) { os = 'iPadOS'; device = 'Tablet'; }
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Mac OS X|Macintosh/.test(ua)) os = 'macOS';
+  else if (/CrOS/.test(ua)) os = 'ChromeOS';
+  else if (/Linux/.test(ua)) os = 'Linux';
+  if (/Edg\//.test(ua)) browser = 'Edge';
+  else if (/OPR\/|Opera/.test(ua)) browser = 'Opera';
+  else if (/SamsungBrowser/.test(ua)) browser = 'Samsung Internet';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+  else if (/Chrome\//.test(ua)) browser = 'Chrome';
+  else if (/Safari\//.test(ua)) browser = 'Safari';
+  const m = ua.match(/(?:Edg|OPR|Firefox|Chrome|Version)\/(\d+)/);
+  if (m) browser += ' ' + m[1];
+  if (/Tablet/.test(ua)) device = 'Tablet';
+  else if (/Mobi|iPhone|Android.*Mobile/.test(ua)) device = device === 'Tablet' ? device : 'Phone';
+  return { browser, os, device };
+}
+const recent = [];   // rolling list of recent visits (device/OS/browser only)
+function logVisit(v) { recent.unshift(v); if (recent.length > 200) recent.pop(); }
+function tally(key) {
+  const m = new Map();
+  for (const v of recent) { const k = v[key] || 'Unknown'; m.set(k, (m.get(k) || 0) + 1); }
+  return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
 function liveCounts() {
   let online = 0, playing = 0;
   for (const room of rooms.values()) for (const s of room.sessions) { online++; if (s.colony && s.colony.alive) playing++; }
@@ -72,6 +103,18 @@ function statsPage(url, res) {
     return `<tr><td>${esc(r.name)}</td><td>${esc(DIFFS[r.diff].name)}</td><td>${players.length}</td><td>${r.sessions.size - players.length}</td>` +
       `<td>${players.map(s => esc(s.name) + ' (' + s.colony.workers.length + ')').join(', ') || '-'}</td><td>${w.ants}</td></tr>`;
   }).join('') || '<tr><td colspan="6">No rooms open right now</td></tr>';
+  const live = [];
+  for (const room of rooms.values()) for (const s of room.sessions) live.push(s);
+  const since = t => { const d = Math.floor((Date.now() - t) / 1000); return d < 60 ? d + 's' : d < 3600 ? Math.floor(d / 60) + 'm' : Math.floor(d / 3600) + 'h'; };
+  const onlineRows = live.map(s => {
+    const m = s.meta, playing = s.colony && s.colony.alive;
+    return `<tr><td>${esc(playing ? s.name : '(in menu)')}</td><td>${esc(m.device)}</td><td>${esc(m.os)}</td><td>${esc(m.browser)}</td><td>${since(m.at)}</td></tr>`;
+  }).join('') || '<tr><td colspan="5">Nobody connected right now</td></tr>';
+  const recentRows = recent.slice(0, 60).map(v =>
+    `<tr><td>${esc(v.device)}</td><td>${esc(v.os)}</td><td>${esc(v.browser)}</td><td>${since(v.at)} ago</td></tr>`).join('') ||
+    '<tr><td colspan="4">No visits recorded yet</td></tr>';
+  const bars = entries => entries.slice(0, 8).map(([k, n]) =>
+    `<div class="bar"><span>${esc(k)}</span><i style="width:${Math.round(n / (recent.length || 1) * 100)}%"></i><em>${n}</em></div>`).join('') || '<div class="bar"><span>No data yet</span></div>';
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="5"><title>Colony.io stats</title>
@@ -79,8 +122,10 @@ function statsPage(url, res) {
 .sub{color:#c8ae7a;font-size:13px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:900px}
 .card{background:#3a2614;border:1px solid #6b4a24;border-radius:10px;padding:10px 12px}.card b{display:block;font-size:28px;color:#ffd54a;font-variant-numeric:tabular-nums}
 .card span{font-size:12px;color:#d8c090;text-transform:uppercase;letter-spacing:1px}h2{font-size:15px;color:#ffd54a;margin:22px 0 8px}
-.wrap{overflow-x:auto;max-width:900px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #4a3218}th{color:#d8c090;font-weight:600}</style></head>
-<body><h1>Colony.io stats</h1><div class="sub">Live, refreshes every 5 seconds. Totals count since the server last started (${upText} ago).</div>
+.wrap{overflow-x:auto;max-width:900px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #4a3218;white-space:nowrap}th{color:#d8c090;font-weight:600}
+.cols{display:flex;flex-wrap:wrap;gap:24px;max-width:900px}.col{min-width:220px;flex:1}.bar{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:13px}
+.bar span{width:120px;overflow:hidden;text-overflow:ellipsis}.bar i{height:12px;background:#ffd54a;border-radius:3px;min-width:2px}.bar em{color:#d8c090;font-style:normal;font-variant-numeric:tabular-nums}</style></head>
+<body><h1>Colony.io stats</h1><div class="sub">Live, refreshes every 5 seconds. Totals count since the server last started (${upText} ago). Device/OS/browser come from the standard User-Agent header; no location, no IP addresses.</div>
 <div class="grid">
 <div class="card"><b>${online}</b><span>Online now</span></div>
 <div class="card"><b>${playing}</b><span>In a game now</span></div>
@@ -89,6 +134,13 @@ function statsPage(url, res) {
 <div class="card"><b>${totals.games}</b><span>Games started</span></div>
 <div class="card"><b>${totals.peakPlaying}</b><span>Most playing at once</span></div>
 </div>
+<h2>Who's online now</h2><div class="wrap"><table><tr><th>Player</th><th>Device</th><th>OS</th><th>Browser</th><th>For</th></tr>${onlineRows}</table></div>
+<h2>What visitors play on</h2><div class="cols">
+<div class="col"><b style="color:#ffd54a">By device</b>${bars(tally('device'))}</div>
+<div class="col"><b style="color:#ffd54a">By OS</b>${bars(tally('os'))}</div>
+<div class="col"><b style="color:#ffd54a">By browser</b>${bars(tally('browser'))}</div>
+</div>
+<h2>Recent visits (last ${Math.min(recent.length, 60)})</h2><div class="wrap"><table><tr><th>Device</th><th>OS</th><th>Browser</th><th>When</th></tr>${recentRows}</table></div>
 <h2>Open rooms</h2><div class="wrap"><table><tr><th>Room</th><th>Difficulty</th><th>Playing</th><th>Watching menu</th><th>Players (ants)</th><th>Ants in world</th></tr>${rows}</table></div>
 </body></html>`);
 }
@@ -122,10 +174,13 @@ wss.on('connection', (ws, req) => {
   const room = getRoom(cleanRoomName(url.searchParams.get('room')), diff);
   totals.connections++;
   if (totals.visitors.size < 100000) totals.visitors.add(visitorId(req));
+  const ua = parseUA(req.headers['user-agent']);
   const session = {
     ws, room, colony: null, name: 'Player', out: [], sfx: new Set(), life: {}, lifeMax: {}, known: new Set(),
     view: { x: WORLD_W / 2, y: WORLD_H / 2, hw: 700, hh: 450 }, mapV: 0, alive: true,
+    meta: { at: Date.now(), browser: ua.browser, os: ua.os, device: ua.device },
   };
+  logVisit({ ...session.meta });
   room.sessions.add(session);
   noteCounts();
   room.emptySince = 0;
