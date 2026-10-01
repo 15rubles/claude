@@ -362,20 +362,40 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 640px; font-si
 .stage-inner { display: grid; gap: 20px; animation: slideIn .45s ease; }
 @keyframes slideIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .stage-inner { animation: none; } }
-.stage h2 { font-size: clamp(2rem, 4.6vw, 3.6rem); }
-.stage .big { font: 300 clamp(1.1rem, 2.2vw, 1.5rem)/1.4 var(--f-display); }
-.stage .cols { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
-@media (max-width: 820px) { .stage .cols { grid-template-columns: 1fr; } }
+.stage h2, .show-stage h2 { font-size: clamp(2rem, 4.6vw, 3.6rem); }
+.stage .big, .show-stage .big { font: 300 clamp(1.1rem, 2.2vw, 1.5rem)/1.4 var(--f-display); }
+.stage .cols, .show-stage .cols { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); align-items: start; }
+@media (max-width: 820px) { .stage .cols, .show-stage .cols { grid-template-columns: 1fr; } }
 .speaker-badge { justify-self: start; display: inline-flex; gap: 10px; align-items: center; background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px 6px 6px; font: 500 .9rem var(--f-display); }
 .avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 600 .78rem var(--f-display); color: #071353; }
 .chevs { position: absolute; right: 26px; bottom: 22px; opacity: .8; }
 .present-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
-.timer { font: 500 2rem/1 var(--f-display); font-variant-numeric: tabular-nums; }
-.timer.over { color: var(--bad); }
 .timeline { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .seg { border: 0; text-align: left; cursor: pointer; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); color: var(--muted); display: grid; gap: 6px; font: 500 .78rem var(--f-display); min-width: 0; }
-.seg .track { height: 5px; border-radius: 999px; background: rgba(255,255,255,.14); overflow: hidden; }
-.seg .track i { display: block; height: 100%; width: 0; background: var(--sky); }
+.seg .seg-who { color: var(--sky); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.speaker-select { width: auto; min-width: 0; padding: 8px 12px; border-radius: 999px; cursor: pointer; }
+.speaker-select option { background: var(--bg); color: var(--ink); }
+.assign-list { display: grid; gap: 6px; }
+.assign-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 220px); gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 6px 6px 6px 14px; }
+.assign-row.cur { border-color: var(--sky); background: rgba(69,182,255,.1); }
+.assign-row .speaker-select { width: 100%; }
+.assign-name { border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; font: 500 .95rem var(--f-display); padding: 4px 0; }
+@media (max-width: 480px) { .assign-row { grid-template-columns: 1fr; padding: 10px; } }
+.show { position: fixed; inset: 0; z-index: 100; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: radial-gradient(circle at 85% 15%, rgba(244,163,214,.45), transparent 35%), radial-gradient(circle at 10% 90%, rgba(69,182,255,.35), transparent 40%), #05135e; color: var(--ink); }
+.show-stage { position: relative; overflow: auto; display: grid; align-content: center; padding: clamp(20px, 5vw, 72px); padding-top: calc(clamp(20px, 5vw, 72px) + env(safe-area-inset-top, 0px)); cursor: pointer; font-size: clamp(17px, 1.35vw, 22px); }
+.show-stage .stage-inner { max-width: 1280px; width: 100%; margin: 0 auto; }
+.show .demo-link { display: none; }
+.show-bar { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); background: rgba(3,10,60,.6); border-top: 1px solid var(--line); }
+.show-bar .grp { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.show-count { font: 500 .92rem var(--f-display); color: var(--muted); }
+.show-dots { display: flex; gap: 6px; }
+.show-dots button { width: 10px; height: 10px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.3); cursor: pointer; }
+.show-dots button.on { background: var(--ink); transform: scale(1.3); }
+.show-notes { position: absolute; right: 16px; bottom: 76px; width: min(420px, calc(100% - 32px)); max-height: 45vh; overflow: auto; background: rgba(3,10,60,.94); border: 1px solid var(--gold); border-radius: 14px; padding: 14px 18px; display: grid; gap: 8px; font-size: .95rem; }
+@media (max-width: 640px) { .show-notes { bottom: 140px; max-height: 40vh; } }
+.show-notes h4 { color: var(--gold); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
+.show-notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 .seg[aria-current="true"] { background: rgba(255,255,255,.12); color: var(--ink); }
 .seg span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 640px) { .timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -389,19 +409,6 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 640px; font-si
 .mini-map .h.ai { background: rgba(69,182,255,.2); color: var(--sky); }
 .mini-map .h.you { background: rgba(244,163,214,.2); color: var(--pink); }
 
-/* ---------- ASSIGNMENT ---------- */
-.req-group { display: grid; gap: 10px; }
-.req-group h3 { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-.req-group h3 small { font: 500 .8rem var(--f-display); color: var(--good); }
-.req { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; background: rgba(3,10,60,.35); }
-.req .ok { width: 24px; height: 24px; border-radius: 50%; background: var(--good); color: #053; display: grid; place-items: center; font-weight: 700; font-size: .85rem; }
-.req .where { font-size: .82rem; }
-.req small { display: block; color: var(--muted); font-size: .85rem; }
-@media (max-width: 560px) { .req { grid-template-columns: auto minmax(0, 1fr); } .req .where { grid-column: 2; justify-self: start; } }
-.summary-tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
-.tile { border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 4px; }
-.tile b { font: 300 2.2rem/1 var(--f-display); font-variant-numeric: tabular-nums; }
-.tile span { color: var(--muted); font-size: .9rem; }
 footer.site { position: relative; z-index: 1; max-width: 1160px; margin: 0 auto; padding-block: 0 40px; padding-inline: 20px; color: var(--muted); font-size: .85rem; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 </style>
 
@@ -439,13 +446,22 @@ footer.site { position: relative; z-index: 1; max-width: 1160px; margin: 0 auto;
       <div class="nav-group" role="tablist" aria-label="For our team">
         <span class="nav-label">Team</span>
         <button class="tab" role="tab" data-go="present">Present</button>
-        <button class="tab" role="tab" data-go="assignment">Assignment</button>
       </div>
     </nav>
   </div>
 </header>
 
 <main id="app"></main>
+
+<div class="show" id="show" hidden role="dialog" aria-label="Presenting slides">
+  <div class="show-stage" id="show-stage"></div>
+  <aside class="show-notes" id="show-notes" hidden></aside>
+  <div class="show-bar">
+    <div class="grp"><button class="btn small" id="show-exit">Exit (Esc)</button><button class="btn small" id="show-notes-btn" aria-pressed="false">Notes (N)</button></div>
+    <div class="grp"><span class="show-dots" id="show-dots"></span><span class="show-count" id="show-count"></span></div>
+    <div class="grp"><button class="btn small" id="show-prev">← Back</button><button class="btn small solid" id="show-next">Next →</button></div>
+  </div>
+</div>
 
 <footer class="site">
   <span>Mindset Coaching Team: Sokhna Kane · Anwar Ali · Aliaksei Bykau · Simon Kavuma · Jonathan Hopkins</span>
@@ -741,17 +757,17 @@ const REFRAMES = [
 const LEARN_Q = ["What worked?", "What didn't?", "What did I learn?", "What can I try differently next time?"];
 
 const SLIDES = [
-  { speaker: 0, secs: 30, kind: "title", nav: "Intro",
+  { speaker: 0, kind: "title", nav: "Intro",
     notes: ["Hi, we're the Mindset Coaching Team for LumeraPoint's NimbleGate AI rollout.", "Introduce the team. Each of us presents one part.", "Our project in one line: help employees move from fear of AI to curiosity."] },
-  { speaker: 0, secs: 45, kind: "problem", nav: "Problem",
+  { speaker: 0, kind: "problem", nav: "Problem",
     notes: ["NimbleGate goes live in four weeks for research, reporting and workflow automation.", "The pulse survey shows four departments with four different fears.", "Our value: one coaching system that meets each department where it is and gives them something practical to do today."] },
-  { speaker: 1, secs: 55, kind: "c1", nav: "Challenge 1",
+  { speaker: 1, kind: "c1", nav: "Challenge 1",
     notes: ["Read the Sales fixed thought, then flip it to the reframe.", "Why it happens: their income and identity rest on rapport.", "Tool 1, the Role Map, splits every task into AI Does / You Do. The relationship stays human.", "Demo: sort one task live in the Toolkit."] },
-  { speaker: 2, secs: 55, kind: "c2", nav: "Challenge 2",
+  { speaker: 2, kind: "c2", nav: "Challenge 2",
     notes: ["“I'm not a tech person”: Support and Operations.", "Tool 2: one workflow at a time, side by side for weeks, weekly check-ins.", "Starter kit with copy-and-paste prompts, plus a buddy, so nobody learns alone."] },
-  { speaker: 3, secs: 55, kind: "c3", nav: "Challenge 3",
+  { speaker: 3, kind: "c3", nav: "Challenge 3",
     notes: ["HR fears AI will destroy employee trust.", "Tool 3: six checks before anything goes out: accuracy, bias, privacy, voice, human decision, accountability.", "Demo: the biased job posting. Tick the checks and watch the fixes appear."] },
-  { speaker: 4, secs: 60, kind: "aid", nav: "Job aid & wrap-up",
+  { speaker: 4, kind: "aid", nav: "Job aid & wrap-up",
     notes: ["Day 2 wildcard: our tools didn't cover all four departments equally.", "Our challenge: we mapped every concern to a tool, added HR and Support editions, and merged everything into one job aid: Pause, Reframe, Act, Learn.", "If we did it again, we'd start from the department survey first.", "Close: AI change isn't about knowing everything. It's about learning, adapting and improving."] }
 ];
 
@@ -787,7 +803,7 @@ function copy(text, label = "Copied") {
 /* =====================================================================
    ROUTING
    ===================================================================== */
-const VIEWS = { coach: renderCoach, aid: renderAid, tools: renderTools, challenges: renderChallenges, present: renderPresent, assignment: renderAssignment };
+const VIEWS = { coach: renderCoach, aid: renderAid, tools: renderTools, challenges: renderChallenges, present: renderPresent };
 function go(view, opts = {}) {
   if (!VIEWS[view]) view = "coach";
   S.view = view;
@@ -1307,15 +1323,71 @@ function renderChallenges(app) {
 
 /* =====================================================================
    PRESENT
+   Speaker assignments are shared with the whole team through the
+   artifact's database when it's available, otherwise kept in this browser.
    ===================================================================== */
-let timer = { running: false, start: 0, elapsed: 0, raf: 0 };
-const SLIDE_START = SLIDES.reduce((acc, s, i) => (acc.push(i ? acc[i - 1] + SLIDES[i - 1].secs : 0), acc), []);
-const TOTAL = SLIDES.reduce((a, s) => a + s.secs, 0);
-function fmt(s) { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
-function avatar(p) { const t = TEAM[p]; return `<span class="avatar" style="background:${t.color}">${t.name.split(" ").map((x) => x[0]).join("")}</span>`; }
+const DEFAULT_ASSIGN = SLIDES.map((s) => s.speaker);
+let ASSIGN = DEFAULT_ASSIGN.slice();
+function applyAssign(list) {
+  ASSIGN = DEFAULT_ASSIGN.slice();
+  if (!Array.isArray(list)) return;
+  list.slice(0, SLIDES.length).forEach((v, i) => { if (Number.isInteger(v) && v >= -1 && v < TEAM.length) ASSIGN[i] = v; });
+}
+applyAssign(S.assign);
+let assignRef = null, syncState = "local", writing = false, writeAgain = false;
+async function pushAssign() {
+  if (!assignRef) return;
+  if (writing) { writeAgain = true; return; }
+  writing = true;
+  try { await assignRef.set({ speakers: ASSIGN.slice() }); syncState = "team"; }
+  catch (e) { syncState = "denied"; }
+  writing = false;
+  paintSync();
+  if (writeAgain) { writeAgain = false; pushAssign(); }
+}
+function setSpeaker(slide, who) {
+  ASSIGN[slide] = who; S.assign = ASSIGN.slice(); save(); pushAssign();
+  if (S.view === "present") go("present", { keepScroll: true });
+  if (SHOW.open) paintShow();
+}
+function paintSync() {
+  const el = $("#sync"); if (!el) return;
+  el.textContent = syncState === "team" ? "Assignments are shared with everyone who opens this page."
+    : syncState === "denied" ? "Saved in this browser only. You need edit access to change assignments for the whole team."
+    : "Saved in this browser.";
+}
+(async () => {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const db = await window.claude.use("db");
+    if (!db) return;
+    assignRef = db.doc("deck/assignments");
+    syncState = "team"; paintSync();
+    assignRef.onSnapshot((snap) => {
+      if (snap.metadata.hasPendingWrites) return;
+      if (!snap.exists) return;
+      const d = snap.data() || {};
+      applyAssign(d.speakers); S.assign = ASSIGN.slice(); save();
+      if (S.view === "present" && !(document.activeElement && document.activeElement.tagName === "SELECT")) go("present", { keepScroll: true });
+      if (SHOW.open) paintShow();
+    }, () => { syncState = "local"; paintSync(); });
+  } catch (e) {}
+})();
+
+function speakerOf(i) { return ASSIGN[i]; }
+function nameOf(p) { return p >= 0 && TEAM[p] ? TEAM[p].name : "Unassigned"; }
+function avatar(p) {
+  if (!(p >= 0 && TEAM[p])) return `<span class="avatar" style="background:#8a94c4">?</span>`;
+  const t = TEAM[p]; return `<span class="avatar" style="background:${t.color}">${t.name.split(" ").map((x) => x[0]).join("")}</span>`;
+}
+function speakerSelect(i, id) {
+  return `<select class="input speaker-select" id="${id}" data-assign="${i}" aria-label="Speaker for slide ${i + 1}">
+    ${TEAM.map((t, k) => `<option value="${k}" ${speakerOf(i) === k ? "selected" : ""}>${t.name}</option>`).join("")}
+    <option value="-1" ${speakerOf(i) === -1 ? "selected" : ""}>Unassigned</option></select>`;
+}
 function slideHTML(i) {
-  const s = SLIDES[i], who = TEAM[s.speaker];
-  const badge = `<span class="speaker-badge">${avatar(s.speaker)}${who.name} · ${s.secs}s</span>`;
+  const s = SLIDES[i], p = speakerOf(i);
+  const badge = `<span class="speaker-badge">${avatar(p)}${nameOf(p)}</span>`;
   const chev = `<svg class="chevs" width="80" height="34" viewBox="0 0 80 34" fill="none" stroke="#fff" stroke-width="2"><path d="M4 2l14 15L4 32M26 2l14 15-14 15M48 2l14 15-14 15"/></svg>`;
   if (s.kind === "title") return `<div class="stage-inner">${badge}
     <span class="eyebrow">LumeraPoint · Mindset Coaching Team</span>
@@ -1338,7 +1410,7 @@ function slideHTML(i) {
         <div style="display:grid;gap:14px"><p class="big">“${c.thought}”</p>
           <div class="reframe-box"><span class="label">Growth-minded reframe</span><q>${c.reframe}</q></div></div>
         <div style="display:grid;gap:12px"><h3>Tool ${c.tool}: ${t.name}</h3>${visual}
-          <button class="btn small" style="justify-self:start" data-go="tools" data-tool="${c.tool}" data-dept="${c.depts[0]}" ${ci === 2 ? 'data-draft="hr"' : ""}>Open live demo →</button></div>
+          <button class="btn small demo-link" style="justify-self:start" data-go="tools" data-tool="${c.tool}" data-dept="${c.depts[0]}" ${ci === 2 ? 'data-draft="hr"' : ""}>Open live demo →</button></div>
       </div></div>`;
   }
   return `<div class="stage-inner">${badge}
@@ -1350,132 +1422,109 @@ function slideHTML(i) {
         <p class="muted">Next time: start from department needs on day 1.</p></div>
       <div style="display:grid;gap:10px">
         ${["Pause · name your concern", "Reframe · flip the fixed thought", "Act · one small step + your tool", "Learn · what worked, what didn't"].map((x, k) => `<div class="small-step" style="--dept:${["#1663d6", "#b680ff", "#35c477", "#45b6ff"][k]}">${x}</div>`).join("")}
-        <button class="btn small" style="justify-self:start" data-go="aid">Open the job aid →</button>
+        <button class="btn small demo-link" style="justify-self:start" data-go="aid">Open the job aid →</button>
       </div>
     </div>
     <p class="tape" style="font-size:1.4rem">AI change is not about knowing everything. It's about learning, adapting, and improving.</p></div>`;
 }
 function renderPresent(app) {
   const i = S.slide, s = SLIDES[i];
+  const missing = TEAM.map((t, k) => k).filter((k) => !ASSIGN.includes(k));
   app.innerHTML = `<section class="view present-shell">
     <div class="present-bar">
-      <div class="view-head" style="gap:4px"><span class="eyebrow">Team presentation · 5 minutes</span><h3>Slide ${i + 1} of ${SLIDES.length} · ${TEAM[s.speaker].name}</h3></div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span class="timer" id="tm">${fmt(timer.elapsed)}</span><span class="muted">/ ${fmt(TOTAL)}</span>
-        <button class="btn small solid" id="tm-go">${timer.running ? "Pause" : "Start timer"}</button>
-        <button class="btn small" id="tm-reset">Reset</button>
-        <button class="btn small" id="fs">Full screen</button>
-      </div>
+      <div class="view-head" style="gap:4px"><span class="eyebrow">Team presentation</span><h3>Slide ${i + 1} of ${SLIDES.length} · ${nameOf(speakerOf(i))}</h3></div>
+      <button class="btn solid" id="start-show">${icon("i-play")} Start presenting</button>
     </div>
-    <div class="timeline">${SLIDES.map((x, k) => `<button class="seg" data-s="${k}" ${k === i ? 'aria-current="true"' : ""}><span>${TEAM[x.speaker].name.split(" ")[0]} · ${x.nav}</span><span class="track"><i data-track="${k}"></i></span></button>`).join("")}</div>
+    <div class="timeline">${SLIDES.map((x, k) => `<button class="seg" data-s="${k}" ${k === i ? 'aria-current="true"' : ""}><span>${k + 1} · ${x.nav}</span><span class="seg-who">${nameOf(speakerOf(k)).split(" ")[0]}</span></button>`).join("")}</div>
     <div class="stage" id="stage">${slideHTML(i)}</div>
     <div class="present-bar">
       <button class="btn" id="prev" ${i === 0 ? "disabled" : ""}>← Previous</button>
-      <span class="muted" style="font-size:.85rem">Use ← → keys</span>
+      <label class="field" style="grid-template-columns:auto auto;align-items:center;gap:10px" for="cur-speaker"><span class="muted">Speaker for this slide</span>${speakerSelect(i, "cur-speaker")}</label>
       <button class="btn solid" id="next" ${i === SLIDES.length - 1 ? "disabled" : ""}>Next →</button>
     </div>
-    <div class="notes"><h4>Speaker notes · ${TEAM[s.speaker].name}</h4><ul>${s.notes.map((n) => `<li>${n}</li>`).join("")}</ul></div>
-    <div class="panel"><h4 style="margin-bottom:8px">Who says what</h4>
-      <div class="grid-3">${TEAM.map((t, k) => `<div style="display:flex;gap:10px;align-items:center">${avatar(k)}<span><b>${t.name}</b><br><span class="muted" style="font-size:.88rem">${SLIDES.filter((x) => x.speaker === k).map((x) => x.nav).join(" + ")} · ${SLIDES.filter((x) => x.speaker === k).reduce((a, x) => a + x.secs, 0)}s</span></span></div>`).join("")}</div></div>
+    <div class="notes"><h4>Speaker notes · ${nameOf(speakerOf(i))}</h4><ul>${s.notes.map((n) => `<li>${n}</li>`).join("")}</ul></div>
+    <div class="panel" style="display:grid;gap:14px">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
+        <h4>Who presents which slide</h4>
+        <button class="btn small" id="reset-assign">Reset to default split</button>
+      </div>
+      <div class="assign-list">${SLIDES.map((x, k) => `<div class="assign-row ${k === i ? "cur" : ""}">
+        <button class="assign-name" data-s="${k}"><span class="muted">Slide ${k + 1}</span> ${x.nav}</button>
+        ${speakerSelect(k, "as-" + k)}</div>`).join("")}</div>
+      <div class="grid-3">${TEAM.map((t, k) => { const mine = SLIDES.map((x, n) => (ASSIGN[n] === k ? n + 1 : 0)).filter(Boolean);
+        return `<div style="display:flex;gap:10px;align-items:center">${avatar(k)}<span><b>${t.name}</b><br><span class="muted" style="font-size:.88rem">${mine.length ? "Slide " + mine.join(", ") : "No slide yet"}</span></span></div>`; }).join("")}</div>
+      ${missing.length ? `<p style="color:var(--warn)">Everyone needs a speaking part: ${missing.map(nameOf).join(", ")} ${missing.length > 1 ? "have" : "has"} no slide yet.</p>` : ""}
+      <p class="muted" id="sync" style="font-size:.88rem"></p>
+    </div>
   </section>`;
   const goSlide = (k) => { S.slide = Math.max(0, Math.min(SLIDES.length - 1, k)); save(); go("present", { keepScroll: true }); };
   $("#prev", app).addEventListener("click", () => goSlide(S.slide - 1));
   $("#next", app).addEventListener("click", () => goSlide(S.slide + 1));
-  $$(".seg", app).forEach((b) => b.addEventListener("click", () => goSlide(+b.dataset.s)));
-  $("#tm-go", app).addEventListener("click", (e) => {
-    timer.running = !timer.running;
-    if (timer.running) { timer.start = performance.now() - timer.elapsed * 1000; tick(); } else cancelAnimationFrame(timer.raf);
-    e.target.textContent = timer.running ? "Pause" : "Start timer";
-  });
-  $("#tm-reset", app).addEventListener("click", () => { timer.elapsed = 0; timer.start = performance.now(); paintTimer(); });
-  $("#fs", app).addEventListener("click", () => { const st = $("#stage"); try { (st.requestFullscreen ? st.requestFullscreen() : Promise.reject()).catch(() => toast("Full screen isn't available here")); } catch (e) { toast("Full screen isn't available here"); } });
-  paintTimer();
-  if (timer.running) tick();
-}
-function tick() { cancelAnimationFrame(timer.raf); timer.raf = requestAnimationFrame(() => { if (!timer.running) return; timer.elapsed = (performance.now() - timer.start) / 1000; paintTimer(); tick(); }); }
-function paintTimer() {
-  const tm = $("#tm"); if (!tm) return;
-  tm.textContent = fmt(timer.elapsed); tm.classList.toggle("over", timer.elapsed > TOTAL);
-  $$("[data-track]").forEach((b) => { const k = +b.dataset.track; const p = (timer.elapsed - SLIDE_START[k]) / SLIDES[k].secs; b.style.width = Math.max(0, Math.min(1, p)) * 100 + "%"; });
+  $$(".seg, .assign-name", app).forEach((b) => b.addEventListener("click", () => goSlide(+b.dataset.s)));
+  $$("select[data-assign]", app).forEach((sel) => sel.addEventListener("change", () => setSpeaker(+sel.dataset.assign, +sel.value)));
+  $("#reset-assign", app).addEventListener("click", () => { ASSIGN = DEFAULT_ASSIGN.slice(); S.assign = ASSIGN.slice(); save(); pushAssign(); go("present", { keepScroll: true }); });
+  $("#start-show", app).addEventListener("click", () => openShow(S.slide));
+  paintSync();
 }
 document.addEventListener("keydown", (e) => {
-  if (S.view !== "present" || e.target.closest("input, textarea")) return;
+  if (SHOW.open || S.view !== "present" || e.target.closest("input, textarea, select")) return;
   if (e.key === "ArrowRight" || e.key === "PageDown") { e.preventDefault(); if (S.slide < SLIDES.length - 1) { S.slide++; save(); go("present", { keepScroll: true }); } }
   if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); if (S.slide > 0) { S.slide--; save(); go("present", { keepScroll: true }); } }
 });
 
-/* =====================================================================
-   ASSIGNMENT CHECKLIST
-   ===================================================================== */
-const REQS = [
-  { group: "Step 1 · Identify the mindset challenges", items: [
-    ["Three realistic fixed-mindset thoughts, each unique", "Sales relationships, “not a tech person”, HR fairness and trust", "challenges", "", "ch1"],
-    ["Describe each fixed-mindset thought", "Quoted in each challenge card", "challenges", "", "ch1"],
-    ["Explain why an employee might think this way", "Three reasons per challenge", "challenges", "", "ch2"],
-    ["Explain the effect on morale, confidence, engagement or behavior", "All four effects for every challenge", "challenges", "", "ch3"]
-  ]},
-  { group: "Step 2 · Growth-mindset reframes", items: [
-    ["A growth-minded reframe for each belief", "Flip cards in Coach, full text in Challenges", "challenges", "", "ch1"],
-    ["Challenges seen as opportunities for growth", "“Every new process is a chance to build skills”", "coach", "", ""],
-    ["Learning over perfection", "“Not yet is not never”, the reframe-your-own-thought builder", "coach", "", ""],
-    ["Builds confidence and adaptability", "Worry meter before and after, coaching phrases", "coach", "", ""],
-    ["Open to new possibilities", "Common reframes list, “AI can help us work better”", "aid", "", ""],
-    ["Written as coaching statements, scripts or phrases", "Coaching phrases for tough moments", "challenges", "", "ch2"]
-  ]},
-  { group: "Step 3 · Three mindset micro-tools", items: [
-    ["Three different tools for three different needs", "Role clarity · learning step by step · trusting AI output", "tools", "1", ""],
-    ["Practical resources, not software (checklist, guide, card…)", "Two-column chart, roadmap card, six-point checklist", "tools", "1", ""],
-    ["Tool name, target employees, when to use it", "Spec card on each tool", "tools", "2", ""],
-    ["How the tool works (steps, prompts, questions)", "Numbered steps plus a hands-on exercise", "tools", "3", ""],
-    ["Growth mindset connection", "Explained on each tool's spec card", "tools", "3", ""]
-  ]},
-  { group: "Day 2 wildcard · department review", items: [
-    ["Tools checked against Sales, Operations, HR and Support", "Coverage matrix", "challenges", "", "coverage"],
-    ["Unique and overlapping concerns identified", "Below the coverage matrix", "challenges", "", "coverage"],
-    ["Tools revised where coverage was missing", "HR and Support Role Map editions, checklist for everyone", "tools", "1", ""],
-    ["Support for different types of uncertainty, with growth principles", "Department-specific Act step in Coach", "coach", "", ""]
-  ]},
-  { group: "Unified visual job aid", items: [
-    ["Addresses Sales, Operations, HR and Support concerns", "Pause row", "aid", "", ""],
-    ["Includes key growth-mindset reframes", "Reframe row", "aid", "", ""],
-    ["Includes practical actions", "Act row, one step per department", "aid", "", ""],
-    ["Incorporates elements of all three micro-tools", "Tool strip in the Act row", "aid", "", ""],
-    ["Visually organized and easy to navigate", "Four colour-coded steps with a department highlight", "aid", "", ""],
-    ["Realistic for workplace use", "One page, plain language, desk-ready", "aid", "", ""]
-  ]},
-  { group: "Brightspace deliverables", items: [
-    ["Document: three mindset challenges and reframes", "Challenges section", "challenges", "", ""],
-    ["Three micro-tools with full descriptions", "Toolkit section", "tools", "1", ""],
-    ["A unified visual job aid", "Job aid section", "aid", "", ""],
-    ["Written reflection (each student individually)", "Learn step prompts as a starting point. Each member writes and uploads their own.", "coach", "", ""]
-  ]},
-  { group: "Presentation · 5 minutes, everyone speaks", items: [
-    ["Summarize the project and its value or impact", "Slides 1–2, Sokhna", "present", "", ""],
-    ["Explain the problem, need or opportunity", "Slide 2, four department concerns", "present", "", ""],
-    ["Highlight key features and deliverables", "Slides 3–5, Anwar, Aliaksei and Simon, with live demos", "present", "", ""],
-    ["Share one challenge and how we addressed it", "Slide 6, Jonathan, Day 2 wildcard", "present", "", ""],
-    ["Every team member has a speaking part", "Five speakers, timed to 5:00", "present", "", ""]
-  ]}
-];
-function renderAssignment(app) {
-  const total = REQS.reduce((a, g) => a + g.items.length, 0);
-  app.innerHTML = `<section class="view">
-    <div class="view-head"><span class="eyebrow">Embracing Challenges · Team-Based Problem Studio</span><h2>Every requirement, and where to find it</h2>
-      <p>Checked against both instruction documents (Day 1 and the Day 2 wildcard). Select any row to jump to it.</p></div>
-    <div class="summary-tiles">
-      <div class="tile"><b>${total}/${total}</b><span>requirements covered</span></div>
-      <div class="tile"><b>3</b><span>challenges + reframes</span></div>
-      <div class="tile"><b>3</b><span>micro-tools, revised for 4 departments</span></div>
-      <div class="tile"><b>1</b><span>unified visual job aid</span></div>
-      <div class="tile"><b>5:00</b><span>presentation, 5 speakers</span></div>
-    </div>
-    ${REQS.map((g) => `<div class="req-group"><h3>${g.group} <small>✓ ${g.items.length}/${g.items.length}</small></h3>
-      ${g.items.map(([t, how, view, tool, scroll]) => `<div class="req"><span class="ok" aria-label="Done">✓</span><span><b>${t}</b><small>${how}</small></span>
-        <button class="btn small where" data-go="${view}" ${tool ? `data-tool="${tool}"` : ""} ${scroll ? `data-scroll="${scroll}"` : ""}>See it →</button></div>`).join("")}</div>`).join("")}
-    <div class="panel" style="display:grid;gap:10px"><h4>Reflection starter (for your own Brightspace reflection)</h4>
-      <ul class="ticks"><li>Which mindset challenge did I relate to most, and why?</li><li>What did our team change after the Day 2 wildcard, and what did that teach me about different needs?</li><li>How did I use a growth mindset during this project?</li><li>One thing I would do differently next time.</li></ul></div>
-  </section>`;
+/* ---------- full-screen presenting ---------- */
+const SHOW = { open: false, i: 0, notes: false, fs: false };
+function openShow(i) {
+  SHOW.open = true; SHOW.i = i;
+  const el = $("#show"); el.hidden = false; document.body.style.overflow = "hidden";
+  paintShow();
+  try { if (el.requestFullscreen) el.requestFullscreen().then(() => { SHOW.fs = true; }, () => {}); } catch (e) {}
+  $("#show-next").focus();
 }
+function closeShow() {
+  if (!SHOW.open) return;
+  SHOW.open = false; $("#show").hidden = true; document.body.style.overflow = "";
+  if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} }
+  SHOW.fs = false;
+  S.slide = SHOW.i; save(); go("present", { keepScroll: true });
+}
+function showGo(d) { const n = Math.max(0, Math.min(SLIDES.length - 1, SHOW.i + d)); if (n !== SHOW.i) { SHOW.i = n; paintShow(); } }
+function paintShow() {
+  const i = SHOW.i;
+  $("#show-stage").innerHTML = slideHTML(i);
+  $("#show-count").textContent = `${i + 1} / ${SLIDES.length} · ${nameOf(speakerOf(i))}`;
+  $("#show-prev").disabled = i === 0;
+  $("#show-next").disabled = i === SLIDES.length - 1;
+  $("#show-dots").innerHTML = SLIDES.map((_, k) => `<button class="${k === i ? "on" : ""}" data-k="${k}" aria-label="Go to slide ${k + 1}"></button>`).join("");
+  const nt = $("#show-notes"); nt.hidden = !SHOW.notes;
+  nt.innerHTML = `<h4>Notes · ${nameOf(speakerOf(i))}</h4><ul>${SLIDES[i].notes.map((n) => `<li>${n}</li>`).join("")}</ul>`;
+  $("#show-notes-btn").setAttribute("aria-pressed", String(SHOW.notes));
+}
+document.addEventListener("keydown", (e) => {
+  if (!SHOW.open) return;
+  if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { if (e.key === "Enter" && e.target.closest("button")) return; e.preventDefault(); showGo(1); }
+  else if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); showGo(-1); }
+  else if (e.key === "Home") showGo(-SLIDES.length);
+  else if (e.key === "End") showGo(SLIDES.length);
+  else if (e.key === "Escape") closeShow();
+  else if (e.key === "n" || e.key === "N") { SHOW.notes = !SHOW.notes; paintShow(); }
+});
+document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && SHOW.open && SHOW.fs) closeShow(); });
+(function wireShow() {
+  $("#show-prev").addEventListener("click", () => showGo(-1));
+  $("#show-next").addEventListener("click", () => showGo(1));
+  $("#show-exit").addEventListener("click", closeShow);
+  $("#show-notes-btn").addEventListener("click", () => { SHOW.notes = !SHOW.notes; paintShow(); });
+  $("#show-dots").addEventListener("click", (e) => { const b = e.target.closest("[data-k]"); if (b) { SHOW.i = +b.dataset.k; paintShow(); } });
+  $("#show-stage").addEventListener("click", (e) => {
+    if (e.target.closest("a, button")) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    showGo(e.clientX - r.left < r.width / 3 ? -1 : 1);
+  });
+  let x0 = null;
+  $("#show-stage").addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  $("#show-stage").addEventListener("touchend", (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) showGo(dx < 0 ? 1 : -1); x0 = null; });
+})();
 
 /* =====================================================================
    BOOT

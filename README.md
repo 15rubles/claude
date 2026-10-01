@@ -9,7 +9,6 @@ Team: Sokhna Kane, Anwar Ali, Aliaksei Bykau, Simon Kavuma, Jonathan Hopkins.
 - **Job aid**: the unified one-page visual job aid
 - **Toolkit**: the three micro-tools (name, target employees, when to use, how it works, growth mindset connection) with hands-on practice
 - **Challenges**: three fixed-mindset challenges (why, impact, reframe) and the Day 2 department coverage review
-- **Present**: 5-minute presenter with speaker split, timer and notes
-- **Assignment**: every requirement from both instruction docs and where it's met
+- **Present**: slide preview, speaker notes, a speaker picker for every slide (shared with the team) and a full-screen presenting mode (arrow keys, click or swipe; N for notes, Esc to exit)
 
 All wording lives in the CONTENT block at the top of the `<script>` so the team can edit it.
