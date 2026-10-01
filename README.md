@@ -46,6 +46,15 @@ Things to know:
 - If one of you dies, click **Respawn** to start a new colony in the same world.
 - If a player leaves mid-game, their colony keeps going, run by the AI.
 
+## See who's playing
+
+The server has a private stats page: who's online, who's in a game, unique visitors, games started, and every open room with its players.
+
+1. **Find your key.** In Render, open your service, then **Environment**. Copy the value of `STATS_KEY` (Render made a random one). If you set the service up by hand and it isn't there, add a variable named `STATS_KEY` with any password you like, then save.
+2. **Open the page:** `https://YOUR-GAME.onrender.com/stats?key=YOUR_KEY`. It refreshes every 5 seconds.
+
+The numbers are kept in memory, so they start again from zero whenever the server restarts or wakes from sleep. The server never stores IP addresses: visitors are counted with a scrambled code that changes on every restart. Each game start is also written to Render's **Logs** tab, for example `game started: "Alex" in room bros:normal - 2 playing, 3 online`.
+
 ## Good to know about the free plan
 
 - **The first visit after a break is slow.** A free Render service goes to sleep after 15 minutes with nobody connected. The next visit wakes it up, which takes about a minute. Open the page a minute before you want to play.

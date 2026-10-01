@@ -6,6 +6,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const { createWorld } = require('./world.js');
 const { NET, DIFFS, SKINS, WORLD_W, WORLD_H } = require('../shared/constants.js');
@@ -21,6 +22,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok'); return; }
+  if (url.pathname === '/stats') { statsPage(url, res); return; }
   let rel = STATIC[url.pathname] || url.pathname.replace(/^\/+/, '');
   if (!rel.includes('/')) rel = 'public/' + rel;   // /client.js -> public/client.js
   const file = path.normalize(path.join(ROOT, rel));
@@ -32,6 +34,64 @@ const server = http.createServer((req, res) => {
     res.end(data);
   });
 });
+
+// ---------- visitor stats (private page at /stats?key=STATS_KEY) ----------
+// Kept in memory only: the numbers start again from zero whenever the server restarts or wakes from sleep.
+const STATS_KEY = process.env.STATS_KEY || '';
+const salt = crypto.randomBytes(16).toString('hex');
+const totals = { since: Date.now(), connections: 0, games: 0, visitors: new Set(), peakOnline: 0, peakPlaying: 0 };
+function visitorId(req) {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  // a salted hash, so the server never keeps anyone's IP address
+  return crypto.createHash('sha256').update(salt + ip + (req.headers['user-agent'] || '')).digest('hex').slice(0, 16);
+}
+function liveCounts() {
+  let online = 0, playing = 0;
+  for (const room of rooms.values()) for (const s of room.sessions) { online++; if (s.colony && s.colony.alive) playing++; }
+  return { online, playing };
+}
+function noteCounts() {
+  const { online, playing } = liveCounts();
+  totals.peakOnline = Math.max(totals.peakOnline, online);
+  totals.peakPlaying = Math.max(totals.peakPlaying, playing);
+  return { online, playing };
+}
+const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+function statsPage(url, res) {
+  if (!STATS_KEY || url.searchParams.get('key') !== STATS_KEY) {
+    res.writeHead(STATS_KEY ? 403 : 404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(STATS_KEY ? 'Wrong or missing key. Open /stats?key=YOUR_STATS_KEY' : 'Stats are off. Set the STATS_KEY environment variable to turn them on.');
+    return;
+  }
+  const { online, playing } = liveCounts();
+  const up = Math.floor((Date.now() - totals.since) / 1000);
+  const upText = `${Math.floor(up / 3600)}h ${Math.floor(up / 60) % 60}m`;
+  const rows = [...rooms.values()].map(r => {
+    const players = [...r.sessions].filter(s => s.colony && s.colony.alive);
+    const w = r.world.stats();
+    return `<tr><td>${esc(r.name)}</td><td>${esc(DIFFS[r.diff].name)}</td><td>${players.length}</td><td>${r.sessions.size - players.length}</td>` +
+      `<td>${players.map(s => esc(s.name) + ' (' + s.colony.workers.length + ')').join(', ') || '-'}</td><td>${w.ants}</td></tr>`;
+  }).join('') || '<tr><td colspan="6">No rooms open right now</td></tr>';
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="5"><title>Colony.io stats</title>
+<style>body{font-family:system-ui,sans-serif;background:#1f140b;color:#f5e8c8;margin:0;padding:20px 16px}h1{color:#ffd54a;margin:0 0 4px;font-size:24px}
+.sub{color:#c8ae7a;font-size:13px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:900px}
+.card{background:#3a2614;border:1px solid #6b4a24;border-radius:10px;padding:10px 12px}.card b{display:block;font-size:28px;color:#ffd54a;font-variant-numeric:tabular-nums}
+.card span{font-size:12px;color:#d8c090;text-transform:uppercase;letter-spacing:1px}h2{font-size:15px;color:#ffd54a;margin:22px 0 8px}
+.wrap{overflow-x:auto;max-width:900px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #4a3218}th{color:#d8c090;font-weight:600}</style></head>
+<body><h1>Colony.io stats</h1><div class="sub">Live, refreshes every 5 seconds. Totals count since the server last started (${upText} ago).</div>
+<div class="grid">
+<div class="card"><b>${online}</b><span>Online now</span></div>
+<div class="card"><b>${playing}</b><span>In a game now</span></div>
+<div class="card"><b>${totals.visitors.size}</b><span>Unique visitors</span></div>
+<div class="card"><b>${totals.connections}</b><span>Visits</span></div>
+<div class="card"><b>${totals.games}</b><span>Games started</span></div>
+<div class="card"><b>${totals.peakPlaying}</b><span>Most playing at once</span></div>
+</div>
+<h2>Open rooms</h2><div class="wrap"><table><tr><th>Room</th><th>Difficulty</th><th>Playing</th><th>Watching menu</th><th>Players (ants)</th><th>Ants in world</th></tr>${rows}</table></div>
+</body></html>`);
+}
 
 // ---------- rooms ----------
 const rooms = new Map();   // key "name:diff" -> { key, name, world, sessions: Set, emptySince }
@@ -60,11 +120,14 @@ wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
   const diff = DIFFS[url.searchParams.get('diff')] ? url.searchParams.get('diff') : 'normal';
   const room = getRoom(cleanRoomName(url.searchParams.get('room')), diff);
+  totals.connections++;
+  if (totals.visitors.size < 100000) totals.visitors.add(visitorId(req));
   const session = {
     ws, room, colony: null, name: 'Player', out: [], sfx: new Set(), life: {}, lifeMax: {}, known: new Set(),
     view: { x: WORLD_W / 2, y: WORLD_H / 2, hw: 700, hh: 450 }, mapV: 0, alive: true,
   };
   room.sessions.add(session);
+  noteCounts();
   room.emptySince = 0;
   send(session, { t: 'hello', room: room.name, diff, players: roomPlayers(room) });
 
@@ -94,6 +157,9 @@ wss.on('connection', (ws, req) => {
       const crown = /^#[0-9a-f]{6}$/i.test(m.crown || '') ? m.crown : '#ffd700';
       session.out = []; session.sfx.clear(); session.life = {}; session.lifeMax = {};
       session.colony = w.addHuman(session, session.name, skin, crown);
+      totals.games++;
+      const now = noteCounts();
+      console.log(`game started: "${session.name}" in room ${room.key} - ${now.playing} playing, ${now.online} online`);
       send(session, { t: 'joined', id: session.colony.id, diff });
     } else if (m.t === 'leave') {
       w.releaseHuman(session.colony);

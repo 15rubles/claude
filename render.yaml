@@ -10,3 +10,6 @@ services:
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
+    envVars:
+      - key: STATS_KEY        # password for the private /stats page (Render makes a random one)
+        generateValue: true
