@@ -370,7 +370,8 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 640px; font-si
 .avatar { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 600 .78rem var(--f-display); color: #071353; }
 .chevs { position: absolute; right: 26px; bottom: 22px; opacity: .8; }
 .present-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
-.timeline { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.timeline { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.big-num { font: 300 3rem/1 var(--f-display); color: var(--sky); display: block; margin-bottom: 6px; }
 .seg { border: 0; text-align: left; cursor: pointer; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); color: var(--muted); display: grid; gap: 6px; font: 500 .78rem var(--f-display); min-width: 0; }
 .seg .seg-who { color: var(--sky); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .speaker-select { width: auto; min-width: 0; padding: 8px 12px; border-radius: 999px; cursor: pointer; }
@@ -398,7 +399,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 640px; font-si
 .btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
 .seg[aria-current="true"] { background: rgba(255,255,255,.12); color: var(--ink); }
 .seg span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 640px) { .timeline { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .timeline { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .notes { border-left: 4px solid var(--gold); padding: 14px 18px; background: rgba(255,215,94,.07); border-radius: 0 14px 14px 0; display: grid; gap: 8px; }
 .notes h4 { color: var(--gold); font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; }
 .notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
@@ -767,8 +768,12 @@ const SLIDES = [
     notes: ["“I'm not a tech person”: Support and Operations.", "Tool 2: one workflow at a time, side by side for weeks, weekly check-ins.", "Starter kit with copy-and-paste prompts, plus a buddy, so nobody learns alone."] },
   { speaker: 3, kind: "c3", nav: "Challenge 3",
     notes: ["HR fears AI will destroy employee trust.", "Tool 3: six checks before anything goes out: accuracy, bias, privacy, voice, human decision, accountability.", "Demo: the biased job posting. Tick the checks and watch the fixes appear."] },
-  { speaker: 4, kind: "aid", nav: "Job aid & wrap-up",
-    notes: ["Day 2 wildcard: our tools didn't cover all four departments equally.", "Our challenge: we mapped every concern to a tool, added HR and Support editions, and merged everything into one job aid: Pause, Reframe, Act, Learn.", "If we did it again, we'd start from the department survey first.", "Close: AI change isn't about knowing everything. It's about learning, adapting and improving."] }
+  { speaker: 4, kind: "aid", nav: "Job aid",
+    notes: ["Day 2 wildcard: our tools didn't cover all four departments equally.", "Our challenge: we mapped every concern to a tool, added HR and Support editions, and merged everything into one job aid: Pause, Reframe, Act, Learn.", "If we did it again, we'd start from the department survey first."] },
+  { speaker: 1, kind: "conclusion", nav: "Conclusion",
+    notes: ["Bring it back to the problem: four departments, four different fears about NimbleGate.", "What we built: 3 reframes, 3 micro-tools, 1 job aid, all following Pause, Reframe, Act, Learn.", "The impact: every employee knows what to think, what to do and who to ask.", "Close with the line on the yellow tape: AI change isn't about knowing everything. It's about learning, adapting and improving."] },
+  { speaker: -2, kind: "qa", nav: "Q&A",
+    notes: ["Thank the audience and open the floor. Whoever owns the topic answers.", "\u201cIsn't this just training?\u201d No: these are self-serve resources people use in the moment, without a class.", "\u201cWhat if someone still refuses to use AI?\u201d Start with the Role Map. Their most valued work stays theirs, and they can try AI on one low-risk task.", "\u201cHow would you know it's working?\u201d Weekly check-ins (Tool 2) and the before/after worry check in the Learn step.", "\u201cWhy one job aid instead of three tools?\u201d The Day 2 survey: overwhelmed people use one resource, not three."] }
 ];
 
 /* =====================================================================
@@ -1331,7 +1336,7 @@ let ASSIGN = DEFAULT_ASSIGN.slice();
 function applyAssign(list) {
   ASSIGN = DEFAULT_ASSIGN.slice();
   if (!Array.isArray(list)) return;
-  list.slice(0, SLIDES.length).forEach((v, i) => { if (Number.isInteger(v) && v >= -1 && v < TEAM.length) ASSIGN[i] = v; });
+  list.slice(0, SLIDES.length).forEach((v, i) => { if (Number.isInteger(v) && v >= -2 && v < TEAM.length) ASSIGN[i] = v; });
 }
 applyAssign(S.assign);
 let assignRef = null, syncState = "local", writing = false, writeAgain = false;
@@ -1375,14 +1380,16 @@ function paintSync() {
 })();
 
 function speakerOf(i) { return ASSIGN[i]; }
-function nameOf(p) { return p >= 0 && TEAM[p] ? TEAM[p].name : "Unassigned"; }
+function nameOf(p) { return p === -2 ? "Whole team" : p >= 0 && TEAM[p] ? TEAM[p].name : "Unassigned"; }
 function avatar(p) {
+  if (p === -2) return `<span class="avatar" style="background:linear-gradient(135deg,var(--sky),var(--pink))">All</span>`;
   if (!(p >= 0 && TEAM[p])) return `<span class="avatar" style="background:#8a94c4">?</span>`;
   const t = TEAM[p]; return `<span class="avatar" style="background:${t.color}">${t.name.split(" ").map((x) => x[0]).join("")}</span>`;
 }
 function speakerSelect(i, id) {
   return `<select class="input speaker-select" id="${id}" data-assign="${i}" aria-label="Speaker for slide ${i + 1}">
     ${TEAM.map((t, k) => `<option value="${k}" ${speakerOf(i) === k ? "selected" : ""}>${t.name}</option>`).join("")}
+    <option value="-2" ${speakerOf(i) === -2 ? "selected" : ""}>Whole team</option>
     <option value="-1" ${speakerOf(i) === -1 ? "selected" : ""}>Unassigned</option></select>`;
 }
 function slideHTML(i) {
@@ -1413,6 +1420,23 @@ function slideHTML(i) {
           <button class="btn small demo-link" style="justify-self:start" data-go="tools" data-tool="${c.tool}" data-dept="${c.depts[0]}" ${ci === 2 ? 'data-draft="hr"' : ""}>Open live demo →</button></div>
       </div></div>`;
   }
+  if (s.kind === "conclusion") return `<div class="stage-inner">${badge}
+    <span class="eyebrow">Conclusion</span>
+    <h2>From fear of AI to curiosity, one small step at a time.</h2>
+    <div class="grid-3">
+      <div class="panel"><span class="big-num">3</span><h4>Mindset challenges, reframed</h4><p class="muted">Losing relationships, falling behind, losing trust. Each one flipped into a growth-minded statement.</p></div>
+      <div class="panel"><span class="big-num">3</span><h4>Micro-tools, revised for 4 departments</h4><p class="muted">Role Map, Transition Roadmap + Buddy, and the \u201cBefore I Hit Send\u201d checklist.</p></div>
+      <div class="panel"><span class="big-num">1</span><h4>Job aid that ties it together</h4><p class="muted">Pause, Reframe, Act, Learn: one page every LumeraPoint employee can use on day one.</p></div>
+    </div>
+    <p class="big"><b>The impact:</b> every employee knows what to think, what to do and who to ask when NimbleGate arrives.</p>
+    <p class="golden"><b>AI prepares.</b> You decide. You connect.</p>
+    <p class="tape" style="font-size:1.4rem">AI change is not about knowing everything. It's about learning, adapting, and improving.</p></div>`;
+  if (s.kind === "qa") return `<div class="stage-inner" style="text-align:center;justify-items:center">${badge.replace('class="speaker-badge"', 'class="speaker-badge" style="justify-self:center"')}
+    <span class="eyebrow">Thank you</span>
+    <h2 style="font-size:clamp(3rem,9vw,6.5rem);font-weight:500">Questions?</h2>
+    <p class="big" style="max-width:40ch">Ask us about the challenges, the tools or the job aid. We can show any of them live.</p>
+    <div class="team-row" style="justify-content:center">${TEAM.map((t, k) => `<span class="speaker-badge">${avatar(k)}${t.name}</span>`).join("")}</div>
+    <p class="hand" style="font-size:1.8rem;color:var(--pink)">Small steps lead to big growth!</p>${chev}</div>`;
   return `<div class="stage-inner">${badge}
     <span class="eyebrow">Day 2 wildcard · our challenge</span>
     <div class="cols">
@@ -1424,8 +1448,7 @@ function slideHTML(i) {
         ${["Pause · name your concern", "Reframe · flip the fixed thought", "Act · one small step + your tool", "Learn · what worked, what didn't"].map((x, k) => `<div class="small-step" style="--dept:${["#1663d6", "#b680ff", "#35c477", "#45b6ff"][k]}">${x}</div>`).join("")}
         <button class="btn small demo-link" style="justify-self:start" data-go="aid">Open the job aid →</button>
       </div>
-    </div>
-    <p class="tape" style="font-size:1.4rem">AI change is not about knowing everything. It's about learning, adapting, and improving.</p></div>`;
+    </div></div>`;
 }
 function renderPresent(app) {
   const i = S.slide, s = SLIDES[i];
@@ -1435,7 +1458,7 @@ function renderPresent(app) {
       <div class="view-head" style="gap:4px"><span class="eyebrow">Team presentation</span><h3>Slide ${i + 1} of ${SLIDES.length} · ${nameOf(speakerOf(i))}</h3></div>
       <button class="btn solid" id="start-show">${icon("i-play")} Start presenting</button>
     </div>
-    <div class="timeline">${SLIDES.map((x, k) => `<button class="seg" data-s="${k}" ${k === i ? 'aria-current="true"' : ""}><span>${k + 1} · ${x.nav}</span><span class="seg-who">${nameOf(speakerOf(k)).split(" ")[0]}</span></button>`).join("")}</div>
+    <div class="timeline">${SLIDES.map((x, k) => `<button class="seg" data-s="${k}" ${k === i ? 'aria-current="true"' : ""}><span>${k + 1} · ${x.nav}</span><span class="seg-who">${speakerOf(k) < 0 ? nameOf(speakerOf(k)) : nameOf(speakerOf(k)).split(" ")[0]}</span></button>`).join("")}</div>
     <div class="stage" id="stage">${slideHTML(i)}</div>
     <div class="present-bar">
       <button class="btn" id="prev" ${i === 0 ? "disabled" : ""}>← Previous</button>
