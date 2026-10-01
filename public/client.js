@@ -69,17 +69,37 @@ window.addEventListener('resize', resize);
 resize();
 
 const mouse = { x: 0, y: 0, moved: false };
-window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.moved = true; });
+// Touch: hold a finger on the screen to steer toward it; lift it and the queen stops and braces her ring.
+// `touch.used` switches the game to its phone layout (charge button, compact HUD).
+const touch = { used: !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), active: false, last: 0 };
+window.addEventListener('touchstart', () => { touch.used = true; touch.last = performance.now(); }, { passive: true, capture: true });
+window.addEventListener('mousemove', e => {
+  if (performance.now() - touch.last < 800) return;   // ignore the fake mouse events phones send after a tap
+  if (touch.used && !touch.active && (e.movementX || e.movementY)) touch.used = false;   // a real mouse on a touch laptop
+  mouse.x = e.clientX; mouse.y = e.clientY; mouse.moved = true;
+});
 canvas.addEventListener('touchstart', e => {
-  const t = e.touches[0];
+  const t = e.targetTouches[0];
+  touch.used = true; touch.active = true; touch.last = performance.now();
   mouse.x = t.clientX; mouse.y = t.clientY; mouse.moved = true;
-  if (e.touches.length >= 2) tryPlayerCharge();   // two-finger tap = charge on touch devices
+  if (e.targetTouches.length >= 2) tryPlayerCharge();   // two-finger tap = charge
   e.preventDefault();
 }, { passive: false });
 canvas.addEventListener('touchmove', e => {
-  const t = e.touches[0];
-  mouse.x = t.clientX; mouse.y = t.clientY; e.preventDefault();
+  const t = e.targetTouches[0];
+  if (t) { mouse.x = t.clientX; mouse.y = t.clientY; }
+  touch.last = performance.now();
+  e.preventDefault();
 }, { passive: false });
+const touchEnd = e => {
+  touch.last = performance.now();
+  if (!e.targetTouches.length) touch.active = false;
+  else { mouse.x = e.targetTouches[0].clientX; mouse.y = e.targetTouches[0].clientY; }
+};
+canvas.addEventListener('touchend', touchEnd);
+canvas.addEventListener('touchcancel', touchEnd);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());   // iOS ignores user-scalable=no: block pinch zoom
 canvas.addEventListener('mousedown', e => {
   if (e.button === 0) tryPlayerCharge();
 });
@@ -1725,15 +1745,21 @@ function render() {
     g.addColorStop(0, 'rgba(60,0,0,0)'); g.addColorStop(1, 'rgba(60,0,0,0.65)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
-  drawBanners();
-  if (state === 'playing' || state === 'paused' || state === 'over' || state === 'victory') {
-    // text-heavy panels are redrawn into cached images a few times a second, then just copied each frame
-    cachedLayer('hud', 66, 0, 0, 340, 460, drawHUD);
-    drawMusicHint();
-    cachedLayer('lb', 200, W - 250, 0, 250, 200, drawLeaderboard);
-    drawMinimap();
-  }
-  drawPerf();
+  // HUD, banners and panels: drawn in UI units, shrunk to fit small (phone) screens
+  const W0 = W, H0 = H;
+  UI_S = uiScale(); W = W0 / UI_S; H = H0 / UI_S;
+  ctx.setTransform(DPR * UI_S, 0, 0, DPR * UI_S, 0, 0);
+  try {
+    drawBanners();
+    if (state === 'playing' || state === 'paused' || state === 'over' || state === 'victory') {
+      // text-heavy panels are redrawn into cached images a few times a second, then just copied each frame
+      cachedLayer('hud', 66, 0, 0, 340, 460, drawHUD);
+      drawMusicHint();
+      cachedLayer('lb', 200, W - 250, 0, 250, 200, drawLeaderboard);
+      drawMinimap();
+    }
+    drawPerf();
+  } finally { W = W0; H = H0; UI_S = 1; }
 }
 
 // Small shield glyph (immunity). Blinks during its last 2 seconds.
@@ -1783,13 +1809,13 @@ function drawTunnelIcon(x, y, r, frac) {
 const layers = {};
 function cachedLayer(id, every, x, y, w, h, fn) {
   const L = layers[id] || (layers[id] = { cv: document.createElement('canvas'), t: -1e9, dpr: 0, x: 0, w: 0, h: 0 });
-  const now = performance.now();
-  if (now - L.t > every || L.dpr !== DPR || L.x !== x || L.w !== w || L.h !== h) {
-    L.t = now; L.dpr = DPR; L.x = x; L.w = w; L.h = h;
-    L.cv.width = Math.ceil(w * DPR); L.cv.height = Math.ceil(h * DPR);
+  const now = performance.now(), res = DPR * UI_S;   // render at the on-screen size so text stays sharp
+  if (now - L.t > every || L.dpr !== res || L.x !== x || L.w !== w || L.h !== h) {
+    L.t = now; L.dpr = res; L.x = x; L.w = w; L.h = h;
+    L.cv.width = Math.ceil(w * res); L.cv.height = Math.ceil(h * res);
     const main = ctx;
     ctx = L.cv.getContext('2d');
-    ctx.setTransform(DPR, 0, 0, DPR, -x * DPR, -y * DPR);
+    ctx.setTransform(res, 0, 0, res, -x * res, -y * res);
     try { fn(); } finally { ctx = main; }
   }
   ctx.drawImage(L.cv, x, y, w, h);
@@ -1940,7 +1966,7 @@ function drawHUD() {
   let frac, col, lbl;
   if (player.charge > 0) { frac = player.charge / CHARGE_TIME; col = '#ff9a3c'; lbl = 'CHARGING'; }
   else if (player.chargeCd > 0) { frac = 1 - player.chargeCd / PLAYER_CHARGE_CD; col = '#8a7a5a'; lbl = ''; }
-  else { frac = 1; col = '#f5c542'; lbl = 'READY [CLICK]'; }
+  else { frac = 1; col = '#f5c542'; lbl = touch.used ? 'READY' : 'READY [CLICK]'; }
   if (frac > 0.02) { roundRect(ctx, bx, by, bw * frac, 10, 5); ctx.fillStyle = col; ctx.fill(); }
   if (lbl) {
     ctx.fillStyle = '#3a2208';
@@ -2028,7 +2054,11 @@ function drawMusicHint() {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.font = '12px "Trebuchet MS", sans-serif';
   ctx.fillStyle = TH === 'war' ? 'rgba(31,29,24,0.75)' : 'rgba(245,232,200,0.65)';
-  ctx.fillText(`Music: ${music.on ? 'on' : 'off'} [M]   Options [Esc]   Ping ${perfStats.ping} ms   Stats [F3]`, 14, H - 14);
+  if (touch.used) {   // no keyboard on a phone: just the ping, centred clear of the charge button and minimap
+    ctx.textAlign = 'center';
+    ctx.fillText(`Ping ${perfStats.ping} ms`, W / 2, H - 14);
+    ctx.textAlign = 'left';
+  } else ctx.fillText(`Music: ${music.on ? 'on' : 'off'} [M]   Options [Esc]   Ping ${perfStats.ping} ms   Stats [F3]`, 14, H - 14);
 }
 
 function drawLeaderboard() {
@@ -3178,18 +3208,70 @@ function sendInput(now) {
   net.lastSend = now;
   const msg = { t: 'in', cx: Math.round(cam.x), cy: Math.round(cam.y), hw: Math.round(W / 2 / cam.zoom), hh: Math.round(H / 2 / cam.zoom) };
   if (player && player.alive && (state === 'playing' || state === 'paused')) {
-    // paused (options open): stand still and brace
-    const m = state === 'paused' ? player.queen : screenToWorld(mouse.x, mouse.y);
+    // paused (options open), or a phone with no finger on the screen: stand still and brace
+    const still = state === 'paused' || (touch.used && !touch.active);
+    const m = still ? player.queen : screenToWorld(mouse.x, mouse.y);
     msg.x = Math.round(m.x); msg.y = Math.round(m.y);
   }
   send(msg);
 }
-function tryPlayerCharge() {
+// Where a charge goes when no finger or cursor is pointing: the nearest rival queen in reach,
+// else a creature close by, else straight ahead.
+function autoAim() {
+  const q = player.queen;
+  let best = null, bd = 460;
+  for (const c of colonies) {
+    if (c === player || !c.alive || c.grace > 0) continue;
+    const d = Math.hypot(c.queen.x - q.x, c.queen.y - q.y);
+    if (d < bd) { bd = d; best = { x: c.queen.x, y: c.queen.y }; }
+  }
+  if (!best) for (const cr of creatures) {
+    if (cr.type === 'drone' || cr.state === 'flipped') continue;
+    const d = Math.hypot(cr.x - q.x, cr.y - q.y);
+    if (d < 320 && d < bd) { bd = d; best = { x: cr.x, y: cr.y }; }
+  }
+  if (best) return best;
+  const s = Math.hypot(q.vx, q.vy), dx = s > 20 ? q.vx / s : Math.cos(q.ang), dy = s > 20 ? q.vy / s : Math.sin(q.ang);
+  return { x: q.x + dx * 260, y: q.y + dy * 260 };
+}
+function tryPlayerCharge(fromButton = false) {
   if (state !== 'playing' || !player || !player.alive) return;
   if (player.chargeCd > 0 || player.charge > 0) return;
-  const m = screenToWorld(mouse.x, mouse.y);
+  const m = fromButton && !touch.active ? autoAim() : screenToWorld(mouse.x, mouse.y);
   send({ t: 'ch', x: Math.round(m.x), y: Math.round(m.y) });
   player.chargeCd = 0.2;   // don't spam while the server confirms
+}
+
+// ---------- phone layout: charge button, HUD scale, fullscreen ----------
+function uiScale() {
+  const m = Math.min(W, H);
+  return touch.used || m < 620 ? clamp(m / 620, 0.62, 1) : 1;
+}
+let UI_S = 1;
+const chargeBtn = document.getElementById('chargeBtn');
+if (chargeBtn) {
+  const press = e => { e.preventDefault(); e.stopPropagation(); touch.last = performance.now(); tryPlayerCharge(true); };
+  chargeBtn.addEventListener('touchstart', press, { passive: false });
+  chargeBtn.addEventListener('mousedown', press);
+}
+function updateChargeBtn() {
+  if (!chargeBtn) return;
+  const show = touch.used && player && player.alive && (state === 'playing' || state === 'paused');
+  chargeBtn.classList.toggle('hidden', !show);
+  if (!show) return;
+  let frac = 1, ready = false, active = player.charge > 0;
+  if (active) frac = player.charge / CHARGE_TIME;
+  else if (player.chargeCd > 0) frac = 1 - player.chargeCd / PLAYER_CHARGE_CD;
+  else ready = true;
+  chargeBtn.style.setProperty('--p', Math.round(clamp(frac, 0, 1) * 100) + '%');
+  chargeBtn.classList.toggle('ready', ready);
+  chargeBtn.classList.toggle('active', active);
+}
+function goFullscreen() {
+  // phones only: hides the browser bars (Android; iPhone Safari doesn't allow it)
+  const el = document.documentElement;
+  if (!touch.used || document.fullscreenElement || !el.requestFullscreen) return;
+  el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
 }
 function enemyCount() { let n = 0; for (const c of colonies) if (c.alive && c.id !== net.myId) n++; return n; }
 function diff() { return DIFFS[net.diff] || DIFFS.normal; }
@@ -3198,6 +3280,7 @@ function humanCount() { let n = 0; for (const c of colonies) if (c.human) n++; r
 // ---------- joining a match ----------
 function startGame() {
   startMusic();
+  goFullscreen();
   if (!net.connected) { updateNetStatus('Not connected yet - please wait a moment'); return; }
   if (net.joining || state === 'playing') return;
   const nameEl = document.getElementById('nameInput');
@@ -3325,6 +3408,7 @@ function frame(now) {
   if (hitStop > 0) hitStop -= realDt;                           // freeze frame on big hits
   else clientUpdate(dt);
   sendInput(now);
+  updateChargeBtn();
   if (state === 'dying') { deathTimer -= realDt; if (deathTimer <= 0) endGame(false); }
   if (state === 'title') drawCosPreview(realDt);
   shake = Math.max(0, shake - realDt * 30);

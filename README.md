@@ -55,6 +55,15 @@ The server has a private stats page: who's online, who's in a game, unique visit
 
 The numbers are kept in memory, so they start again from zero whenever the server restarts or wakes from sleep. The server never stores IP addresses: visitors are counted with a scrambled code that changes on every restart. Each game start is also written to Render's **Logs** tab, for example `game started: "Alex" in room bros:normal - 2 playing, 3 online`.
 
+## Playing on a phone
+
+The same link works on phones and tablets, in portrait or landscape.
+
+- **Steer:** hold a finger on the screen; your queen walks toward it. Lift your finger and she stops and braces her guard ring.
+- **Charge:** tap the round **CHARGE** button (bottom left). If no finger is steering, it aims at the nearest rival queen. A two-finger tap also charges.
+- **Options:** the button at the top centre.
+- On Android the game goes fullscreen when you press Play. On iPhone, use Safari's **Share > Add to Home Screen** to get the game without the browser bars.
+
 ## Good to know about the free plan
 
 - **The first visit after a break is slow.** A free Render service goes to sleep after 15 minutes with nobody connected. The next visit wakes it up, which takes about a minute. Open the page a minute before you want to play.
