@@ -54,7 +54,7 @@ function roundRect(ctx, x, y, w, h, r) {
 //  Canvas / input
 // ============================================================
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d', { alpha: false });
+let ctx = canvas.getContext('2d', { alpha: false });   // swapped briefly while caching HUD layers
 let W = 0, H = 0, DPR = 1;
 // Render resolution: capped on very sharp screens and lowered automatically
 // when the frame rate drops (see adaptQuality()).
@@ -1478,9 +1478,17 @@ function render() {
   if (flood) drawFlood(L, R, T, B);
   if (golden) drawGolden();
 
-  // power-ups
+  // power-ups: drawn live when only a few are on screen (keeps the flicker), from cached sprites when many are
+  let puOnScreen = 0;
+  for (const pu of powerups) if (pu.x >= L && pu.x <= R && pu.y >= T && pu.y <= B) puOnScreen++;
+  const puCached = puOnScreen > 6;
   for (const pu of powerups) {
     if (pu.x < L || pu.x > R || pu.y < T || pu.y > B) continue;
+    if (puCached && pu.age > 0.34) {
+      const by = pu.y + Math.sin(time * 3 + pu.bob) * 3;
+      ctx.drawImage(powerupSprite(pu.type), pu.x - 32, by - 32, 64, 64);
+      continue;
+    }
     const info = POWER_INFO[pu.type];
     const pop = Math.min(1, pu.age * 3), by = pu.y + Math.sin(time * 3 + pu.bob) * 3;
     const glow = ctx.createRadialGradient(pu.x, by, 2, pu.x, by, 26 * pop);
@@ -1719,11 +1727,13 @@ function render() {
   }
   drawBanners();
   if (state === 'playing' || state === 'paused' || state === 'over' || state === 'victory') {
-    drawHUD();
+    // text-heavy panels are redrawn into cached images a few times a second, then just copied each frame
+    cachedLayer('hud', 66, 0, 0, 340, 460, drawHUD);
     drawMusicHint();
-    drawLeaderboard();
+    cachedLayer('lb', 200, W - 250, 0, 250, 200, drawLeaderboard);
     drawMinimap();
   }
+  drawPerf();
 }
 
 // Small shield glyph (immunity). Blinks during its last 2 seconds.
@@ -1769,6 +1779,46 @@ function drawTunnelIcon(x, y, r, frac) {
 }
 
 // Fire Chili pickup: a curved red pepper with a green stem
+// Cached HUD layers and power-up sprites
+const layers = {};
+function cachedLayer(id, every, x, y, w, h, fn) {
+  const L = layers[id] || (layers[id] = { cv: document.createElement('canvas'), t: -1e9, dpr: 0, x: 0, w: 0, h: 0 });
+  const now = performance.now();
+  if (now - L.t > every || L.dpr !== DPR || L.x !== x || L.w !== w || L.h !== h) {
+    L.t = now; L.dpr = DPR; L.x = x; L.w = w; L.h = h;
+    L.cv.width = Math.ceil(w * DPR); L.cv.height = Math.ceil(h * DPR);
+    const main = ctx;
+    ctx = L.cv.getContext('2d');
+    ctx.setTransform(DPR, 0, 0, DPR, -x * DPR, -y * DPR);
+    try { fn(); } finally { ctx = main; }
+  }
+  ctx.drawImage(L.cv, x, y, w, h);
+}
+const puSprites = new Map();
+function powerupSprite(type) {
+  const key = type + '|' + TH;
+  let cv = puSprites.get(key);
+  if (cv) return cv;
+  const res = 3, half = 32;
+  cv = document.createElement('canvas');
+  cv.width = cv.height = half * 2 * res;
+  const g = cv.getContext('2d');
+  g.setTransform(res, 0, 0, res, half * res, half * res);
+  const info = POWER_INFO[type], k = 1.3, saved = time;
+  time = 0.3;   // a frame where the flame / twinkle is showing
+  const glow = g.createRadialGradient(0, 0, 2, 0, 0, 26);
+  glow.addColorStop(0, info.glow + '0.55)'); glow.addColorStop(1, info.glow + '0)');
+  g.fillStyle = glow; g.beginPath(); g.arc(0, 0, 26, 0, TAU); g.fill();
+  g.lineJoin = 'round';
+  if (TH === 'war') { if (type === 'frenzy') drawIncendiary(0, 0, k, g); else drawSupplyDrop(0, 0, k, g); }
+  else {
+    if (TH === 'picnic') picnicPlate(0, 0, k, g);
+    if (type === 'frenzy') drawChili(0, 0, k, g); else drawSugarCube(0, 0, k, g);
+  }
+  time = saved;
+  puSprites.set(key, cv);
+  return cv;
+}
 function drawChili(x, y, k, g = ctx) {
   g.fillStyle = '#e8261c';
   g.strokeStyle = '#6e0c06';
@@ -1978,7 +2028,7 @@ function drawMusicHint() {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.font = '12px "Trebuchet MS", sans-serif';
   ctx.fillStyle = TH === 'war' ? 'rgba(31,29,24,0.75)' : 'rgba(245,232,200,0.65)';
-  ctx.fillText(`Music: ${music.on ? 'on' : 'off'} [M]   Options [Esc]`, 14, H - 14);
+  ctx.fillText(`Music: ${music.on ? 'on' : 'off'} [M]   Options [Esc]   Ping ${perfStats.ping} ms   Stats [F3]`, 14, H - 14);
 }
 
 function drawLeaderboard() {
@@ -2635,11 +2685,11 @@ function picnicFood(L, R, T, B) {
   ctx.fill();
 }
 // a paper plate under each picnic power-up
-function picnicPlate(x, y, k) {
-  ctx.fillStyle = 'rgba(20,60,20,0.25)'; ctx.beginPath(); ctx.ellipse(x + 2, y + 4, 17 * k, 12 * k, 0, 0, TAU); ctx.fill();
-  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#d9d2c2'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.ellipse(x, y + 2, 16 * k, 11 * k, 0, 0, TAU); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(x, y + 2, 11 * k, 7.5 * k, 0, 0, TAU); ctx.stroke();
+function picnicPlate(x, y, k, g = ctx) {
+  g.fillStyle = 'rgba(20,60,20,0.25)'; g.beginPath(); g.ellipse(x + 2, y + 4, 17 * k, 12 * k, 0, 0, TAU); g.fill();
+  g.fillStyle = '#ffffff'; g.strokeStyle = '#d9d2c2'; g.lineWidth = 1.2;
+  g.beginPath(); g.ellipse(x, y + 2, 16 * k, 11 * k, 0, 0, TAU); g.fill(); g.stroke();
+  g.beginPath(); g.ellipse(x, y + 2, 11 * k, 7.5 * k, 0, 0, TAU); g.stroke();
 }
 
 // ---------- shared hooks ----------
@@ -2739,6 +2789,7 @@ const net = {
   myId: 0, joining: false, snaps: [], offset: null, serverT: 0, retry: 0, players: 0,
   info: new Map(), cols: new Map(), wobj: new Map(), cobj: new Map(), foodSeen: new Map(), puSeen: new Map(),
   queue: [], lastSend: 0, lastIn: null, mapGardens: [],
+  lastAnts: new Map(), foodMap: new Map(), far: [], lastH: {},
 };
 if (qs.get('diff')) settings.diff = net.diff;
 const decoder = new TextDecoder();
@@ -2750,6 +2801,7 @@ function connect() {
   if (net.ws) { net.ws.onclose = null; try { net.ws.close(); } catch (e) {} }
   net.connected = false; net.snaps = []; net.offset = null; net.myId = 0; net.info.clear(); net.cols.clear();
   net.wobj.clear(); net.cobj.clear(); net.foodSeen.clear(); net.puSeen.clear(); net.queue = [];
+  net.lastAnts = new Map(); net.foodMap = new Map(); net.far = []; net.lastH = {};
   colonies = []; food = []; powerups = []; creatures = []; particles = []; floaters = [];
   updateNetStatus('Connecting...');
   let ws;
@@ -2774,6 +2826,7 @@ function connect() {
 function send(obj) { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify(obj)); }
 
 function onJson(m) {
+  if (m.t === 'pong') { perfStats.ping = Math.round(performance.now() - m.n); return; }
   if (m.t === 'hello') { net.players = m.players.length; updateNetStatus(); }
   else if (m.t === 'map') applyMap(m);
   else if (m.t === 'joined') {
@@ -2795,6 +2848,9 @@ function applyMap(m) {
 
 // ---------- snapshots ----------
 function onSnapshot(buf) {
+  try { decodeSnapshot(buf); } catch (err) { console.error('bad snapshot, reconnecting', err); connect(); }
+}
+function decodeSnapshot(buf) {
   const dv = new DataView(buf);
   const hl = dv.getUint32(0, true);
   const h = JSON.parse(decoder.decode(new Uint8Array(buf, 4, hl)));
@@ -2803,44 +2859,68 @@ function onSnapshot(buf) {
     const [name, color, skinId, crown, human] = h.info[id];
     net.info.set(+id, { name, color, skin: SKINS.find(k => k.id === skinId) || null, crown, human: !!human });
   }
+  // binary part: ants and food as changes against the previous snapshot (see server/world.js snapshotFor)
+  const bytes = new Uint8Array(buf);
+  const varint = () => { let v = 0, mul = 1, b; do { b = bytes[o++]; v += (b & 127) * mul; mul *= 128; } while (b & 128); return v; };
   const ants = new Map();   // colony id -> array of ants
-  const antIndex = new Map();
+  const antIndex = new Map(), prevAnts = net.lastAnts;
   for (let i = 0; i < h.ac.length; i += 2) {
     const arr = [];
+    let id = 0;
     for (let k = 0; k < h.ac[i + 1]; k++) {
-      const a = { id: dv.getUint32(o, true), x: dv.getUint16(o + 4, true) / 16, y: dv.getUint16(o + 6, true) / 16, ang: dv.getUint8(o + 8) / 255 * TAU, col: h.ac[i] };
-      arr.push(a); antIndex.set(a.id, a);
-      o += 9;
+      const v = varint(), full = v % 2 === 1;
+      id += Math.floor(v / 2);
+      let qx, qy;
+      if (full) { qx = dv.getUint16(o, true); qy = dv.getUint16(o + 2, true); o += 4; }
+      else { const p = prevAnts.get(id); qx = p.qx + dv.getInt8(o); qy = p.qy + dv.getInt8(o + 1); o += 2; }
+      const a = { id, qx, qy, x: qx / 8, y: qy / 8, ang: bytes[o++] / 255 * TAU, col: h.ac[i] };
+      arr.push(a); antIndex.set(id, a);
     }
     ants.set(h.ac[i], arr);
   }
-  const foods = [];
-  for (let k = 0; k < h.nf; k++) {
-    const r = dv.getUint8(o + 8);
-    foods.push({ id: dv.getUint32(o, true), x: dv.getUint16(o + 4, true) / 16, y: dv.getUint16(o + 6, true) / 16, r: (r & 127) / 20, honey: r >= 128 });
-    o += 9;
+  net.lastAnts = antIndex;
+  const vw = W / 2 / cam.zoom, vh = H / 2 / cam.zoom;
+  const inView = (x, y) => Math.abs(x - cam.x) < vw && Math.abs(y - cam.y) < vh;
+  const fm = net.foodMap;
+  let nRem = varint(), fid = 0;
+  for (let k = 0; k < nRem; k++) {
+    fid += varint();
+    const f = fm.get(fid);
+    if (f) { fm.delete(fid); if (inView(f.x, f.y)) queueFx(h.time, () => crumbFlecks(f.x, f.y)); }
   }
+  const nAdd = varint(); fid = 0;
+  for (let k = 0; k < nAdd; k++) {
+    fid += varint();
+    const r = bytes[o + 4];
+    const old = fm.get(fid);
+    fm.set(fid, { id: fid, x: dv.getUint16(o, true) / 8, y: dv.getUint16(o + 2, true) / 8, r: (r & 127) / 20, honey: r >= 128, age: old ? old.age : 0 });
+    o += 5;
+  }
+  const foods = [...fm.values()];
+  // parts the server leaves out when unchanged: reuse the previous ones
+  for (const key of ['pu', 'gd', 'ev', 'cr', 'st']) if (h[key] === undefined) h[key] = net.lastH[key];
+  if (!h.pu) h.pu = []; if (!h.gd) h.gd = []; if (!h.ev) h.ev = {}; if (!h.cr) h.cr = [];
+  net.lastH = h;
+  if (h.far) net.far = h.far;
   const colIndex = new Map();
   for (const c of h.cols) colIndex.set(c[0], c);
+  const allCols = h.cols.slice();
+  for (const c of net.far) if (!colIndex.has(c[0])) { colIndex.set(c[0], c); allCols.push(c); }
   const crIndex = new Map();
   for (const c of h.cr) crIndex.set(c[0], c);
-  const snap = { time: h.time, h, ants, antIndex, foods, colIndex, crIndex };
+  const snap = { time: h.time, h, ants, antIndex, foods, colIndex, crIndex, allCols };
   const now = performance.now() / 1000;
   const off = h.time - now;
   if (net.offset === null || Math.abs(off - net.offset) > 0.5) net.offset = off;
   else net.offset += (off - net.offset) * 0.05;
-  // things that vanished inside the view since the last snapshot: fallen ants and eaten crumbs
+  // ants that vanished inside the view since the last snapshot have fallen: leave a splat
   const prev = net.snaps[net.snaps.length - 1];
   if (prev) {
-    const vw = W / 2 / cam.zoom, vh = H / 2 / cam.zoom;
-    const inView = (x, y) => Math.abs(x - cam.x) < vw && Math.abs(y - cam.y) < vh;
     for (const a of prev.antIndex.values()) {
       if (antIndex.has(a.id) || !inView(a.x, a.y)) continue;
       const info = net.info.get(a.col);
       if (info) queueFx(h.time, () => splat(a.x, a.y, info.color, info.dark || shade(info.color, -0.5)));
     }
-    const fIds = new Set(foods.map(f => f.id));
-    for (const f of prev.foods) if (!fIds.has(f.id) && inView(f.x, f.y)) queueFx(h.time, () => crumbFlecks(f.x, f.y));
   }
   net.snaps.push(snap);
   if (net.snaps.length > 12) net.snaps.shift();
@@ -2848,6 +2928,7 @@ function onSnapshot(buf) {
   if (h.e) for (const e of h.e) queueFx(h.time, () => onEvent(e, false));
   if (h.p) for (const e of h.p) queueFx(h.time, () => onEvent(e, true));
   if (h.sfx) queueFx(h.time, () => { for (const n of h.sfx) playSfx(n); });
+  if (h.srv) perfStats.srv = h.srv;
   if (h.life) for (const k in h.life) life[k] = (life[k] || 0) + h.life[k];
   if (h.lifeMax) for (const k in h.lifeMax) life[k] = Math.max(life[k] || 0, h.lifeMax[k]);
   if (h.st && state !== 'title') {
@@ -2972,7 +3053,7 @@ function interpolateWorld(dt) {
 
   // colonies
   const list = [];
-  for (const cb of b.h.cols) {
+  for (const cb of b.allCols) {
     const id = cb[0], ca = a.colIndex.get(id) || cb, info = net.info.get(id);
     if (!info) continue;
     let c = net.cobj.get(id);
@@ -3070,7 +3151,29 @@ function interpolateWorld(dt) {
 }
 
 // ---------- input to the server ----------
+const perfStats = { ping: 0, srv: null, show: false, fps: 60, frameMs: 0, lastPing: 0 };
+window.addEventListener('keydown', e => { if (e.code === 'F3') { e.preventDefault(); perfStats.show = !perfStats.show; } });
+function drawPerf() {
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  if (!perfStats.show) return;
+  const s = perfStats.srv || {};
+  const lines = [
+    `FPS ${Math.round(perfStats.fps)}   frame ${perfStats.frameMs.toFixed(1)} ms   detail ${Math.round(quality * 100)}%`,
+    `Ping ${perfStats.ping} ms   download ${s.kbps ?? '-'} KB/s`,
+    `Server: step ${s.step ?? '-'} ms   load ${s.load ?? '-'}%`,
+    `On screen: ${colonies.reduce((a, c) => a + c.workers.length, 0)} ants, ${food.length} crumbs, ${particles.length} effects`,
+  ];
+  const x = 14, y = H - 120, w = 360, h = lines.length * 17 + 12;
+  panel(x, y, w, h);
+  ctx.font = '12px ui-monospace, Consolas, monospace';
+  lines.forEach((l, i) => {
+    const bad = (i === 0 && perfStats.fps < 40) || (i === 1 && perfStats.ping > 150) || (i === 2 && s.load > 70);
+    ctx.fillStyle = bad ? '#ff8a7a' : '#e8f5d8';
+    ctx.fillText(l, x + 10, y + 19 + i * 17);
+  });
+}
 function sendInput(now) {
+  if (net.connected && now - perfStats.lastPing > 2000) { perfStats.lastPing = now; send({ t: 'ping', n: now }); }
   if (!net.connected || now - net.lastSend < 33) return;
   net.lastSend = now;
   const msg = { t: 'in', cx: Math.round(cam.x), cy: Math.round(cam.y), hw: Math.round(W / 2 / cam.zoom), hh: Math.round(H / 2 / cam.zoom) };
@@ -3215,6 +3318,7 @@ function adaptQuality(raw) {
 function frame(now) {
   let dt = (now - last) / 1000;
   last = now;
+  const rawDt = dt;
   adaptQuality(dt);
   if (dt > 0.05) dt = 0.05;
   const realDt = dt;
@@ -3227,7 +3331,10 @@ function frame(now) {
   shakeX = (Math.random() * 2 - 1) * shake; shakeY = (Math.random() * 2 - 1) * shake;
   for (const b of banners) b.life -= realDt;
   banners = banners.filter(b => b.life > 0);
+  const r0 = performance.now();
   render();
+  perfStats.frameMs = perfStats.frameMs * 0.9 + (performance.now() - r0) * 0.1;
+  if (rawDt > 0) perfStats.fps = perfStats.fps * 0.95 + (1 / Math.max(rawDt, 0.001)) * 0.05;
   requestAnimationFrame(frame);
 }
 

@@ -39,6 +39,9 @@ function createWorld(diffKey = 'normal') {
   let nightT = 0, bloodMoon = 0, sugarRain = 0, sugarRainT = 0;
   const antGrid = Array.from({ length: GCOLS * GROWS }, () => []);
   const foodGrid = Array.from({ length: GCOLS * GROWS }, () => []);
+  // which colony occupies each grid cell (0 = empty, -1 = more than one): lets calm ants skip work
+  const cellOwner = new Int32Array(GCOLS * GROWS);
+  let stepNo = 0;
   let events = [];   // visual events for every client since the last snapshot
 
   // ---------- event helpers ----------
@@ -387,15 +390,16 @@ function createWorld(diffKey = 'normal') {
   // ============================================================
   const usedAntCells = [], usedFoodCells = [];
   function buildGrids() {
-    for (const i of usedAntCells) antGrid[i].length = 0;
+    for (const i of usedAntCells) { antGrid[i].length = 0; cellOwner[i] = 0; }
     for (const i of usedFoodCells) foodGrid[i].length = 0;
     usedAntCells.length = 0; usedFoodCells.length = 0;
     for (const c of colonies) {
       if (!c.alive) continue;
       for (const w of c.workers) {
         const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
-        const cell = antGrid[gy * GCOLS + gx];
-        if (!cell.length) usedAntCells.push(gy * GCOLS + gx);
+        const ci = gy * GCOLS + gx, cell = antGrid[ci];
+        if (!cell.length) { usedAntCells.push(ci); cellOwner[ci] = c.id; }
+        else if (cellOwner[ci] !== c.id) cellOwner[ci] = -1;
         cell.push(w);
       }
     }
@@ -444,12 +448,27 @@ function createWorld(diffKey = 'normal') {
     const SEP2 = SEP_DIST * SEP_DIST, FIGHT2 = FIGHT_DIST * FIGHT_DIST;
     for (const c of colonies) {
       if (!c.alive) continue;
+      const cid = c.id;
       for (const w of c.workers) {
         if (w.dead) continue;
         w.fightCd -= dt;
         const gx = clamp((w.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((w.y / CELL) | 0, 0, GROWS - 1);
-        let nearF = null, nearD = 30;
+        // Level of detail: an ant with no other colony in the 3x3 cells around it only needs its
+        // spacing and food steering refreshed every third step (it keeps the last result between).
+        // Anywhere two colonies meet, every ant is checked every step, so fights stay exact.
+        let calm = true;
+        for (let yy = gy - 1; yy <= gy + 1 && calm; yy++) {
+          if (yy < 0 || yy >= GROWS) continue;
+          for (let xx = gx - 1; xx <= gx + 1; xx++) {
+            if (xx < 0 || xx >= GCOLS) continue;
+            const ow = cellOwner[yy * GCOLS + xx];
+            if (ow !== 0 && ow !== cid) { calm = false; break; }
+          }
+        }
         w.ed = Infinity;
+        if (calm && (w.id + stepNo) % 3 !== 0) continue;
+        w.sx = w.sy = w.fx = w.fy = 0;
+        let nearF = null, nearD = 30;
         for (let yy = gy - 1; yy <= gy + 1; yy++) {
           if (yy < 0 || yy >= GROWS) continue;
           for (let xx = gx - 1; xx <= gx + 1; xx++) {
@@ -488,7 +507,7 @@ function createWorld(diffKey = 'normal') {
             for (let i = 0; i < fc.length; i++) {
               const f = fc[i];
               if (f.dead) continue;
-              const d = dist(w.x, w.y, f.x, f.y);
+              const fdx = w.x - f.x, fdy = w.y - f.y, d = Math.sqrt(fdx * fdx + fdy * fdy);
               if (d < WORKER_R + f.r + 1) { eatFood(c, f); continue; }
               if (d < nearD) { nearD = d; nearF = f; }
             }
@@ -535,6 +554,9 @@ function createWorld(diffKey = 'normal') {
     const outerR = RING0 + (rings - 1) * RING_GAP;
     c.outerR = outerR;
     const k = 1 - Math.exp(-7 * dt), kRing = 1 - Math.exp(-16 * dt);
+    const kTurn = 1 - Math.exp(-12 * dt), kRest = 1 - Math.exp(-6 * dt);
+    const capS = PLAYER_SPEED * 1.3 * RUSH_SPEED + 140;
+    const qx = q.x, qy = q.y, qvx = q.vx, qvy = q.vy;
     const charging = c.charge > 0;
     const Rc = 8 + 3.5 * Math.sqrt(n);
     let tvx = 0, tvy = 0, tcount = 0;
@@ -542,9 +564,11 @@ function createWorld(diffKey = 'normal') {
     const gx = clamp((q.x / CELL) | 0, 0, GCOLS - 1), gy = clamp((q.y / CELL) | 0, 0, GROWS - 1);
     for (let yy = Math.max(0, gy - cr); yy <= Math.min(GROWS - 1, gy + cr); yy++) {
       for (let xx = Math.max(0, gx - cr); xx <= Math.min(GCOLS - 1, gx + cr); xx++) {
+        const ow = cellOwner[yy * GCOLS + xx];
+        if (ow === 0 || ow === c.id) continue;
         for (const e of antGrid[yy * GCOLS + xx]) {
           if (e.col === c || e.dead) continue;
-          const dx = e.x - q.x, dy = e.y - q.y, d = Math.hypot(dx, dy);
+          const dx = e.x - q.x, dy = e.y - q.y, d = Math.sqrt(dx * dx + dy * dy);
           if (d > scan || d < 0.01) continue;
           tvx += dx / d; tvy += dy / d; tcount++;
         }
@@ -554,6 +578,7 @@ function createWorld(diffKey = 'normal') {
     const shift = Math.hypot(q.vx, q.vy) < 90 ? 0.55 : 0.25;
     const squeeze = tcount >= 2 && !charging ? shift * Math.min(1, tcount / 8) * Math.min(1, tmag / tcount + 0.2) : 0;
     const threatAng = Math.atan2(tvy, tvx);
+    c.calm = tcount === 0;
     let idx = 0;
     for (let ring = 0; idx < n; ring++) {
       const r = RING0 + ring * RING_GAP;
@@ -566,21 +591,21 @@ function createWorld(diffKey = 'normal') {
           const rel = ((a - threatAng + Math.PI) % TAU + TAU) % TAU - Math.PI;
           a = threatAng + rel * (1 - squeeze);
         }
-        let tx = q.x + Math.cos(a) * r, ty = q.y + Math.sin(a) * r;
+        let tx = qx + Math.cos(a) * r, ty = qy + Math.sin(a) * r;
         let maxS = WORKER_SPEED, guarding = false;
         if (charging) {
           tx = c.chargeX + w.ox * Rc; ty = c.chargeY + w.oy * Rc; maxS = CHARGE_SPEED;
           if (w.ed < 13) maxS = 25;
-        } else if (w.ed < 38 && dist(w.ex, w.ey, q.x, q.y) < r + 3) {
+        } else if (w.ed < 38 && (w.ex - qx) ** 2 + (w.ey - qy) ** 2 < (r + 3) * (r + 3)) {
           tx = w.ex; ty = w.ey; maxS = WORKER_SPEED * 1.15;
         } else guarding = true;
-        const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
+        const dx = tx - w.x, dy = ty - w.y, d = Math.sqrt(dx * dx + dy * dy);
         let dvx, dvy;
         if (guarding) {
-          dvx = q.vx + dx * 8 + w.sx * 0.5 + w.fx * 0.5;
-          dvy = q.vy + dy * 8 + w.sy * 0.5 + w.fy * 0.5;
-          const m = Math.hypot(dvx, dvy), cap = PLAYER_SPEED * 1.3 * RUSH_SPEED + 140;
-          if (m > cap) { dvx *= cap / m; dvy *= cap / m; }
+          dvx = qvx + dx * 8 + w.sx * 0.5 + w.fx * 0.5;
+          dvy = qvy + dy * 8 + w.sy * 0.5 + w.fy * 0.5;
+          const m2 = dvx * dvx + dvy * dvy;
+          if (m2 > capS * capS) { const f = capS / Math.sqrt(m2); dvx *= f; dvy *= f; }
           w.vx += (dvx - w.vx) * kRing; w.vy += (dvy - w.vy) * kRing;
         } else {
           const sp = Math.min(maxS, d * (charging ? 6 : 4));
@@ -598,10 +623,9 @@ function createWorld(diffKey = 'normal') {
           w.y = clamp(w.y + w.vy * dt * tf, 3, WORLD_H - 3);
           if (rocks.length) pushOutOfRocks(w, WORKER_R);
         }
-        const s = Math.hypot(w.vx, w.vy);
-        if (s > 25) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), 1 - Math.exp(-12 * dt));
-        else w.ang = lerpAngle(w.ang, a, 1 - Math.exp(-6 * dt));
-        w.sx = w.sy = w.fx = w.fy = 0;
+        const s2 = w.vx * w.vx + w.vy * w.vy;
+        if (s2 > 625) w.ang = lerpAngle(w.ang, Math.atan2(w.vy, w.vx), kTurn);
+        else w.ang = lerpAngle(w.ang, a, kRest);
       }
       idx += cnt;
     }
@@ -1277,7 +1301,7 @@ function createWorld(diffKey = 'normal') {
   //  Main update (one fixed step)
   // ============================================================
   function update(dt) {
-    time += dt;
+    time += dt; stepNo++;
     for (const c of colonies) {
       if (!c.alive) continue;
       if (c.human) updateHuman(c, dt); else updateAI(c, dt);
@@ -1289,8 +1313,16 @@ function createWorld(diffKey = 'normal') {
     }
     buildGrids();
     interactions(dt);
-    for (const c of colonies) if (c.alive) updateWorkers(c, dt);
-    buildGrids();
+    // A colony with no enemy near its ring and no charge running moves its guards on alternate
+    // steps with a double time step: clients only get 30 snapshots a second, so it looks the same.
+    for (const c of colonies) {
+      if (!c.alive) continue;
+      if (c.calm && c.charge <= 0 && !c.wasCharging) {
+        if ((stepNo + c.id) % 2) updateWorkers(c, dt * 2);
+      } else updateWorkers(c, dt);
+      c.wasCharging = c.charge > 0;
+    }
+    // the grid from the start of the step is reused: ants only moved a few pixels, well inside the 3x3 cell search
     antQueenContacts();
     queenCollisions();
     updatePowerAndStructures(dt);
@@ -1350,7 +1382,9 @@ function createWorld(diffKey = 'normal') {
     const m = S.NET.VIEW_MARGIN;
     const L = v.x - v.hw - m, R = v.x + v.hw + m, T = v.y - v.hh - m, B = v.y + v.hh + m;
     const inV = (x, y) => x > L && x < R && y > T && y < B;
-    const cols = [], info = {}, antCounts = [];
+    const cols = [], far = [], info = {}, antCounts = [], groups = [];
+    session.snapNo = (session.snapNo || 0) + 1;
+    const sendFar = session.snapNo % 6 === 1;   // far-away colonies only feed the minimap and leaderboard: 5 times a second is plenty
     let nAnts = 0;
     for (const c of colonies) {
       if (!c.alive) continue;
@@ -1360,17 +1394,15 @@ function createWorld(diffKey = 'normal') {
         info[c.id] = [c.name, c.color, c.skinId, c.crownColor, c.human ? 1 : 0];
       }
       const near = Math.abs(q.x - v.x) < v.hw + m + c.outerR + 60 && Math.abs(q.y - v.y) < v.hh + m + c.outerR + 60;
-      if (!near) { cols.push([c.id, Math.round(q.x), Math.round(q.y), n]); continue; }
+      if (!near) { if (sendFar) far.push([c.id, Math.round(q.x), Math.round(q.y), n]); continue; }
       const flags = (c.frenzy > 0 ? 1 : 0) | (c.rush > 0 ? 2 : 0) | (c.charge > 0 ? 4 : 0) | (c.human ? 8 : 0);
       cols.push([c.id, r1(q.x), r1(q.y), n, Math.round(q.ang * 100) / 100, Math.round(c.outerR), flags,
         r1(Math.max(0, c.grace)), r1(Math.max(0, c.tunnelCd)), Math.round(c.chargeX), Math.round(c.chargeY), c.crownLevel,
         r1(Math.max(0, c.charge)), r1(Math.max(0, c.chargeCd))]);
-      let k = 0;
-      for (const w of c.workers) if (inV(w.x, w.y)) k++;
-      if (k) { antCounts.push(c.id, k); nAnts += k; }
+      const vis = [];
+      for (const w of c.workers) if (inV(w.x, w.y)) vis.push(w);
+      if (vis.length) { vis.sort((a, b) => a.id - b.id); antCounts.push(c.id, vis.length); groups.push(vis); nAnts += vis.length; }
     }
-    let nFood = 0;
-    for (const f of food) if (inV(f.x, f.y)) nFood++;
 
     const creat = creatures.map(cr => [cr.id, cr.type, r1(cr.x), r1(cr.y), Math.round(cr.ang * 100) / 100, Math.round(cr.hp), cr.max,
       cr.state === 'flipped' ? 1 : 0, cr.hitFlash > 0 ? 1 : 0, cr.munch > 0 ? 1 : 0, cr.webR || 0, cr.webSeed ? Math.round(cr.webSeed * 1000) / 1000 : 0]);
@@ -1388,35 +1420,67 @@ function createWorld(diffKey = 'normal') {
 
     const head = {
       t: 'snap', time: Math.round(time * 1000) / 1000, me: me && me.alive ? me.id : 0, mapV: mapVersion,
-      cols, info, ac: antCounts, nf: nFood,
+      cols, info, ac: antCounts,
       pu: powerups.map(p => [p.id, Math.round(p.x), Math.round(p.y), p.type === 'frenzy' ? 0 : 1]),
-      gd: gardens.map(g => [g.owner ? g.owner.id : 0, g.contested ? 1 : 0, Math.round(g.acc * 100) / 100]),
+      gd: gardens.map(g => [g.owner ? g.owner.id : 0, g.contested ? 1 : 0, Math.round(g.acc * 20) / 20]),
       cr: creat, ev,
     };
+    if (sendFar) head.far = far;
+    // unchanged since the last snapshot to this client? leave it out (the client keeps the previous value)
+    const last = session.lastParts || (session.lastParts = {});
+    for (const key of ['pu', 'gd', 'ev', 'cr']) {
+      const str = JSON.stringify(head[key]);
+      if (last[key] === str) delete head[key]; else last[key] = str;
+    }
     if (me && me.alive) head.st = { k: me.st.kills, s: me.st.streak, lc: Math.round(me.st.lastConquer * 100) / 100, sp: Math.round(speedFactor(me) * 100), fd: me.food };
-    // binary part: ants (id u32, x u16, y u16, ang u8) grouped in `ac` order, then food (id u32, x u16, y u16, r u8)
-    const buf = Buffer.allocUnsafe(nAnts * 9 + nFood * 9);
-    let o = 0;
-    for (let i = 0; i < antCounts.length; i += 2) {
-      const c = colonies.find(cc => cc.id === antCounts[i]);
-      for (const w of c.workers) {
-        if (!inV(w.x, w.y)) continue;
-        buf.writeUInt32LE(w.id >>> 0, o);
-        buf.writeUInt16LE(Math.round(clamp(w.x, 0, 4095) * 16), o + 4);
-        buf.writeUInt16LE(Math.round(clamp(w.y, 0, 4095) * 16), o + 6);
-        buf.writeUInt8(Math.round(((w.ang % TAU) + TAU) % TAU / TAU * 255) & 255, o + 8);
-        o += 9;
+    if (head.st) { const str = JSON.stringify(head.st); if (last.st === str) delete head.st; else last.st = str; }
+    // Binary part, sent as changes since the last snapshot this client received (WebSocket delivery is
+    // reliable and in order, so both sides always share the same baseline).
+    // Ants: per colony, sorted by id: varint(idGap * 2 + full), then
+    //   full:  u16 x, u16 y (1/8 px), u8 angle        delta: i8 dx, i8 dy (1/8 px), u8 angle
+    // Food: varint count of removed ids (varint id gaps), then added/moved crumbs: varint id gap, u16 x, u16 y, u8 r|honey
+    const out = session.enc || (session.enc = Buffer.allocUnsafe(64 * 1024));
+    let buf = out, o = 0;
+    const need = n => { if (o + n > buf.length) { const nb = Buffer.allocUnsafe(Math.max(buf.length * 2, o + n)); buf.copy(nb, 0, 0, o); buf = nb; session.enc = nb; } };
+    const varint = v => { need(5); while (v >= 128) { buf[o++] = (v % 128) | 128; v = Math.floor(v / 128); } buf[o++] = v; };
+    const prevA = session.prevAnts || new Map(), nextA = new Map();
+    for (const vis of groups) {
+      let last = 0;
+      for (const w of vis) {
+        const qx = Math.round(clamp(w.x, 0, 4095) * 8), qy = Math.round(clamp(w.y, 0, 4095) * 8);
+        const qa = Math.round(((w.ang % TAU) + TAU) % TAU / TAU * 255) & 255;
+        const p = prevA.get(w.id);
+        const dx = p ? qx - p[0] : 999, dy = p ? qy - p[1] : 999;
+        const full = !(dx >= -127 && dx <= 127 && dy >= -127 && dy <= 127);
+        varint((w.id - last) * 2 + (full ? 1 : 0));
+        last = w.id;
+        need(5);
+        if (full) { buf.writeUInt16LE(qx, o); buf.writeUInt16LE(qy, o + 2); buf[o + 4] = qa; o += 5; }
+        else { buf.writeInt8(dx, o); buf.writeInt8(dy, o + 1); buf[o + 2] = qa; o += 3; }
+        nextA.set(w.id, [qx, qy]);
       }
     }
+    session.prevAnts = nextA;
+    const prevF = session.prevFood || new Map(), nextF = new Map(), adds = [];
     for (const f of food) {
       if (!inV(f.x, f.y)) continue;
-      buf.writeUInt32LE(f.id >>> 0, o);
-      buf.writeUInt16LE(Math.round(clamp(f.x, 0, 4095) * 16), o + 4);
-      buf.writeUInt16LE(Math.round(clamp(f.y, 0, 4095) * 16), o + 6);
-      buf.writeUInt8((Math.min(127, Math.round(f.r * 20))) | (f.honey ? 128 : 0), o + 8);
-      o += 9;
+      const qx = Math.round(clamp(f.x, 0, 4095) * 8), qy = Math.round(clamp(f.y, 0, 4095) * 8);
+      const key = qx * 65536 + qy;
+      nextF.set(f.id, key);
+      if (prevF.get(f.id) !== key) adds.push([f.id, qx, qy, Math.min(127, Math.round(f.r * 20)) | (f.honey ? 128 : 0)]);
     }
-    return { head, bin: buf };
+    const removed = [];
+    for (const id of prevF.keys()) if (!nextF.has(id)) removed.push(id);
+    removed.sort((a, b) => a - b);
+    varint(removed.length);
+    let lastR = 0;
+    for (const id of removed) { varint(id - lastR); lastR = id; }
+    adds.sort((a, b) => a[0] - b[0]);
+    varint(adds.length);
+    let lastF = 0;
+    for (const [id, qx, qy, r] of adds) { varint(id - lastF); lastF = id; need(5); buf.writeUInt16LE(qx, o); buf.writeUInt16LE(qy, o + 2); buf[o + 4] = r; o += 5; }
+    session.prevFood = nextF;
+    return { head, bin: buf.subarray(0, o) };
   }
 
   function takeEvents() { const e = events; events = []; return e; }

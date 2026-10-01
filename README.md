@@ -49,6 +49,7 @@ Things to know:
 ## Good to know about the free plan
 
 - **The first visit after a break is slow.** A free Render service goes to sleep after 15 minutes with nobody connected. The next visit wakes it up, which takes about a minute. Open the page a minute before you want to play.
+- **Checking lag.** Your ping shows in the bottom-left corner during a game. Press **F3** for the full stats panel: frames per second, ping, download speed, and how busy the server is. Red numbers point at the cause: low FPS means your computer, high ping means the internet connection, high server load means the server plan.
 - **Lag.** Pick the Render region closest to both of you (in `render.yaml`, or in the service's settings). If the game still feels laggy with a lot of ants on screen, the free plan's small CPU share is the likely cause. Render's cheapest paid plan (Starter) gives it much more room.
 - **Progress** (level, skins, achievements, high score) is saved in each player's own browser, the same as the single-player version.
 
@@ -64,6 +65,9 @@ Other hosts work too, as long as they run a Node.js server and allow WebSockets:
 | `public/index.html` | Menus and styles. |
 | `public/client.js` | Drawing, sound, menus, progression, and the network client. |
 
-The server owns the world, so nobody can cheat by editing their browser. Each browser sends its mouse position and charge clicks about 30 times a second. The server sends back what that player can see (30 times a second) and the browser smooths the movement between updates.
+The server owns the world, so nobody can cheat by editing their browser. To keep the free plan comfortable:
+- Ants with no enemy nearby skip work the player can't see. Anywhere two colonies meet, the simulation runs at full detail.
+- Each update only contains what changed since the last one, and the connection is compressed. That's about 15 to 30 KB per second per player.
+- Far-away colonies (minimap and leaderboard only) are sent 5 times a second instead of 30. Each browser sends its mouse position and charge clicks about 30 times a second. The server sends back what that player can see (30 times a second) and the browser smooths the movement between updates.
 
 For testing, start the server with `COLONY_DEBUG=1` to allow debug commands (trigger events, grow, die) from the browser console, for example `send({ t: 'dbg', cmd: 'golden' })`. Leave it off on the real server.

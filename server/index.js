@@ -51,7 +51,11 @@ function roomPlayers(room) {
 }
 
 // ---------- connections ----------
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
+// light compression: snapshots shrink by about 40% for very little CPU
+const wss = new WebSocketServer({
+  server, path: '/ws', maxPayload: 16 * 1024,
+  perMessageDeflate: { zlibDeflateOptions: { level: 1, memLevel: 7 }, serverMaxWindowBits: 13, threshold: 256 },
+});
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
   const diff = DIFFS[url.searchParams.get('diff')] ? url.searchParams.get('diff') : 'normal';
@@ -118,6 +122,8 @@ function send(session, obj) {
 const STEP = 1 / NET.TICK_HZ;
 const SNAP_EVERY = Math.round(NET.TICK_HZ / NET.SNAP_HZ);
 let last = process.hrtime.bigint(), acc = 0;
+// load measurement for the in-game performance panel (F3)
+const perf = { busy: 0, since: Date.now(), load: 0 };
 setInterval(() => {
   const now = process.hrtime.bigint();
   acc += Number(now - last) / 1e9;
@@ -125,6 +131,17 @@ setInterval(() => {
   let steps = 0;
   while (acc >= STEP && steps < 4) { acc -= STEP; steps++; tick(); }
   if (acc > STEP * 4) acc = 0;   // fell far behind (e.g. the machine slept): don't try to catch up
+  perf.busy += Number(process.hrtime.bigint() - now) / 1e6;
+  if (Date.now() - perf.since >= 1000) {
+    perf.load = Math.round(perf.busy / (Date.now() - perf.since) * 100);
+    perf.busy = 0; perf.since = Date.now();
+    for (const room of rooms.values()) for (const s of room.sessions) {
+      const sent = s.ws._socket ? s.ws._socket.bytesWritten : 0;
+      s.kbps = Math.round((sent - (s.sentBytes || 0)) / 102.4) / 10;
+      s.sentBytes = sent;
+      s.wantSrv = true;
+    }
+  }
   // forget rooms nobody has been in for a while
   for (const [key, room] of rooms) {
     if (!room.sessions.size && room.emptySince && Date.now() - room.emptySince > 30000) { rooms.delete(key); console.log(`room closed: ${key}`); }
@@ -134,7 +151,9 @@ setInterval(() => {
 function tick() {
   for (const room of rooms.values()) {
     if (!room.sessions.size) continue;   // nobody watching: freeze the world
+    const t0 = process.hrtime.bigint();
     room.world.update(STEP);
+    room.stepMs = (room.stepMs || 0) * 0.98 + Number(process.hrtime.bigint() - t0) / 1e6 * 0.02;
     if (++room.tick % SNAP_EVERY) continue;
     const events = room.world.takeEvents();
     for (const s of room.sessions) {
@@ -147,6 +166,7 @@ function tick() {
       if (s.sfx.size) { head.sfx = [...s.sfx]; s.sfx.clear(); }
       if (Object.keys(s.life).length) { head.life = s.life; s.life = {}; }
       if (Object.keys(s.lifeMax).length) { head.lifeMax = s.lifeMax; s.lifeMax = {}; }
+      if (s.wantSrv) { s.wantSrv = false; head.srv = { step: Math.round(room.stepMs * 100) / 100, load: perf.load, kbps: s.kbps || 0 }; }
       const json = Buffer.from(JSON.stringify(head));
       const msg = Buffer.allocUnsafe(4 + json.length + bin.length);
       msg.writeUInt32LE(json.length, 0);
