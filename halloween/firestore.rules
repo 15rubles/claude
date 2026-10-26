@@ -17,7 +17,7 @@ service cloud.firestore {
         && request.resource.data.pin == 'CHANGE-ME-HOST-PASSWORD';
     }
 
-    // Host-only settings: misspelling merges and the winner reveal. The TV reads it.
+    // Host-only: the winner reveal. The TV reads it.
     match /config/state {
       allow read: if true;
       allow write: if isHost();

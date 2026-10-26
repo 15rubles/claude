@@ -4,7 +4,7 @@
 //
 // Data model (Firestore):
 //  votes/{uid}    { name, at }  one vote per phone: the name the guest typed
-//  config/state   { merges: [{ from, to }], revealed, results }  host-only: misspelling merges + reveal
+//  config/state   { revealed, results }  host-only: the winner reveal
 //  hosts/{uid}    { pin }       created by entering the host password (checked by the rules)
 import { firebaseConfig } from '../firebase-config.js';
 
@@ -18,7 +18,7 @@ const embed = window.GGW_EMBED;
 export const firebaseReady = Boolean(firebaseConfig?.apiKey) && !firebaseConfig.apiKey.startsWith('PASTE');
 export const isDemo = params.has('demo') || !firebaseReady || Boolean(embed);
 
-export const BLANK_STATE = { merges: [], revealed: false, results: null };
+export const BLANK_STATE = { revealed: false, results: null };
 
 export function connect() {
   return isDemo ? demoBackend() : firebaseBackend();

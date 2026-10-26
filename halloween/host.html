@@ -17,20 +17,9 @@
   .stat span { color: var(--muted); }
   .links { display: grid; gap: 10px; }
   .rows { display: grid; gap: 8px; }
-  .row { background: rgba(0, 0, 0, 0.28); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; }
-  .row-main { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; }
+  .row { background: rgba(0, 0, 0, 0.28); border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
   .row .nm { font-weight: 800; font-size: 17px; overflow-wrap: anywhere; min-width: 0; }
   .row .ct { font: 700 22px/1 var(--font-mono); }
-  .row .btn { min-height: 36px; padding: 7px 12px; font-size: 13px; }
-  .row.source { outline: 2px solid var(--cream); }
-  .row.target { outline: 2px dashed var(--mint); }
-  .variants { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--muted); align-items: center; }
-  .variant { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 999px; padding: 3px 4px 3px 10px; }
-  .variant button { appearance: none; border: 0; background: transparent; color: #ff9aa2; font: 700 13px var(--font-body); cursor: pointer; padding: 2px 6px; border-radius: 999px; }
-  .variant button:hover { background: rgba(255, 120, 130, 0.15); }
-  .merge-bar { position: sticky; top: 8px; z-index: 5; background: var(--cream); color: var(--maroon-deep); border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-weight: 700; font-size: 14px; }
-  .merge-bar span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .merge-bar .btn { min-height: 34px; padding: 6px 12px; font-size: 13px; background: var(--maroon-deep); color: var(--cream); }
   .help { font-size: 14px; color: var(--muted); }
 </style>
 </head>
@@ -63,8 +52,7 @@
 
     <section class="card">
       <h2>Votes by name</h2>
-      <p>Keep this screen to yourself. If someone misspelled a name, tap <strong>Merge</strong> on the misspelling, then tap the right name. Those votes then count for the right name.</p>
-      <div id="merge-bar"></div>
+      <p>Keep this screen to yourself so the winner stays a surprise.</p>
       <div class="rows" id="rows"></div>
     </section>
 
@@ -78,7 +66,7 @@
 
     <section class="card">
       <h2>Start fresh</h2>
-      <p>Deletes every vote and merge and hides the results, for example after a test run.</p>
+      <p>Deletes every vote and hides the results, for example after a test run.</p>
       <button class="btn btn-danger btn-block" id="clear">Clear all votes</button>
     </section>
   </div>
@@ -97,7 +85,7 @@ $('#link-guest').href = pageUrl('./');
 if (window.GGW_EMBED) $('#links').hidden = true;
 
 const api = await connect();
-let state = BLANK_STATE, votes = [], groups = [], mergeFrom = null;
+let state = BLANK_STATE, votes = [], groups = [];
 
 if (await api.isHost()) start();
 else $('#gate').hidden = false;
@@ -125,8 +113,7 @@ function start() {
 }
 
 function render() {
-  groups = groupVotes(votes, state.merges);
-  if (mergeFrom && !groups.some(g => g.key === mergeFrom)) mergeFrom = null;
+  groups = groupVotes(votes);
   $('#n-votes').textContent = votes.length;
 
   $('#reveal-help').textContent = state.revealed
@@ -137,46 +124,17 @@ function render() {
        <button class="btn btn-mint" data-act="reveal">Reveal again</button>`
     : `<button class="btn btn-mint" data-act="reveal" ${votes.length ? '' : 'disabled'}>🏆 Reveal the winner</button>`;
 
-  const from = groups.find(g => g.key === mergeFrom);
-  $('#merge-bar').innerHTML = from
-    ? `<div class="merge-bar"><span>Tap the right name to merge “${esc(from.name)}” into it</span>
-        <button class="btn" data-act="cancel-merge">Cancel</button></div>`
-    : '';
-
-  $('#rows').innerHTML = groups.length ? groups.map(g => {
-    const action = !from
-      ? `<button class="btn btn-soft" data-merge="${esc(g.key)}">Merge</button>`
-      : g.key === from.key
-        ? '<span class="help">Merging…</span>'
-        : `<button class="btn btn-mint" data-into="${esc(g.key)}">Merge here</button>`;
-    return `<div class="row ${from && g.key === from.key ? 'source' : from ? 'target' : ''}">
-      <div class="row-main"><span class="nm">${esc(g.name)}</span><span class="ct">${g.count}</span>${action}</div>
-      ${g.variants.length ? `<div class="variants">Includes:
-        ${g.variants.map(v => `<span class="variant">${esc(v.name)} (${v.count})
-          <button data-unmerge="${esc(v.key)}" aria-label="Split ${esc(v.name)} back out" title="Split back out">✕</button></span>`).join('')}
-      </div>` : ''}
-    </div>`;
-  }).join('') : '<p class="help">No votes yet.</p>';
+  $('#rows').innerHTML = groups.length ? groups.map(g => `<div class="row">
+    <span class="nm">${esc(g.name)}</span><span class="ct">${g.count}</span>
+  </div>`).join('') : '<p class="help">No votes yet.</p>';
 }
 
 const save = patch => api.setState({ ...BLANK_STATE, ...state, ...patch });
 
 document.addEventListener('click', async e => {
-  const t = e.target.closest('[data-act],[data-merge],[data-into],[data-unmerge]');
+  const t = e.target.closest('[data-act]');
   if (!t) return;
   try {
-    if (t.dataset.merge) { mergeFrom = t.dataset.merge; render(); return; }
-    if (t.dataset.act === 'cancel-merge') { mergeFrom = null; render(); return; }
-    if (t.dataset.into) {
-      const from = mergeFrom;
-      mergeFrom = null;
-      await save({ merges: [...state.merges.filter(m => m.from !== from), { from, to: t.dataset.into }] });
-      toast('Merged.');
-    }
-    if (t.dataset.unmerge) {
-      await save({ merges: state.merges.filter(m => m.from !== t.dataset.unmerge) });
-      toast('Split back out.');
-    }
     if (t.dataset.act === 'reveal') {
       const ranking = groups.slice(0, 10).map(({ name, count }) => ({ name, count }));
       await save({ revealed: true, results: { ranking, total: votes.length, at: Date.now() } });
@@ -189,7 +147,7 @@ document.addEventListener('click', async e => {
 });
 
 $('#clear').addEventListener('click', async () => {
-  if (!(await askConfirm('Delete ALL votes and merges and start over?', { ok: 'Clear votes', danger: true, typed: 'CLEAR' }))) return;
+  if (!(await askConfirm('Delete ALL votes and start over?', { ok: 'Clear votes', danger: true, typed: 'CLEAR' }))) return;
   try {
     await api.clearVotes();
     await api.setState({ ...BLANK_STATE });

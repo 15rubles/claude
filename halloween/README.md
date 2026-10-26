@@ -1,12 +1,12 @@
 # Ghouls Gone Wild: Costume Contest 🎃
 
 A no-download voting app. Guests scan a QR code, type the name of the person with the best costume, and tap Vote.
-The TV shows only how many votes are in. The host can merge misspelled names, then reveals the winner on the TV.
+The TV shows only how many votes are in. The host sees the names and reveals the winner on the TV.
 
 | Page | Who | What |
 |---|---|---|
 | `index.html` | Guests (QR code goes here) | Type a name and vote. One vote per phone, which can be changed |
-| `host.html` | You | Votes by name, merge misspellings, reveal the winner, clear all votes |
+| `host.html` | You | Votes by name, reveal the winner, clear all votes |
 | `screen.html` | TV or laptop | QR code and the vote count, then a 3-2-1 winner reveal with confetti |
 | `poster.html` | Printer | QR poster to stick on the wall |
 
@@ -41,12 +41,10 @@ That device stays signed in as host. You can unlock more than one device.
    Print the QR poster too (`poster.html`).
 2. Guests scan, type a name and tap **Vote**. The TV count goes up with each vote.
    The same name typed with different capitals or extra spaces already counts as one name.
-3. On the host page, fix misspellings: tap **Merge** on the misspelled name, then tap the right one.
-   The ✕ next to a merged name splits it back out.
-4. Tap **🏆 Reveal the winner**. The TV counts down 3-2-1 and shows the winner and runners-up.
+3. On the host page, tap **🏆 Reveal the winner**. The TV counts down 3-2-1 and shows the winner and runners-up.
    **Hide results** takes the TV back to the vote count.
 
 ## Notes
 - "One vote per phone" uses Firebase anonymous sign-in. Someone could vote again from a private tab, which is fine for a house party.
 - Guests can change their vote any time. The reveal uses the votes at the moment you tap it; **Reveal again** picks up later votes.
-- **Clear all votes** on the host page wipes every vote and merge, e.g. after a test run.
+- **Clear all votes** on the host page wipes every vote, e.g. after a test run.
