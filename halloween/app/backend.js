@@ -121,10 +121,16 @@ async function firebaseBackend() {
 // Demo mode mirrors the Firestore security rules so it behaves like the real thing.
 function demoBackend() {
   const KEY = 'ggw-demo-v1';
-  let uid = sessionStorage.getItem('ggw-demo-uid');
-  if (!uid) {
-    uid = 'guest-' + Math.random().toString(36).slice(2, 8);
-    sessionStorage.setItem('ggw-demo-uid', uid);
+  // ?as=<name> pins the demo identity, so one test page can embed several "phones".
+  let uid = params.get('as') ? `guest-${params.get('as')}` : null;
+  try {
+    uid ??= sessionStorage.getItem('ggw-demo-uid');
+    if (!uid) {
+      uid = 'guest-' + Math.random().toString(36).slice(2, 8);
+      sessionStorage.setItem('ggw-demo-uid', uid);
+    }
+  } catch {
+    uid ??= 'guest-' + Math.random().toString(36).slice(2, 8);
   }
   const blank = () => ({ state: null, entries: {}, votes: {}, hosts: {} });
   const load = () => {

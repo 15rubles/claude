@@ -83,7 +83,7 @@ export function paintBackdrop() {
 }
 
 export function demoBanner(extra = '') {
-  if (!isDemo) return;
+  if (!isDemo || new URLSearchParams(location.search).has('as')) return;
   const el = document.createElement('div');
   el.className = 'demo-banner';
   el.innerHTML = `<strong>Demo mode.</strong> ${firebaseReady ? '' : 'Firebase isn’t set up yet, so '}
@@ -106,6 +106,34 @@ export function toast(msg, kind = 'ok') {
   box.append(t);
   setTimeout(() => t.classList.add('out'), 3200);
   setTimeout(() => t.remove(), 3700);
+}
+
+// In-page replacement for confirm(): returns a promise of true/false.
+// With `typed`, the confirm button stays disabled until that word is typed.
+export function askConfirm(message, { ok = 'Yes', danger = false, typed = '' } = {}) {
+  return new Promise(resolve => {
+    const wrap = document.createElement('div');
+    wrap.className = 'modal';
+    wrap.innerHTML = `<div class="card modal-box" role="dialog" aria-modal="true">
+      <p>${esc(message)}</p>
+      ${typed ? `<label class="field">Type ${esc(typed)} to confirm<input id="modal-typed" autocomplete="off"></label>` : ''}
+      <div class="btn-row">
+        <button type="button" class="btn btn-soft" data-r="no">Cancel</button>
+        <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-r="yes" ${typed ? 'disabled' : ''}>${esc(ok)}</button>
+      </div></div>`;
+    const yes = wrap.querySelector('[data-r=yes]');
+    const close = v => { wrap.remove(); removeEventListener('keydown', onKey); resolve(v); };
+    const onKey = e => { if (e.key === 'Escape') close(false); };
+    wrap.addEventListener('click', e => {
+      const r = e.target === wrap ? 'no' : e.target.closest('[data-r]')?.dataset.r;
+      if (r === 'no') close(false);
+      if (r === 'yes' && !yes.disabled) close(true);
+    });
+    wrap.querySelector('#modal-typed')?.addEventListener('input', e => { yes.disabled = e.target.value.trim() !== typed; });
+    addEventListener('keydown', onKey);
+    document.body.append(wrap);
+    (wrap.querySelector('#modal-typed') ?? yes).focus();
+  });
 }
 
 addEventListener('backend-error', e => {

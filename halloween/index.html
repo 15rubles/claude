@@ -56,7 +56,7 @@
 
 <script type="module">
 import { connect } from './app/backend.js';
-import { $, esc, toast, paintBackdrop, demoBanner, compressPhoto, photoTag, winnersOf, confetti, BAT, GHOST } from './app/common.js';
+import { $, esc, toast, askConfirm, paintBackdrop, demoBanner, compressPhoto, photoTag, winnersOf, confetti, BAT, GHOST } from './app/common.js';
 
 paintBackdrop();
 demoBanner();
@@ -113,7 +113,11 @@ function renderStatus() {
     <p>${msg[1]}</p></div>`;
 }
 
-let celebrated = sessionStorage.getItem('ggw-celebrated');
+const session = {
+  get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
+};
+let celebrated = session.get('ggw-celebrated');
 function renderWinner() {
   const results = state.results;
   const winners = winnersOf(results);
@@ -136,7 +140,7 @@ function renderWinner() {
   const key = String(results.at ?? '');
   if (celebrated !== key) {
     celebrated = key;
-    sessionStorage.setItem('ggw-celebrated', key);
+    session.set('ggw-celebrated', key);
     confetti();
   }
 }
@@ -247,7 +251,7 @@ async function castVote() {
 }
 
 async function withdraw() {
-  if (!confirm('Take your costume off the ballot? Any votes for it will be lost.')) return;
+  if (!(await askConfirm('Take your costume off the ballot? Any votes for it will be lost.', { ok: 'Withdraw', danger: true }))) return;
   try {
     await api.deleteEntry(api.uid);
     toast('Your entry was removed.');
@@ -256,10 +260,14 @@ async function withdraw() {
   }
 }
 
+function savedName() {
+  try { return localStorage.getItem('ggw-name'); } catch { return null; }
+}
+
 function openForm(existing) {
   editing = true;
   photoData = existing?.photo ?? null;
-  $('#f-name').value = existing?.name ?? localStorage.getItem('ggw-name') ?? '';
+  $('#f-name').value = existing?.name ?? savedName() ?? '';
   $('#f-costume').value = existing?.costume ?? '';
   $('#join-title').textContent = existing ? 'Edit your entry' : 'Enter the contest';
   $('#join-submit').textContent = existing ? 'Save changes' : 'Enter my costume';
@@ -293,7 +301,7 @@ joinForm.addEventListener('submit', async e => {
   try {
     const wasEntered = Boolean(mine());
     await api.saveEntry({ name, costume, photo: photoData });
-    localStorage.setItem('ggw-name', name.trim());
+    try { localStorage.setItem('ggw-name', name.trim()); } catch {}
     editing = false;
     toast(wasEntered ? 'Entry updated!' : 'You’re on the ballot! 🎃');
     render();

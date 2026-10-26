@@ -100,7 +100,7 @@
 
 <script type="module">
 import { connect } from './app/backend.js';
-import { $, esc, toast, paintBackdrop, demoBanner, pageUrl, photoTag, BAT } from './app/common.js';
+import { $, esc, toast, askConfirm, paintBackdrop, demoBanner, pageUrl, photoTag, BAT } from './app/common.js';
 
 paintBackdrop();
 demoBanner();
@@ -216,7 +216,7 @@ document.addEventListener('click', async e => {
     }
     if (del) {
       const entry = entries.find(x => x.id === del);
-      if (entry && confirm(`Remove “${entry.costume}” by ${entry.name} from the contest?`)) {
+      if (entry && await askConfirm(`Remove “${entry.costume}” by ${entry.name} from the contest?`, { ok: 'Remove', danger: true })) {
         await api.deleteEntry(del);
         toast('Entry removed.');
       }
@@ -227,8 +227,7 @@ document.addEventListener('click', async e => {
 });
 
 $('#reset').addEventListener('click', async () => {
-  if (!confirm('Delete ALL entries and votes and start over?')) return;
-  if (prompt('Type RESET to confirm') !== 'RESET') return;
+  if (!(await askConfirm('Delete ALL entries and votes and start over?', { ok: 'Reset everything', danger: true, typed: 'RESET' }))) return;
   try {
     await api.resetAll();
     toast('Contest reset.');
