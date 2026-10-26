@@ -33,7 +33,7 @@
   .tally-label { font: 400 clamp(36px, 4.6vw, 90px)/1 var(--font-drip); letter-spacing: 0.04em; margin-top: 2vh; }
   .tally-sub { font: 700 clamp(22px, 2.4vw, 46px)/1.1 var(--font-hand); color: var(--blood); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1.5vh; }
 
-  .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; text-align: center; padding: 3vw; background: radial-gradient(circle at 50% 40%, #3a0a12, var(--ink) 70%); }
+  .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; text-align: center; padding: 3vw 3vw 16vh; background: radial-gradient(circle at 50% 40%, #3a0a12, var(--ink) 70%); }
   .overlay .big { font: 400 clamp(60px, 12vw, 260px)/1 var(--font-drip); letter-spacing: 0.04em; }
   .overlay .sub { font: 700 clamp(26px, 3vw, 60px)/1.1 var(--font-hand); color: var(--blood); text-transform: uppercase; letter-spacing: 0.05em; }
   .overlay .ghost { width: 14vw; min-width: 120px; display: block; margin: 0 auto 3vh; }
@@ -44,8 +44,8 @@
   .champ + .champ { margin-top: 2vh; }
   .champ-votes { font: 700 clamp(20px, 2.2vw, 42px) var(--font-mono); color: var(--muted); margin-top: 2vh; }
   @keyframes rise { from { transform: translateY(40px) scale(0.8); opacity: 0; } }
-  .runners { margin-top: 5vh; color: var(--muted); font-size: clamp(16px, 1.6vw, 30px); }
-  .runners b { color: var(--cream); }
+  .all-votes { position: absolute; left: 3vw; right: 3vw; bottom: 2.5vh; max-height: 12vh; overflow: hidden; color: var(--muted); font-size: clamp(12px, 1vw, 18px); line-height: 1.5; }
+  .all-votes b { color: var(--cream); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-right: 0.6em; }
 
   .corner { position: fixed; right: 12px; bottom: 12px; z-index: 60; display: flex; gap: 8px; opacity: 0.25; transition: opacity 0.2s; }
   .corner:hover { opacity: 1; }
@@ -163,19 +163,21 @@ function playReveal(results) {
 function showWinner(results) {
   const overlay = $('#overlay');
   overlay.hidden = false;
-  const winners = winnersOf(results);
+  // The host may have typed the winner in by hand; older results only carry the ranking.
+  const winners = results?.winners ?? winnersOf(results).map(w => w.name);
   if (!winners.length) {
     overlay.innerHTML = `<div>${GHOST}<div class="big">No votes!</div><div class="sub">The ghosts stayed home</div></div>`;
     return;
   }
-  const runners = (results.ranking ?? []).filter(r => r.count < winners[0].count).slice(0, 3);
+  const ranking = results.ranking ?? [];
+  const votes = results.winners ? results.votes : winnersOf(results)[0]?.count;
   const plural = n => `${n} vote${n === 1 ? '' : 's'}`;
   overlay.innerHTML = `<div>
     <div class="label">${winners.length > 1 ? '🏆 It’s a tie! 🏆' : '🏆 Best Costume 🏆'}</div>
-    ${winners.map(w => `<div class="champ">${esc(w.name)}</div>`).join('')}
-    <div class="champ-votes">${plural(winners[0].count)}${winners.length > 1 ? ' each' : ''}</div>
-    ${runners.length ? `<div class="runners">Runners-up: ${runners.map(r => `<b>${esc(r.name)}</b> (${r.count})`).join(' · ')}</div>` : ''}
-  </div>`;
+    ${winners.map(w => `<div class="champ">${esc(w)}</div>`).join('')}
+    ${votes != null ? `<div class="champ-votes">${plural(votes)}${winners.length > 1 ? ' each' : ''}</div>` : ''}
+  </div>
+  ${ranking.length ? `<div class="all-votes"><b>All votes</b>${ranking.map(r => `${esc(r.name)} (${r.count})`).join(' · ')}</div>` : ''}`;
 }
 
 $('#replay').addEventListener('click', () => playReveal(currentResults));

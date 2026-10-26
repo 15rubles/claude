@@ -6,8 +6,8 @@ The TV shows only how many votes are in. The host sees the names and reveals the
 | Page | Who | What |
 |---|---|---|
 | `index.html` | Guests (QR code goes here) | Type a name and vote. One vote per phone, which can be changed |
-| `host.html` | You | Votes by name, reveal the winner, clear all votes |
-| `screen.html` | TV or laptop | QR code and the vote count, then a 3-2-1 winner reveal with confetti |
+| `host.html` | You | Votes by name, pick or type the winner, reveal it, clear all votes |
+| `screen.html` | TV or laptop | QR code and the vote count, then a 3-2-1 winner reveal with confetti and all votes listed small at the bottom |
 | `poster.html` | Printer | QR poster to stick on the wall |
 
 **Try it first:** until Firebase is set up, the app runs in **demo mode**. Votes stay in that one browser,
@@ -41,7 +41,10 @@ That device stays signed in as host. You can unlock more than one device.
    Print the QR poster too (`poster.html`).
 2. Guests scan, type a name and tap **Vote**. The TV count goes up with each vote.
    The same name typed with different capitals or extra spaces already counts as one name.
-3. On the host page, tap **🏆 Reveal the winner**. The TV counts down 3-2-1 and shows the winner and runners-up.
+3. On the host page, check **Votes by name**. If misspellings split someone's votes, count them yourself and tap
+   the right name (or type it) in **Winner to announce**. Leave that box empty to announce whoever has the most votes.
+4. Tap **🏆 Reveal the winner**. The TV counts down 3-2-1 and shows the winner, with every name and its votes in small text at the bottom.
+   A winner you typed in is shown without a vote count.
    **Hide results** takes the TV back to the vote count.
 
 ## Notes

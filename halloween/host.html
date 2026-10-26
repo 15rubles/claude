@@ -17,7 +17,9 @@
   .stat span { color: var(--muted); }
   .links { display: grid; gap: 10px; }
   .rows { display: grid; gap: 8px; }
-  .row { background: rgba(0, 0, 0, 0.28); border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+  .row { appearance: none; width: 100%; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; background: rgba(0, 0, 0, 0.28); border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+  .row:hover { background: rgba(0, 0, 0, 0.4); }
+  .row.picked { outline: 2px solid var(--mint); }
   .row .nm { font-weight: 800; font-size: 17px; overflow-wrap: anywhere; min-width: 0; }
   .row .ct { font: 700 22px/1 var(--font-mono); }
   .help { font-size: 14px; color: var(--muted); }
@@ -46,13 +48,17 @@
   <div id="panel" hidden>
     <section class="card">
       <div class="stat"><b id="n-votes">0</b><span>votes so far</span></div>
+      <label class="field">Winner to announce
+        <input id="winner" maxlength="40" autocomplete="off" autocapitalize="words" placeholder="Leave empty for the most votes">
+      </label>
+      <p class="help" id="winner-help"></p>
       <p id="reveal-help"></p>
       <div class="btn-row" id="reveal-actions"></div>
     </section>
 
     <section class="card">
       <h2>Votes by name</h2>
-      <p>Keep this screen to yourself so the winner stays a surprise.</p>
+      <p>Keep this screen to yourself so the winner stays a surprise. Tap a name to make it the winner to announce.</p>
       <div class="rows" id="rows"></div>
     </section>
 
@@ -74,7 +80,7 @@
 
 <script type="module">
 import { connect, BLANK_STATE } from './app/backend.js';
-import { $, esc, toast, askConfirm, paintBackdrop, demoBanner, pageUrl, groupVotes, BAT } from './app/common.js';
+import { $, esc, toast, askConfirm, paintBackdrop, demoBanner, pageUrl, groupVotes, winnersOf, normName, BAT } from './app/common.js';
 
 paintBackdrop();
 demoBanner();
@@ -124,20 +130,50 @@ function render() {
        <button class="btn btn-mint" data-act="reveal">Reveal again</button>`
     : `<button class="btn btn-mint" data-act="reveal" ${votes.length ? '' : 'disabled'}>🏆 Reveal the winner</button>`;
 
-  $('#rows').innerHTML = groups.length ? groups.map(g => `<div class="row">
+  $('#rows').innerHTML = groups.length ? groups.map(g => `<button type="button" class="row" data-pick="${esc(g.name)}">
     <span class="nm">${esc(g.name)}</span><span class="ct">${g.count}</span>
-  </div>`).join('') : '<p class="help">No votes yet.</p>';
+  </button>`).join('') : '<p class="help">No votes yet.</p>';
+  renderWinnerHelp();
 }
+
+// The name to announce: what the host typed, or else everyone tied for the most votes.
+function chosenWinners() {
+  const typed = normName($('#winner').value);
+  if (typed) return { winners: [typed], votes: null };
+  const auto = winnersOf({ ranking: groups });
+  return { winners: auto.map(w => w.name), votes: auto[0]?.count ?? null };
+}
+
+function renderWinnerHelp() {
+  const typed = normName($('#winner').value);
+  const auto = winnersOf({ ranking: groups });
+  $('#winner-help').textContent = typed
+    ? `The TV will announce “${typed}” without a vote count.`
+    : auto.length
+      ? `Empty means the most votes: ${auto.map(w => w.name).join(' & ')} (${auto[0].count}). Type a name to announce someone else, for example when misspellings split the votes.`
+      : 'Empty means the most votes. Type a name to announce someone else.';
+  document.querySelectorAll('.row').forEach(r => {
+    r.classList.toggle('picked', Boolean(typed) && r.dataset.pick.toLocaleLowerCase() === typed.toLocaleLowerCase());
+  });
+}
+$('#winner').addEventListener('input', renderWinnerHelp);
 
 const save = patch => api.setState({ ...BLANK_STATE, ...state, ...patch });
 
 document.addEventListener('click', async e => {
+  const pick = e.target.closest('[data-pick]');
+  if (pick) {
+    $('#winner').value = pick.dataset.pick;
+    renderWinnerHelp();
+    $('#winner').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   const t = e.target.closest('[data-act]');
   if (!t) return;
   try {
     if (t.dataset.act === 'reveal') {
-      const ranking = groups.slice(0, 10).map(({ name, count }) => ({ name, count }));
-      await save({ revealed: true, results: { ranking, total: votes.length, at: Date.now() } });
+      const ranking = groups.map(({ name, count }) => ({ name, count }));
+      await save({ revealed: true, results: { ...chosenWinners(), ranking, total: votes.length, at: Date.now() } });
       toast('Revealing on the TV 🎉');
     }
     if (t.dataset.act === 'hide') await save({ revealed: false });
@@ -151,6 +187,7 @@ $('#clear').addEventListener('click', async () => {
   try {
     await api.clearVotes();
     await api.setState({ ...BLANK_STATE });
+    $('#winner').value = '';
     toast('All votes cleared.');
   } catch (err) {
     toast(err.message, 'err');
