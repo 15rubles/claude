@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c0a0b">
+<meta name="robots" content="noindex">
+<title>Big Screen · Ghouls Gone Wild</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Creepster&family=Inter:wght@400;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="vendor/qrcode.js"></script>
+<style>
+  body { overflow: hidden; }
+  .stage { height: 100vh; height: 100dvh; display: grid; grid-template-columns: minmax(320px, 36vw) 1fr; gap: 3vw; padding: 3vw; }
+  .left { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.6vh; position: relative; }
+  .left .bat { width: 9vw; min-width: 100px; animation: flap 3.2s ease-in-out infinite; }
+  .left .ticket { width: 100%; padding: 2.4vh 2vw; --notch: 16px; }
+  .left .contest-title { font-size: clamp(40px, 6vw, 110px); margin: 0 0 0.5vh; }
+  .left .party-name { font-size: clamp(18px, 1.8vw, 34px); }
+  .qr { background: #fff; padding: 1.2vw; border-radius: 18px; width: min(24vw, 34vh); box-shadow: 0 0 40px rgba(159, 224, 191, 0.25); }
+  .qr svg { display: block; width: 100%; height: auto; }
+  .scan { font: 800 clamp(18px, 1.8vw, 34px)/1.2 var(--font-body); }
+  .url { font: 700 clamp(12px, 1vw, 18px) var(--font-mono); color: var(--muted); word-break: break-all; }
+  .right { display: flex; flex-direction: column; min-height: 0; }
+  .banner { display: flex; align-items: center; justify-content: space-between; gap: 2vw; margin-bottom: 2vh; }
+  .banner h2 { font: 400 clamp(34px, 4.4vw, 90px)/1 var(--font-drip); margin: 0; letter-spacing: 0.04em; }
+  .banner .pill { font-size: clamp(14px, 1.2vw, 22px); padding: 1vh 1.2vw; margin: 0; }
+  .count { font: 700 clamp(16px, 1.5vw, 28px) var(--font-mono); color: var(--muted); margin: -1vh 0 2vh; }
+  .wall { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(120px, 12vw, 260px), 1fr)); gap: 1.2vw; align-content: start; overflow: hidden; }
+  .wall .entry { animation: pop 0.5s ease-out; }
+  .wall .meta { padding: 0.8vh 0.8vw 1vh; }
+  .wall .costume { font-size: clamp(13px, 1.1vw, 22px); }
+  .wall .who { font-size: clamp(11px, 0.9vw, 18px); }
+  @keyframes pop { from { transform: scale(0.6); opacity: 0; } }
+  .empty-wall { flex: 1; display: grid; place-items: center; text-align: center; color: var(--muted); font-size: clamp(18px, 1.6vw, 30px); }
+  .empty-wall .ghost { width: 10vw; min-width: 90px; animation: bob 3s ease-in-out infinite; display: block; margin: 0 auto 2vh; }
+
+  .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; text-align: center; background: radial-gradient(circle at 50% 40%, #3a0a12, var(--ink) 70%); }
+  .overlay .big { font: 400 clamp(60px, 12vw, 260px)/1 var(--font-drip); letter-spacing: 0.04em; }
+  .overlay .sub { font: 700 clamp(26px, 3vw, 60px)/1.1 var(--font-hand); color: var(--blood); text-transform: uppercase; letter-spacing: 0.05em; }
+  .overlay .ghost { width: 14vw; min-width: 120px; animation: bob 2.4s ease-in-out infinite; display: block; margin: 0 auto 3vh; }
+  .count-num { animation: zoom 1s ease-out; display: inline-block; }
+  @keyframes zoom { from { transform: scale(2.4); opacity: 0; } 30% { opacity: 1; } }
+  .winners { display: flex; gap: 4vw; justify-content: center; align-items: flex-end; }
+  .champ { animation: rise 0.9s cubic-bezier(.2, 1.4, .4, 1); max-width: 34vw; }
+  .champ .shot { height: 52vh; max-width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 22px; border: 6px solid var(--cream); box-shadow: 0 0 80px rgba(159, 224, 191, 0.45); display: block; margin: 0 auto 2vh; background: #241a1e; }
+  .champ .costume { font: 400 clamp(36px, 4.6vw, 100px)/1 var(--font-drip); letter-spacing: 0.03em; overflow-wrap: anywhere; }
+  .champ .who { font-size: clamp(18px, 1.8vw, 36px); color: var(--muted); margin-top: 1vh; }
+  .winners.multi .champ .shot { height: 40vh; }
+  @keyframes rise { from { transform: translateY(40px) scale(0.8); opacity: 0; } }
+  .label { font: 700 clamp(18px, 1.8vw, 34px)/1 var(--font-body); letter-spacing: 0.2em; text-transform: uppercase; color: var(--mint); margin-bottom: 2vh; }
+  .runners { margin-top: 3vh; color: var(--muted); font-size: clamp(14px, 1.3vw, 26px); }
+  .runners b { color: var(--cream); }
+
+  .corner { position: fixed; right: 12px; bottom: 12px; z-index: 60; display: flex; gap: 8px; opacity: 0.25; transition: opacity 0.2s; }
+  .corner:hover { opacity: 1; }
+  .corner .btn { min-height: 36px; padding: 8px 12px; font-size: 13px; }
+
+  @media (max-width: 800px), (orientation: portrait) {
+    body { overflow: auto; }
+    .stage { grid-template-columns: 1fr; height: auto; }
+    .qr { width: min(70vw, 340px); }
+    .left .bat { width: 120px; }
+    .wall { overflow: visible; }
+    .champ { max-width: 90vw; }
+    .champ .shot { height: auto; width: min(80vw, 420px); }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="left">
+    <span id="bat"></span>
+    <div class="ticket">
+      <p class="party-name">Ghouls Gone Wild</p>
+      <h1 class="contest-title">Costume Contest</h1>
+      <p class="prize">*Winner gets a gift basket*</p>
+    </div>
+    <div class="qr" id="qr"></div>
+    <div class="scan">Scan to enter &amp; vote</div>
+    <div class="url" id="url"></div>
+  </div>
+  <div class="right">
+    <div class="banner"><h2 id="headline">The lineup</h2><span class="pill" id="phase-pill"></span></div>
+    <div class="count" id="count"></div>
+    <div id="wall-wrap" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+  </div>
+</div>
+<div class="overlay" id="overlay" hidden></div>
+<div class="corner">
+  <button class="btn btn-soft" id="replay" hidden>↻ Replay reveal</button>
+  <button class="btn btn-soft" id="fs">⛶ Full screen</button>
+</div>
+
+<script type="module">
+import { connect } from './app/backend.js';
+import { $, esc, paintBackdrop, demoBanner, pageUrl, photoTag, winnersOf, confetti, BAT, GHOST } from './app/common.js';
+
+paintBackdrop();
+demoBanner();
+$('#bat').innerHTML = BAT;
+
+const guestUrl = pageUrl('./');
+const qr = qrcode(0, 'M');
+qr.addData(guestUrl);
+qr.make();
+$('#qr').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true, alt: 'QR code to the costume contest' });
+$('#url').textContent = guestUrl.replace(/^https?:\/\//, '');
+
+const api = await connect();
+let state = null, entries = [], prevPhase, revealTimer = null;
+
+api.watchState(s => {
+  const before = prevPhase;
+  state = s;
+  prevPhase = s?.phase ?? 'none';
+  render();
+  if (prevPhase === 'revealed') {
+    // Animate when the host reveals while this screen is open (or reloads right after).
+    const fresh = Date.now() - (s.results?.at ?? 0) < 15000;
+    if ((before !== undefined && before !== 'revealed') || (before === undefined && fresh)) playReveal();
+    else if (before !== 'revealed') showWinner();
+  } else {
+    clearTimeout(revealTimer);
+    $('#overlay').hidden = true;
+    if (prevPhase === 'closed') showSuspense();
+  }
+  $('#replay').hidden = prevPhase !== 'revealed';
+});
+api.watchEntries(list => {
+  entries = list;
+  render();
+  if (state?.phase === 'revealed' && !$('#overlay').hidden && !revealTimer) showWinner();
+});
+
+function render() {
+  const phase = state?.phase ?? 'none';
+  const [headline, pill, live] = {
+    none: ['Getting ready…', 'Opening soon', false],
+    entries: ['Join the lineup!', 'Entries open', true],
+    voting: ['Vote now!', 'Voting open', true],
+    closed: ['Votes are in…', 'Voting closed', false],
+    revealed: ['We have a winner!', 'Results', false],
+  }[phase];
+  $('#headline').textContent = headline;
+  $('#phase-pill').textContent = pill;
+  $('#phase-pill').className = `pill ${live ? 'pill-live' : ''}`;
+  $('#count').textContent = `${entries.length} costume${entries.length === 1 ? '' : 's'} entered`;
+  const newest = [...entries].reverse();
+  $('#wall-wrap').innerHTML = entries.length
+    ? `<div class="wall">${newest.map(e => `<div class="entry">${photoTag(e, 'shot')}
+        <div class="meta"><div class="costume">${esc(e.costume)}</div><div class="who">${esc(e.name)}</div></div></div>`).join('')}</div>`
+    : `<div class="empty-wall"><div>${GHOST}Scan the code and be the first ghoul on the ballot!</div></div>`;
+}
+
+function showSuspense() {
+  $('#overlay').innerHTML = `<div>${GHOST}<div class="big">The votes are in…</div><div class="sub">The winner will be revealed soon</div></div>`;
+  $('#overlay').hidden = false;
+}
+
+function playReveal() {
+  clearTimeout(revealTimer);
+  const overlay = $('#overlay');
+  overlay.hidden = false;
+  const seq = [
+    `<div>${GHOST}<div class="sub">And the winner is…</div></div>`,
+    `<div class="big"><span class="count-num">3</span></div>`,
+    `<div class="big"><span class="count-num">2</span></div>`,
+    `<div class="big"><span class="count-num">1</span></div>`,
+  ];
+  let i = 0;
+  (function step() {
+    if (i < seq.length) {
+      overlay.innerHTML = seq[i++];
+      revealTimer = setTimeout(step, i === 1 ? 2200 : 1000);
+    } else {
+      revealTimer = null;
+      showWinner();
+      confetti(6000);
+    }
+  })();
+}
+
+function showWinner() {
+  const results = state?.results;
+  const winners = winnersOf(results);
+  const overlay = $('#overlay');
+  overlay.hidden = false;
+  if (!winners.length) {
+    overlay.innerHTML = `<div>${GHOST}<div class="big">No votes!</div><div class="sub">The ghosts stayed home</div></div>`;
+    return;
+  }
+  const winnerIds = new Set(winners.map(w => w.id));
+  const runners = (results.ranking ?? []).filter(r => !winnerIds.has(r.id) && r.votes > 0).slice(0, 2);
+  overlay.innerHTML = `<div>
+    <div class="label">${winners.length > 1 ? '🏆 It’s a tie! 🏆' : '🏆 Best Costume 🏆'}</div>
+    <div class="winners ${winners.length > 1 ? 'multi' : ''}">
+      ${winners.map(w => {
+        const e = entries.find(x => x.id === w.id) ?? w;
+        return `<div class="champ">${photoTag(e, 'shot')}
+          <div class="costume">${esc(e.costume)}</div>
+          <div class="who">${esc(e.name)} · ${w.votes} vote${w.votes === 1 ? '' : 's'}</div></div>`;
+      }).join('')}
+    </div>
+    ${runners.length ? `<div class="runners">Runners-up: ${runners.map(r => `<b>${esc(r.costume)}</b> (${r.votes})`).join(' · ')}</div>` : ''}
+  </div>`;
+}
+
+$('#replay').addEventListener('click', playReveal);
+$('#fs').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.();
+});
+</script>
+</body>
+</html>

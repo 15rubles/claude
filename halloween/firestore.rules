@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Security rules for the costume contest.
+// BEFORE PUBLISHING: replace CHANGE-ME-HOST-PASSWORD below with your own host password.
+// Pick a phrase, not a 4-digit code (e.g. "pumpkin-guts-at-midnight"). Don't commit the real one.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isHost() { return signedIn() && exists(/databases/$(database)/documents/hosts/$(me())); }
+    function phase() { return get(/databases/$(database)/documents/config/state).data.phase; }
+    function entriesOpen() { return phase() in ['entries', 'voting']; }
+
+    // Contest stage + revealed results. Everyone reads, only hosts change it.
+    match /config/state {
+      allow read: if true;
+      allow write: if isHost();
+    }
+
+    // A device becomes a host by writing the correct password here.
+    match /hosts/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow create, update: if signedIn() && me() == uid
+        && request.resource.data.keys().hasOnly(['pin'])
+        && request.resource.data.pin == 'CHANGE-ME-HOST-PASSWORD';
+    }
+
+    // One costume entry per phone; the document id is the phone's anonymous user id.
+    match /entries/{uid} {
+      function validEntry() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['name', 'costume', 'photo', 'createdAt'])
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 40
+          && d.costume is string && d.costume.size() > 0 && d.costume.size() <= 60
+          && d.photo is string && d.photo.size() < 300000
+          && d.photo.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$');
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && me() == uid && entriesOpen() && validEntry()
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn() && me() == uid && entriesOpen() && validEntry()
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isHost() || (signedIn() && me() == uid && entriesOpen());
+    }
+
+    // One vote per phone (document id = voter's user id). Can't vote for yourself.
+    // Votes stay private: guests can only read their own; hosts tally them.
+    match /votes/{uid} {
+      allow get: if signedIn() && (me() == uid || isHost());
+      allow list: if isHost();
+      allow create, update: if signedIn() && me() == uid && phase() == 'voting'
+        && request.resource.data.keys().hasOnly(['entryId', 'at'])
+        && request.resource.data.entryId is string
+        && request.resource.data.entryId != uid
+        && request.resource.data.entryId.size() <= 128
+        && exists(/databases/$(database)/documents/entries/$(request.resource.data.entryId))
+        && request.resource.data.at == request.time;
+      allow delete: if isHost();
+    }
+  }
+}
