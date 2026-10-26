@@ -16,6 +16,7 @@ export const PARTY = {
 
 // Links between pages keep ?demo so a demo session stays in demo mode.
 export function pageUrl(file = '') {
+  if (window.GGW_EMBED?.siteUrl) return new URL(file || './', window.GGW_EMBED.siteUrl).href;
   const u = new URL(file || './', location.href);
   u.search = new URLSearchParams(location.search).has('demo') ? '?demo' : '';
   return u.href;
@@ -83,7 +84,7 @@ export function paintBackdrop() {
 }
 
 export function demoBanner(extra = '') {
-  if (!isDemo || new URLSearchParams(location.search).has('as')) return;
+  if (!isDemo || window.GGW_EMBED || new URLSearchParams(location.search).has('as')) return;
   const el = document.createElement('div');
   el.className = 'demo-banner';
   el.innerHTML = `<strong>Demo mode.</strong> ${firebaseReady ? '' : 'Firebase isn’t set up yet, so '}

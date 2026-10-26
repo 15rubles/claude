@@ -71,7 +71,7 @@
       <div class="stat"><b id="n-votes">0</b><span>votes cast</span></div>
     </div>
 
-    <section class="card links">
+    <section class="card links" id="links">
       <h2>Share &amp; show</h2>
       <p>Put the big screen on a TV or laptop. It shows the QR code, a photo wall, and the winner reveal.</p>
       <a class="btn btn-primary" id="link-screen" target="_blank" rel="noopener">📺 Open big screen</a>
@@ -108,6 +108,7 @@ $('#bat').innerHTML = BAT;
 $('#link-screen').href = pageUrl('screen.html');
 $('#link-poster').href = pageUrl('poster.html');
 $('#link-guest').href = pageUrl('./');
+if (window.GGW_EMBED) $('#links').hidden = true;
 
 const api = await connect();
 let state = null, entries = [], votes = [];

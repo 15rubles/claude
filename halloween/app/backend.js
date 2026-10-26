@@ -13,8 +13,10 @@ const FIREBASE_VERSION = '10.12.2';
 export const DEMO_PIN = 'boo';
 
 const params = new URLSearchParams(location.search);
+// Set by the all-in-one test page, which embeds each "phone" as an inline frame.
+const embed = window.GGW_EMBED;
 export const firebaseReady = Boolean(firebaseConfig?.apiKey) && !firebaseConfig.apiKey.startsWith('PASTE');
-export const isDemo = params.has('demo') || !firebaseReady;
+export const isDemo = params.has('demo') || !firebaseReady || Boolean(embed);
 
 export const LIMITS = { name: 40, costume: 60, photo: 300000 };
 
@@ -122,7 +124,8 @@ async function firebaseBackend() {
 function demoBackend() {
   const KEY = 'ggw-demo-v1';
   // ?as=<name> pins the demo identity, so one test page can embed several "phones".
-  let uid = params.get('as') ? `guest-${params.get('as')}` : null;
+  const as = params.get('as') ?? embed?.as;
+  let uid = as ? `guest-${as}` : null;
   try {
     uid ??= sessionStorage.getItem('ggw-demo-uid');
     if (!uid) {
@@ -132,17 +135,26 @@ function demoBackend() {
   } catch {
     uid ??= 'guest-' + Math.random().toString(36).slice(2, 8);
   }
+  // Embedded frames share one in-memory store on the parent page instead of localStorage.
+  const hub = embed?.hub;
   const blank = () => ({ state: null, entries: {}, votes: {}, hosts: {} });
   const load = () => {
-    try { return { ...blank(), ...JSON.parse(localStorage.getItem(KEY)) }; } catch { return blank(); }
+    try { return { ...blank(), ...JSON.parse(hub ? hub.data : localStorage.getItem(KEY)) }; } catch { return blank(); }
   };
   const subs = new Set();
   const emit = () => subs.forEach(f => f());
-  addEventListener('storage', e => { if (e.key === KEY) emit(); });
+  if (hub) hub.subs.add(emit);
+  else addEventListener('storage', e => { if (e.key === KEY) emit(); });
   const write = fn => {
     const d = load();
     fn(d);
-    try { localStorage.setItem(KEY, JSON.stringify(d)); }
+    const json = JSON.stringify(d);
+    if (hub) {
+      hub.data = json;
+      hub.subs.forEach(f => f());
+      return;
+    }
+    try { localStorage.setItem(KEY, json); }
     catch { throw new Error('Demo storage is full. Reset the contest from the host page.'); }
     emit();
   };
