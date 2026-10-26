@@ -1,13 +1,13 @@
 # Ghouls Gone Wild: Costume Contest 🎃
 
-A no-download voting app. Guests scan a QR code, add a photo of their costume and vote for their favorite.
-The host opens and closes voting and reveals the winner on a big screen.
+A no-download voting app. Guests scan a QR code, type the name of the person with the best costume, and tap Vote.
+The TV shows the names live, with a count next to each one.
 
 | Page | Who | What |
 |---|---|---|
-| `index.html` | Guests (QR code goes here) | Enter your costume, see the lineup, vote (one per phone, not for yourself) |
-| `host.html` | You | Open/close voting, reveal the winner, remove entries, live tally |
-| `screen.html` | TV or laptop | QR code, live photo wall, 3-2-1 winner reveal with confetti |
+| `index.html` | Guests (QR code goes here) | Type a name and vote. One vote per phone, which can be changed |
+| `host.html` | You | Vote count, links to the TV and poster, clear all votes |
+| `screen.html` | TV or laptop | QR code and the names people voted for, most votes first |
 | `poster.html` | Printer | QR poster to stick on the wall |
 
 **Try it first:** until Firebase is set up, the app runs in **demo mode**. Votes stay in that one browser,
@@ -37,14 +37,13 @@ Open <https://15rubles.github.io/claude/halloween/host.html> on your phone or la
 That device stays signed in as host. You can unlock more than one device.
 
 ## On party night
-1. Open **big screen** from the host page on a TV or laptop (⛶ for full screen). Print the **QR poster** too.
-2. **Entries open:** guests scan, snap a photo and join the lineup.
-3. **Open voting:** each phone gets one vote and can change it. Late arrivals can still enter.
-4. **Close voting**, gather everyone around the TV, then **🏆 Reveal the winner**. The TV counts down 3-2-1,
-   and every guest's phone shows the winner too.
+1. Open the TV page, <https://15rubles.github.io/claude/halloween/screen.html>, on a TV or laptop (⛶ for full screen).
+   Print the QR poster too (`poster.html`).
+2. Guests scan, type a name and tap **Vote**. Names show up on the TV right away.
+   The same name typed with different capitals or extra spaces counts as one name.
+3. Whoever has the biggest count when you call it wins the gift basket.
 
 ## Notes
-- "One vote per phone" uses Firebase anonymous sign-in. Someone could cheat by voting again in a private tab, which is fine for a house party.
-- Guests can't see vote counts until you reveal. The host page hides them too unless you tick **Show vote counts**.
-- Photos are shrunk on the phone (~50–150 KB) and stored in Firestore, so you don't need Firebase Storage or a paid plan.
-- **Reset the whole contest** (host page → Danger zone) clears every entry and vote, e.g. after a test run.
+- "One vote per phone" uses Firebase anonymous sign-in. Someone could vote again from a private tab, which is fine for a house party.
+- Guests can change their vote any time. The TV updates to match.
+- **Clear all votes** on the host page wipes everything, e.g. after a test run.

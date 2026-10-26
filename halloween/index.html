@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0a0b">
 <title>Costume Contest · Ghouls Gone Wild</title>
-<meta name="description" content="Enter your costume and vote for the best one at Ghouls Gone Wild.">
+<meta name="description" content="Vote for the best costume at Ghouls Gone Wild.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎃</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,289 +23,78 @@
     </div>
   </header>
 
-  <section id="status" class="status" aria-live="polite"></section>
-  <section id="mine"></section>
-
-  <form id="join" class="card" hidden novalidate>
-    <h2 id="join-title">Enter the contest</h2>
-    <p>Snap a photo of your costume so everyone knows who to vote for.</p>
-    <label class="photo-pick">
-      <input type="file" id="photo-input" accept="image/*" hidden>
-      <div class="photo-preview" id="photo-preview"></div>
+  <form id="vote-form" class="card" novalidate>
+    <h2>Who has the best costume?</h2>
+    <p>Type their name and tap Vote. You get one vote, and you can change it any time.</p>
+    <label class="field">Name
+      <input id="vote-name" maxlength="40" autocomplete="off" autocapitalize="words" enterkeyhint="send" placeholder="e.g. Miracle" required>
     </label>
-    <label class="field">Your name
-      <input id="f-name" maxlength="40" autocomplete="given-name" placeholder="e.g. Miracle" required>
-    </label>
-    <label class="field">Your costume
-      <input id="f-costume" maxlength="60" placeholder="e.g. Zombie prom queen" required>
-    </label>
-    <div class="btn-row">
-      <button type="button" class="btn btn-soft" id="join-cancel">Cancel</button>
-      <button type="submit" class="btn btn-primary" id="join-submit">Enter my costume</button>
-    </div>
+    <button type="submit" class="btn btn-primary btn-block" id="vote-btn" disabled>Connecting…</button>
   </form>
 
-  <section id="lineup-wrap"></section>
+  <section id="voted" class="card voted-card" hidden aria-live="polite">
+    <span class="pill pill-live">Vote counted</span>
+    <p class="voted-for">You voted for <strong id="voted-name"></strong></p>
+    <p>Watch the TV to see the names roll in.</p>
+    <button type="button" class="btn btn-soft btn-block" id="change-btn">Change my vote</button>
+  </section>
 
   <footer class="foot">
     <div class="see">See you there</div>
     <div class="survive">if you survive…</div>
   </footer>
 </main>
-<div id="votebar" class="votebar" hidden></div>
 
 <script type="module">
 import { connect } from './app/backend.js';
-import { $, esc, toast, askConfirm, paintBackdrop, demoBanner, compressPhoto, photoTag, winnersOf, confetti, BAT, GHOST } from './app/common.js';
+import { $, toast, paintBackdrop, demoBanner, BAT } from './app/common.js';
 
 paintBackdrop();
 demoBanner();
 $('#bat').innerHTML = BAT;
 
-const statusEl = $('#status'), mineEl = $('#mine'), joinForm = $('#join');
-const lineupEl = $('#lineup-wrap'), voteBar = $('#votebar');
-const preview = $('#photo-preview');
-const EMPTY_PREVIEW = `<div>${GHOST}Tap to add a photo<br><small>Take one now or pick from your camera roll</small></div>`;
+const form = $('#vote-form'), input = $('#vote-name'), btn = $('#vote-btn');
+const votedCard = $('#voted');
+let myVote = null, changing = false;
 
-let api, state, entries = [], myVote = null;
-let selected = null, editing = false, photoData = null, busy = false;
-let entriesLoaded = false;
-
-statusEl.innerHTML = `<div class="card"><p>Summoning the ballot…</p></div>`;
+let api;
 try {
   api = await connect();
 } catch (e) {
-  console.error(e);
-  statusEl.innerHTML = `<div class="card"><h2>Couldn’t connect</h2><p>Check your internet connection and reload the page.</p></div>`;
+  btn.textContent = 'Couldn’t connect. Reload the page.';
   throw e;
 }
+btn.disabled = false;
+btn.textContent = 'Vote';
 
-api.watchState(s => { state = s; render(); });
-api.watchEntries(list => { entries = list; entriesLoaded = true; render(); });
-api.watchMyVote(v => { myVote = v; render(); });
-
-const phase = () => state?.phase ?? 'none';
-const isOpen = () => ['entries', 'voting'].includes(phase());
-const mine = () => entries.find(e => e.id === api.uid);
-const byId = id => entries.find(e => e.id === id);
+api.watchMyVote(name => { myVote = name; render(); });
 
 function render() {
-  if (!entriesLoaded) return;
-  if (editing && !isOpen()) editing = false;
-  renderStatus();
-  renderMine();
-  renderLineup();
-  renderVoteBar();
+  const showForm = !myVote || changing;
+  form.hidden = !showForm;
+  votedCard.hidden = showForm;
+  $('#voted-name').textContent = myVote ?? '';
+  btn.textContent = myVote ? 'Change vote' : 'Vote';
 }
 
-function renderStatus() {
-  const p = phase();
-  if (p === 'revealed') return renderWinner();
-  const me = mine();
-  const msg = {
-    none: ['Not open yet', 'The contest hasn’t started yet. Check back soon!'],
-    entries: ['Entries open', me ? 'You’re in! Voting opens soon. Keep this page handy.' : 'Add your costume to the lineup. Voting opens soon.'],
-    voting: ['Voting is open', 'Tap your favorite costume, then cast your vote. You can change it until voting closes.'],
-    closed: ['Voting closed', 'The ghouls are counting the votes… The winner will be revealed soon!'],
-  }[p];
-  statusEl.innerHTML = `<div class="card">
-    <span class="pill ${p === 'voting' || p === 'entries' ? 'pill-live' : ''}">${msg[0]}</span>
-    <p>${msg[1]}</p></div>`;
-}
-
-const session = {
-  get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
-  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
-};
-let celebrated = session.get('ggw-celebrated');
-function renderWinner() {
-  const results = state.results;
-  const winners = winnersOf(results);
-  if (!winners.length) {
-    statusEl.innerHTML = `<div class="card"><span class="pill">Results</span><p>No votes were cast. Spooky.</p></div>`;
-    return;
-  }
-  const tie = winners.length > 1;
-  statusEl.innerHTML = `<div class="card winner">
-    <div class="crown">🏆</div>
-    <span class="pill pill-live">${tie ? 'It’s a tie!' : 'The winner is'}</span>
-    ${winners.map(w => {
-      const e = byId(w.id) ?? w;
-      return `${photoTag(e, 'shot')}
-        <p class="costume">${esc(e.costume)}</p>
-        <p class="who">${esc(e.name)} · ${w.votes} vote${w.votes === 1 ? '' : 's'}</p>`;
-    }).join('<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">')}
-    ${winners.some(w => w.id === api.uid) ? '<p style="color:var(--mint);font-weight:800;margin-top:12px">That’s you! Go claim your gift basket 🎁</p>' : ''}
-  </div>`;
-  const key = String(results.at ?? '');
-  if (celebrated !== key) {
-    celebrated = key;
-    session.set('ggw-celebrated', key);
-    confetti();
-  }
-}
-
-function renderMine() {
-  const me = mine();
-  if (editing) {
-    mineEl.innerHTML = '';
-    joinForm.hidden = false;
-    return;
-  }
-  joinForm.hidden = true;
-  if (me) {
-    const votes = phase() === 'revealed' ? state.results?.ranking?.find(r => r.id === me.id)?.votes : null;
-    mineEl.innerHTML = `<div class="card mine">
-      ${photoTag(me, 'shot')}
-      <div>
-        <span class="pill">Your entry</span>
-        <div class="costume">${esc(me.costume)}</div>
-        <div class="who">${esc(me.name)}${votes != null ? ` · ${votes} vote${votes === 1 ? '' : 's'}` : ''}</div>
-        ${isOpen() ? `<div class="btn-row">
-          <button class="btn btn-soft" data-act="edit">Edit</button>
-          <button class="btn btn-danger" data-act="withdraw">Withdraw</button></div>` : ''}
-      </div></div>`;
-  } else if (isOpen()) {
-    mineEl.innerHTML = `<div class="card">
-      <h2>Wearing a costume?</h2>
-      <p>Enter the contest and get on the ballot. Just here to vote? Scroll down to see the lineup.</p>
-      <button class="btn btn-primary btn-block" data-act="enter">Enter my costume</button></div>`;
-  } else {
-    mineEl.innerHTML = '';
-  }
-}
-
-function renderLineup() {
-  const p = phase();
-  if (p === 'none') { lineupEl.innerHTML = ''; return; }
-  const others = entries.filter(e => e.id !== api.uid);
-  const voting = p === 'voting';
-  const counts = p === 'revealed' ? new Map((state.results?.ranking ?? []).map(r => [r.id, r.votes])) : null;
-  const list = counts ? [...others].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0)) : others;
-
-  const cards = list.map(e => {
-    const isSel = voting && selected === e.id && selected !== myVote;
-    const isVoted = myVote === e.id;
-    const badge = isVoted ? '<span class="badge">✓ Your vote</span>'
-      : isSel ? '<span class="badge badge-sel">Selected</span>' : '';
-    const count = counts ? `<span class="badge badge-count">${counts.get(e.id) ?? 0} vote${counts.get(e.id) === 1 ? '' : 's'}</span>` : '';
-    const tag = voting ? 'button' : 'div';
-    return `<${tag} class="entry ${isSel ? 'selected' : ''} ${isVoted ? 'voted' : ''}" ${voting ? `type="button" data-id="${esc(e.id)}" aria-pressed="${isSel || isVoted}"` : ''}>
-      ${photoTag(e, 'shot')}${badge}${count}
-      <div class="meta"><div class="costume">${esc(e.costume)}</div><div class="who">${esc(e.name)}</div></div>
-    </${tag}>`;
-  }).join('');
-
-  lineupEl.innerHTML = `<h2 class="section-title">The lineup <small>${others.length} costume${others.length === 1 ? '' : 's'}</small></h2>
-    ${others.length ? `<div class="lineup">${cards}</div>` : `<div class="card empty">${GHOST}
-      <p>No other costumes yet. ${isOpen() ? 'The lineup fills up as guests arrive.' : ''}</p></div>`}`;
-}
-
-function renderVoteBar() {
-  if (phase() !== 'voting' || !entries.some(e => e.id !== api.uid)) { voteBar.hidden = true; return; }
-  const voted = byId(myVote);
-  const sel = selected && selected !== myVote ? byId(selected) : null;
-  let html;
-  if (sel) {
-    html = `<div class="txt">Vote for <strong>${esc(sel.costume)}</strong>?</div>
-      <button class="btn btn-mint" data-act="vote" ${busy ? 'disabled' : ''}>${voted ? 'Change vote' : 'Cast vote'}</button>`;
-  } else if (voted) {
-    html = `<div class="txt">✓ You voted for <strong>${esc(voted.costume)}</strong>. Tap another costume to change it.</div>`;
-  } else if (myVote) {
-    html = `<div class="txt">The costume you voted for left the contest. Pick another favorite!</div>`;
-  } else {
-    html = `<div class="txt">Tap your favorite costume to pick it.</div>`;
-  }
-  voteBar.innerHTML = `<div class="votebar-inner">${html}</div>`;
-  voteBar.hidden = false;
-}
-
-// ---------- actions ----------
-document.addEventListener('click', async e => {
-  const card = e.target.closest('button.entry');
-  if (card) {
-    selected = card.dataset.id === selected ? null : card.dataset.id;
-    render();
-    return;
-  }
-  const act = e.target.closest('[data-act]')?.dataset.act;
-  if (act === 'enter' || act === 'edit') openForm(act === 'edit' ? mine() : null);
-  if (act === 'withdraw') withdraw();
-  if (act === 'vote') castVote();
-});
-
-async function castVote() {
-  if (!selected || busy) return;
-  busy = true;
-  renderVoteBar();
-  try {
-    await api.castVote(selected);
-    toast(myVote && myVote !== selected ? 'Vote changed! 👻' : 'Vote cast! 👻');
-    selected = null;
-  } catch (err) {
-    toast(err.message, 'err');
-  } finally {
-    busy = false;
-    render();
-  }
-}
-
-async function withdraw() {
-  if (!(await askConfirm('Take your costume off the ballot? Any votes for it will be lost.', { ok: 'Withdraw', danger: true }))) return;
-  try {
-    await api.deleteEntry(api.uid);
-    toast('Your entry was removed.');
-  } catch (err) {
-    toast(err.message, 'err');
-  }
-}
-
-function savedName() {
-  try { return localStorage.getItem('ggw-name'); } catch { return null; }
-}
-
-function openForm(existing) {
-  editing = true;
-  photoData = existing?.photo ?? null;
-  $('#f-name').value = existing?.name ?? savedName() ?? '';
-  $('#f-costume').value = existing?.costume ?? '';
-  $('#join-title').textContent = existing ? 'Edit your entry' : 'Enter the contest';
-  $('#join-submit').textContent = existing ? 'Save changes' : 'Enter my costume';
-  preview.innerHTML = photoData ? `<img src="${esc(photoData)}" alt="Your costume photo">` : EMPTY_PREVIEW;
+$('#change-btn').addEventListener('click', () => {
+  changing = true;
+  input.value = myVote ?? '';
   render();
-  joinForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-$('#join-cancel').addEventListener('click', () => { editing = false; render(); });
-
-$('#photo-input').addEventListener('change', async e => {
-  const file = e.target.files?.[0];
-  e.target.value = '';
-  if (!file) return;
-  preview.classList.add('busy');
-  try {
-    photoData = await compressPhoto(file);
-    preview.innerHTML = `<img src="${photoData}" alt="Your costume photo">`;
-  } catch (err) {
-    toast(err.message, 'err');
-  } finally {
-    preview.classList.remove('busy');
-  }
+  input.focus();
 });
 
-joinForm.addEventListener('submit', async e => {
+form.addEventListener('submit', async e => {
   e.preventDefault();
-  const btn = $('#join-submit');
-  const name = $('#f-name').value, costume = $('#f-costume').value;
   btn.disabled = true;
   try {
-    const wasEntered = Boolean(mine());
-    await api.saveEntry({ name, costume, photo: photoData });
-    try { localStorage.setItem('ggw-name', name.trim()); } catch {}
-    editing = false;
-    toast(wasEntered ? 'Entry updated!' : 'You’re on the ballot! 🎃');
+    const wasVoted = Boolean(myVote);
+    await api.castVote(input.value);
+    changing = false;
+    input.value = '';
+    input.blur();
+    toast(wasVoted ? 'Vote changed! 👻' : 'Vote counted! 👻');
     render();
-    scrollTo({ top: 0, behavior: 'smooth' });
   } catch (err) {
     toast(err.message, 'err');
   } finally {

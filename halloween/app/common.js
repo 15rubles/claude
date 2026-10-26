@@ -7,13 +7,6 @@ export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ));
 
-export const PARTY = {
-  name: 'Ghouls Gone Wild',
-  when: 'Saturday, Oct 31 · 9:00 pm',
-  where: 'Miracle’s House of Horrors',
-  prize: 'Winner gets a gift basket',
-};
-
 // Links between pages keep ?demo so a demo session stays in demo mode.
 export function pageUrl(file = '') {
   if (window.GGW_EMBED?.siteUrl) return new URL(file || './', window.GGW_EMBED.siteUrl).href;
@@ -144,85 +137,24 @@ addEventListener('backend-error', e => {
     : `Connection problem: ${err?.message ?? err}`, 'err');
 });
 
-// Shrinks a phone photo to a small JPEG data URL (fits comfortably in a Firestore doc).
-export async function compressPhoto(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error('Couldn’t read that photo. Try a different one.'));
-      i.src = url;
-    });
-    let size = 720, quality = 0.8, out = '';
-    for (let tries = 0; tries < 6; tries++) {
-      const scale = Math.min(1, size / Math.max(img.naturalWidth, img.naturalHeight));
-      const c = document.createElement('canvas');
-      c.width = Math.max(1, Math.round(img.naturalWidth * scale));
-      c.height = Math.max(1, Math.round(img.naturalHeight * scale));
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      out = c.toDataURL('image/jpeg', quality);
-      if (out.length < 160000) break;
-      size = Math.round(size * 0.8);
-      quality = Math.max(0.5, quality - 0.08);
-    }
-    return out;
-  } finally {
-    URL.revokeObjectURL(url);
+// Groups votes by name, ignoring case and extra spaces, most votes first.
+// Each group shows the spelling most people used.
+export function groupVotes(votes) {
+  const groups = new Map();
+  for (const v of votes) {
+    const name = String(v.name ?? '').replace(/\s+/g, ' ').trim();
+    if (!name) continue;
+    const key = name.toLocaleLowerCase();
+    const g = groups.get(key) ?? { count: 0, spellings: new Map(), last: 0 };
+    g.count++;
+    g.spellings.set(name, (g.spellings.get(name) ?? 0) + 1);
+    g.last = Math.max(g.last, v.at ?? 0);
+    groups.set(key, g);
   }
-}
-
-export function photoTag(entry, cls = '') {
-  return entry?.photo
-    ? `<img class="${cls}" src="${esc(entry.photo)}" alt="${esc(entry.costume)}" loading="lazy">`
-    : `<div class="${cls} no-photo">${GHOST}</div>`;
-}
-
-// Ranked results → the winning entries (all tied at the top, if any votes were cast).
-export function winnersOf(results) {
-  const ranking = results?.ranking ?? [];
-  const top = ranking[0]?.votes ?? 0;
-  return top > 0 ? ranking.filter(r => r.votes === top) : [];
-}
-
-export function confetti(duration = 4500) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const c = document.createElement('canvas');
-  c.className = 'confetti';
-  document.body.append(c);
-  const ctx = c.getContext('2d');
-  const dpr = devicePixelRatio || 1;
-  const resize = () => { c.width = innerWidth * dpr; c.height = innerHeight * dpr; };
-  resize();
-  const colors = ['#9fe0bf', '#9a52b8', '#f0873a', '#f4eee2', '#e2333f'];
-  const bits = Array.from({ length: 160 }, () => ({
-    x: Math.random() * c.width,
-    y: -Math.random() * c.height * 0.6,
-    vx: (Math.random() - 0.5) * 3 * dpr,
-    vy: (2 + Math.random() * 4) * dpr,
-    r: (4 + Math.random() * 6) * dpr,
-    rot: Math.random() * 6,
-    vr: (Math.random() - 0.5) * 0.3,
-    color: colors[Math.floor(Math.random() * colors.length)],
-    tri: Math.random() < 0.4, // candy-corn triangles
-  }));
-  const start = performance.now();
-  (function frame(now) {
-    ctx.clearRect(0, 0, c.width, c.height);
-    for (const b of bits) {
-      b.x += b.vx; b.y += b.vy; b.rot += b.vr;
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(b.rot);
-      ctx.fillStyle = b.color;
-      if (b.tri) {
-        ctx.beginPath(); ctx.moveTo(0, -b.r); ctx.lineTo(b.r, b.r); ctx.lineTo(-b.r, b.r); ctx.fill();
-      } else {
-        ctx.fillRect(-b.r / 2, -b.r / 4, b.r, b.r / 2);
-      }
-      ctx.restore();
-    }
-    if (now - start < duration) requestAnimationFrame(frame);
-    else c.remove();
-  })(start);
+  return [...groups.entries()].map(([key, g]) => ({
+    key,
+    name: [...g.spellings].sort((a, b) => b[1] - a[1])[0][0],
+    count: g.count,
+    last: g.last,
+  })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }

@@ -12,30 +12,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Creepster&family=Inter:wght@400;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-  .steps { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .steps li {
-    font-size: 12px; font-weight: 700; text-align: center; padding: 9px 4px; border-radius: 10px;
-    background: rgba(0, 0, 0, 0.3); color: var(--muted); line-height: 1.2;
-  }
-  .steps li.done { color: var(--cream); background: rgba(255, 255, 255, 0.1); }
-  .steps li.now { background: var(--mint); color: #0f2a1d; }
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .stat { background: rgba(0, 0, 0, 0.3); border-radius: 12px; padding: 12px 14px; }
-  .stat b { display: block; font: 700 34px/1 var(--font-mono); }
-  .stat span { font-size: 13px; color: var(--muted); }
-  .rows { display: grid; gap: 8px; }
-  .row { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center; background: rgba(0, 0, 0, 0.28); border-radius: 12px; padding: 8px; }
-  .row .shot { width: 48px; height: 60px; object-fit: cover; border-radius: 8px; background: #241a1e; }
-  .row .no-photo .ghost { width: 30px; }
-  .row .costume { font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
-  .row .who { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
-  .row .btn { min-height: 36px; padding: 7px 12px; font-size: 13px; }
-  .bar { height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; margin-top: 6px; overflow: hidden; }
-  .bar i { display: block; height: 100%; background: var(--mint); border-radius: 3px; }
-  .votes { font: 700 22px/1 var(--font-mono); padding-right: 6px; }
+  .stat b { display: block; font: 700 44px/1 var(--font-mono); }
+  .stat span { color: var(--muted); }
   .links { display: grid; gap: 10px; }
-  .help { font-size: 14px; color: var(--muted); }
-  details summary { cursor: pointer; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -59,48 +38,29 @@
   </form>
 
   <div id="panel" hidden>
-    <section class="card">
-      <h2>Contest stage</h2>
-      <ol class="steps" id="steps"></ol>
-      <p id="stage-help"></p>
-      <div class="btn-row" id="stage-actions"></div>
+    <section class="card stat">
+      <b id="n-votes">0</b><span>votes so far</span>
     </section>
-
-    <div class="stats">
-      <div class="stat"><b id="n-entries">0</b><span>costumes entered</span></div>
-      <div class="stat"><b id="n-votes">0</b><span>votes cast</span></div>
-    </div>
 
     <section class="card links" id="links">
       <h2>Share &amp; show</h2>
-      <p>Put the big screen on a TV or laptop. It shows the QR code, a photo wall, and the winner reveal.</p>
+      <p>Put the big screen on a TV or laptop. It shows the QR code and the names people vote for.</p>
       <a class="btn btn-primary" id="link-screen" target="_blank" rel="noopener">📺 Open big screen</a>
       <a class="btn btn-soft" id="link-poster" target="_blank" rel="noopener">🖨 Printable QR poster</a>
-      <a class="btn btn-soft" id="link-guest" target="_blank" rel="noopener">👻 Guest voting page</a>
+      <a class="btn btn-soft" id="link-guest" target="_blank" rel="noopener">👻 Voting page</a>
     </section>
 
     <section class="card">
-      <h2>Entries &amp; live tally</h2>
-      <p>Counts are hidden so you don’t spoil it if this screen is visible.</p>
-      <label class="field" style="display:flex;gap:10px;align-items:center;margin:0 0 12px">
-        <input type="checkbox" id="peek" style="width:20px;height:20px;margin:0"> Show vote counts
-      </label>
-      <div class="rows" id="rows"></div>
-    </section>
-
-    <section class="card">
-      <details>
-        <summary>Danger zone</summary>
-        <p class="help" style="margin-top:10px">Start over: deletes every entry and vote and goes back to “Entries open”.</p>
-        <button class="btn btn-danger btn-block" id="reset">Reset the whole contest</button>
-      </details>
+      <h2>Start fresh</h2>
+      <p>Deletes every vote, for example after a test run before the party.</p>
+      <button class="btn btn-danger btn-block" id="clear">Clear all votes</button>
     </section>
   </div>
 </main>
 
 <script type="module">
 import { connect } from './app/backend.js';
-import { $, esc, toast, askConfirm, paintBackdrop, demoBanner, pageUrl, photoTag, BAT } from './app/common.js';
+import { $, toast, askConfirm, paintBackdrop, demoBanner, pageUrl, BAT } from './app/common.js';
 
 paintBackdrop();
 demoBanner();
@@ -111,8 +71,6 @@ $('#link-guest').href = pageUrl('./');
 if (window.GGW_EMBED) $('#links').hidden = true;
 
 const api = await connect();
-let state = null, entries = [], votes = [];
-const peek = $('#peek');
 
 if (await api.isHost()) start();
 else $('#gate').hidden = false;
@@ -135,103 +93,14 @@ $('#gate').addEventListener('submit', async e => {
 
 function start() {
   $('#panel').hidden = false;
-  api.watchState(s => { state = s; render(); });
-  api.watchEntries(l => { entries = l; render(); });
-  api.watchVotes(v => { votes = v; render(); });
+  api.watchVotes(votes => { $('#n-votes').textContent = votes.length; });
 }
 
-const STAGES = [
-  ['entries', 'Entries open'],
-  ['voting', 'Voting open'],
-  ['closed', 'Voting closed'],
-  ['revealed', 'Winner revealed'],
-];
-
-function tally() {
-  const counts = new Map(entries.map(e => [e.id, 0]));
-  for (const v of votes) {
-    if (counts.has(v.entryId) && v.uid !== v.entryId) counts.set(v.entryId, counts.get(v.entryId) + 1);
-  }
-  return entries
-    .map(e => ({ id: e.id, name: e.name, costume: e.costume, votes: counts.get(e.id) }))
-    .sort((a, b) => b.votes - a.votes);
-}
-
-function render() {
-  const phase = state?.phase ?? 'entries';
-  const idx = STAGES.findIndex(s => s[0] === phase);
-  $('#steps').innerHTML = STAGES.map(([, label], i) =>
-    `<li class="${i < idx ? 'done' : i === idx ? 'now' : ''}">${label}</li>`).join('');
-
-  const help = {
-    entries: 'Guests can scan the QR code and add their costume. Open voting once most people have arrived. Late arrivals can still enter while voting is open.',
-    voting: 'Everyone can vote for one costume (not their own) and change it until you close voting.',
-    closed: 'Votes are locked. When everyone is gathered around the big screen, reveal the winner!',
-    revealed: 'The winner is showing on every phone and the big screen. 🎉',
-  }[phase];
-  $('#stage-help').textContent = help;
-
-  const actions = {
-    entries: [['voting', 'Open voting', 'btn-mint']],
-    voting: [['closed', 'Close voting', 'btn-primary'], ['entries', 'Pause voting', 'btn-soft']],
-    closed: [['revealed', '🏆 Reveal the winner', 'btn-mint'], ['voting', 'Reopen voting', 'btn-soft']],
-    revealed: [['closed', 'Hide results', 'btn-soft']],
-  }[phase];
-  $('#stage-actions').innerHTML = actions.map(([to, label, cls]) =>
-    `<button class="btn ${cls}" data-to="${to}">${label}</button>`).join('');
-
-  const t = tally();
-  const valid = t.reduce((n, r) => n + r.votes, 0);
-  $('#n-entries').textContent = entries.length;
-  $('#n-votes').textContent = valid;
-
-  const max = Math.max(1, ...t.map(r => r.votes));
-  const show = peek.checked;
-  const rows = show ? t : t.slice().sort((a, b) => a.costume.localeCompare(b.costume));
-  $('#rows').innerHTML = rows.length ? rows.map(r => {
-    const e = entries.find(x => x.id === r.id);
-    return `<div class="row">
-      ${photoTag(e, 'shot')}
-      <div><div class="costume">${esc(r.costume)}</div><div class="who">${esc(r.name)}</div>
-        ${show ? `<div class="bar"><i style="width:${(r.votes / max) * 100}%"></i></div>` : ''}</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        ${show ? `<span class="votes">${r.votes}</span>` : ''}
-        <button class="btn btn-danger" data-del="${esc(r.id)}" aria-label="Remove ${esc(r.costume)}">✕</button>
-      </div></div>`;
-  }).join('') : '<p class="help">No entries yet.</p>';
-}
-
-peek.addEventListener('change', render);
-
-document.addEventListener('click', async e => {
-  const to = e.target.closest('[data-to]')?.dataset.to;
-  const del = e.target.closest('[data-del]')?.dataset.del;
+$('#clear').addEventListener('click', async () => {
+  if (!(await askConfirm('Delete ALL votes and start over?', { ok: 'Clear votes', danger: true, typed: 'CLEAR' }))) return;
   try {
-    if (to) {
-      if (to === 'revealed') {
-        const ranking = tally();
-        await api.setState({ phase: 'revealed', results: { ranking, totalVotes: ranking.reduce((n, r) => n + r.votes, 0), at: Date.now() } });
-      } else {
-        await api.setState({ phase: to });
-      }
-    }
-    if (del) {
-      const entry = entries.find(x => x.id === del);
-      if (entry && await askConfirm(`Remove “${entry.costume}” by ${entry.name} from the contest?`, { ok: 'Remove', danger: true })) {
-        await api.deleteEntry(del);
-        toast('Entry removed.');
-      }
-    }
-  } catch (err) {
-    toast(err.message, 'err');
-  }
-});
-
-$('#reset').addEventListener('click', async () => {
-  if (!(await askConfirm('Delete ALL entries and votes and start over?', { ok: 'Reset everything', danger: true, typed: 'RESET' }))) return;
-  try {
-    await api.resetAll();
-    toast('Contest reset.');
+    await api.clearVotes();
+    toast('All votes cleared.');
   } catch (err) {
     toast(err.message, 'err');
   }
