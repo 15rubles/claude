@@ -227,7 +227,7 @@ code { font-family: var(--font-mono); background: rgba(0, 0, 0, 0.35); padding: 
 .modal-box { width: 100%; max-width: 400px; margin: 0; }
 .modal-box p { color: var(--cream); font-weight: 600; }
 
-/* ---------- toasts ---------- */
+/* ---------- toasts & confetti ---------- */
 #toasts {
   position: fixed;
   top: 12px;
@@ -256,3 +256,4 @@ code { font-family: var(--font-mono); background: rgba(0, 0, 0, 0.35); padding: 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90; }

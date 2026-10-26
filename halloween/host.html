@@ -12,9 +12,26 @@
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Creepster&family=Inter:wght@400;600;700;800&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
-  .stat b { display: block; font: 700 44px/1 var(--font-mono); }
+  .stat { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .stat b { font: 700 44px/1 var(--font-mono); }
   .stat span { color: var(--muted); }
   .links { display: grid; gap: 10px; }
+  .rows { display: grid; gap: 8px; }
+  .row { background: rgba(0, 0, 0, 0.28); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; }
+  .row-main { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; }
+  .row .nm { font-weight: 800; font-size: 17px; overflow-wrap: anywhere; min-width: 0; }
+  .row .ct { font: 700 22px/1 var(--font-mono); }
+  .row .btn { min-height: 36px; padding: 7px 12px; font-size: 13px; }
+  .row.source { outline: 2px solid var(--cream); }
+  .row.target { outline: 2px dashed var(--mint); }
+  .variants { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--muted); align-items: center; }
+  .variant { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 255, 255, 0.08); border-radius: 999px; padding: 3px 4px 3px 10px; }
+  .variant button { appearance: none; border: 0; background: transparent; color: #ff9aa2; font: 700 13px var(--font-body); cursor: pointer; padding: 2px 6px; border-radius: 999px; }
+  .variant button:hover { background: rgba(255, 120, 130, 0.15); }
+  .merge-bar { position: sticky; top: 8px; z-index: 5; background: var(--cream); color: var(--maroon-deep); border-radius: 12px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-weight: 700; font-size: 14px; }
+  .merge-bar span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .merge-bar .btn { min-height: 34px; padding: 6px 12px; font-size: 13px; background: var(--maroon-deep); color: var(--cream); }
+  .help { font-size: 14px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -38,13 +55,22 @@
   </form>
 
   <div id="panel" hidden>
-    <section class="card stat">
-      <b id="n-votes">0</b><span>votes so far</span>
+    <section class="card">
+      <div class="stat"><b id="n-votes">0</b><span>votes so far</span></div>
+      <p id="reveal-help"></p>
+      <div class="btn-row" id="reveal-actions"></div>
+    </section>
+
+    <section class="card">
+      <h2>Votes by name</h2>
+      <p>Keep this screen to yourself. If someone misspelled a name, tap <strong>Merge</strong> on the misspelling, then tap the right name. Those votes then count for the right name.</p>
+      <div id="merge-bar"></div>
+      <div class="rows" id="rows"></div>
     </section>
 
     <section class="card links" id="links">
       <h2>Share &amp; show</h2>
-      <p>Put the big screen on a TV or laptop. It shows the QR code and the names people vote for.</p>
+      <p>Put the big screen on a TV or laptop. It shows the QR code and how many votes are in.</p>
       <a class="btn btn-primary" id="link-screen" target="_blank" rel="noopener">📺 Open big screen</a>
       <a class="btn btn-soft" id="link-poster" target="_blank" rel="noopener">🖨 Printable QR poster</a>
       <a class="btn btn-soft" id="link-guest" target="_blank" rel="noopener">👻 Voting page</a>
@@ -52,15 +78,15 @@
 
     <section class="card">
       <h2>Start fresh</h2>
-      <p>Deletes every vote, for example after a test run before the party.</p>
+      <p>Deletes every vote and merge and hides the results, for example after a test run.</p>
       <button class="btn btn-danger btn-block" id="clear">Clear all votes</button>
     </section>
   </div>
 </main>
 
 <script type="module">
-import { connect } from './app/backend.js';
-import { $, toast, askConfirm, paintBackdrop, demoBanner, pageUrl, BAT } from './app/common.js';
+import { connect, BLANK_STATE } from './app/backend.js';
+import { $, esc, toast, askConfirm, paintBackdrop, demoBanner, pageUrl, groupVotes, BAT } from './app/common.js';
 
 paintBackdrop();
 demoBanner();
@@ -71,6 +97,7 @@ $('#link-guest').href = pageUrl('./');
 if (window.GGW_EMBED) $('#links').hidden = true;
 
 const api = await connect();
+let state = BLANK_STATE, votes = [], groups = [], mergeFrom = null;
 
 if (await api.isHost()) start();
 else $('#gate').hidden = false;
@@ -93,13 +120,79 @@ $('#gate').addEventListener('submit', async e => {
 
 function start() {
   $('#panel').hidden = false;
-  api.watchVotes(votes => { $('#n-votes').textContent = votes.length; });
+  api.watchState(s => { state = s; render(); });
+  api.watchVotes(v => { votes = v; render(); });
 }
 
+function render() {
+  groups = groupVotes(votes, state.merges);
+  if (mergeFrom && !groups.some(g => g.key === mergeFrom)) mergeFrom = null;
+  $('#n-votes').textContent = votes.length;
+
+  $('#reveal-help').textContent = state.revealed
+    ? 'The winner is showing on the TV. Votes that come in now won’t change it unless you reveal again.'
+    : 'The TV only shows how many votes are in. When you’re ready, reveal the winner. The TV counts down 3-2-1 first.';
+  $('#reveal-actions').innerHTML = state.revealed
+    ? `<button class="btn btn-soft" data-act="hide">Hide results</button>
+       <button class="btn btn-mint" data-act="reveal">Reveal again</button>`
+    : `<button class="btn btn-mint" data-act="reveal" ${votes.length ? '' : 'disabled'}>🏆 Reveal the winner</button>`;
+
+  const from = groups.find(g => g.key === mergeFrom);
+  $('#merge-bar').innerHTML = from
+    ? `<div class="merge-bar"><span>Tap the right name to merge “${esc(from.name)}” into it</span>
+        <button class="btn" data-act="cancel-merge">Cancel</button></div>`
+    : '';
+
+  $('#rows').innerHTML = groups.length ? groups.map(g => {
+    const action = !from
+      ? `<button class="btn btn-soft" data-merge="${esc(g.key)}">Merge</button>`
+      : g.key === from.key
+        ? '<span class="help">Merging…</span>'
+        : `<button class="btn btn-mint" data-into="${esc(g.key)}">Merge here</button>`;
+    return `<div class="row ${from && g.key === from.key ? 'source' : from ? 'target' : ''}">
+      <div class="row-main"><span class="nm">${esc(g.name)}</span><span class="ct">${g.count}</span>${action}</div>
+      ${g.variants.length ? `<div class="variants">Includes:
+        ${g.variants.map(v => `<span class="variant">${esc(v.name)} (${v.count})
+          <button data-unmerge="${esc(v.key)}" aria-label="Split ${esc(v.name)} back out" title="Split back out">✕</button></span>`).join('')}
+      </div>` : ''}
+    </div>`;
+  }).join('') : '<p class="help">No votes yet.</p>';
+}
+
+const save = patch => api.setState({ ...BLANK_STATE, ...state, ...patch });
+
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-act],[data-merge],[data-into],[data-unmerge]');
+  if (!t) return;
+  try {
+    if (t.dataset.merge) { mergeFrom = t.dataset.merge; render(); return; }
+    if (t.dataset.act === 'cancel-merge') { mergeFrom = null; render(); return; }
+    if (t.dataset.into) {
+      const from = mergeFrom;
+      mergeFrom = null;
+      await save({ merges: [...state.merges.filter(m => m.from !== from), { from, to: t.dataset.into }] });
+      toast('Merged.');
+    }
+    if (t.dataset.unmerge) {
+      await save({ merges: state.merges.filter(m => m.from !== t.dataset.unmerge) });
+      toast('Split back out.');
+    }
+    if (t.dataset.act === 'reveal') {
+      const ranking = groups.slice(0, 10).map(({ name, count }) => ({ name, count }));
+      await save({ revealed: true, results: { ranking, total: votes.length, at: Date.now() } });
+      toast('Revealing on the TV 🎉');
+    }
+    if (t.dataset.act === 'hide') await save({ revealed: false });
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
 $('#clear').addEventListener('click', async () => {
-  if (!(await askConfirm('Delete ALL votes and start over?', { ok: 'Clear votes', danger: true, typed: 'CLEAR' }))) return;
+  if (!(await askConfirm('Delete ALL votes and merges and start over?', { ok: 'Clear votes', danger: true, typed: 'CLEAR' }))) return;
   try {
     await api.clearVotes();
+    await api.setState({ ...BLANK_STATE });
     toast('All votes cleared.');
   } catch (err) {
     toast(err.message, 'err');

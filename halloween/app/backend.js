@@ -3,8 +3,9 @@
 //  - demo:     localStorage in this browser, each tab acts as a separate guest
 //
 // Data model (Firestore):
-//  votes/{uid}  { name, at }  one vote per phone: the name the guest typed
-//  hosts/{uid}  { pin }       created by entering the host password (checked by the rules)
+//  votes/{uid}    { name, at }  one vote per phone: the name the guest typed
+//  config/state   { merges: [{ from, to }], revealed, results }  host-only: misspelling merges + reveal
+//  hosts/{uid}    { pin }       created by entering the host password (checked by the rules)
 import { firebaseConfig } from '../firebase-config.js';
 
 const FIREBASE_VERSION = '10.12.2';
@@ -16,6 +17,8 @@ const params = new URLSearchParams(location.search);
 const embed = window.GGW_EMBED;
 export const firebaseReady = Boolean(firebaseConfig?.apiKey) && !firebaseConfig.apiKey.startsWith('PASTE');
 export const isDemo = params.has('demo') || !firebaseReady || Boolean(embed);
+
+export const BLANK_STATE = { merges: [], revealed: false, results: null };
 
 export function connect() {
   return isDemo ? demoBackend() : firebaseBackend();
@@ -47,9 +50,13 @@ async function firebaseBackend() {
   if (!auth.currentUser) await A.signInAnonymously(auth);
   const uid = auth.currentUser.uid;
 
+  const stateRef = F.doc(db, 'config', 'state');
+
   return {
     mode: 'firebase',
     uid,
+    watchState: cb => F.onSnapshot(stateRef, s => cb({ ...BLANK_STATE, ...(s.exists() ? s.data() : {}) }), reportError),
+    setState: state => F.setDoc(stateRef, state),
     watchVotes: cb => F.onSnapshot(F.collection(db, 'votes'), qs => {
       cb(qs.docs.map(d => {
         const x = d.data({ serverTimestamps: 'estimate' });
@@ -96,7 +103,7 @@ function demoBackend() {
   }
   // Embedded frames share one in-memory store on the parent page instead of localStorage.
   const hub = embed?.hub;
-  const blank = () => ({ votes: {}, hosts: {} });
+  const blank = () => ({ votes: {}, hosts: {}, state: BLANK_STATE });
   const load = () => {
     try { return { ...blank(), ...JSON.parse(hub ? hub.data : localStorage.getItem(KEY)) }; } catch { return blank(); }
   };
@@ -128,6 +135,13 @@ function demoBackend() {
   return Promise.resolve({
     mode: 'demo',
     uid,
+    watchState: cb => watch(d => ({ ...BLANK_STATE, ...d.state }), cb),
+    async setState(state) {
+      write(d => {
+        if (!isHost(d)) throw new Error('Only the host can do that.');
+        d.state = state;
+      });
+    },
     watchVotes: cb => watch(d => Object.entries(d.votes).map(([u, v]) => ({ uid: u, ...v })), cb),
     watchMyVote: cb => watch(d => d.votes[uid]?.name ?? null, cb),
     async castVote(name) {

@@ -17,8 +17,14 @@ service cloud.firestore {
         && request.resource.data.pin == 'CHANGE-ME-HOST-PASSWORD';
     }
 
+    // Host-only settings: misspelling merges and the winner reveal. The TV reads it.
+    match /config/state {
+      allow read: if true;
+      allow write: if isHost();
+    }
+
     // One vote per phone (document id = the phone's anonymous user id): the name the guest typed.
-    // Votes are shown on the TV, so any signed-in device can read them.
+    // The TV counts them and the host tallies them, so any signed-in device can read them.
     match /votes/{uid} {
       allow read: if signedIn();
       allow create, update: if signedIn() && me() == uid

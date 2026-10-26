@@ -25,41 +25,29 @@
   .scan { font: 800 clamp(18px, 1.8vw, 34px)/1.2 var(--font-body); }
   .url { font: 700 clamp(12px, 1vw, 18px) var(--font-mono); color: var(--muted); word-break: break-all; }
 
-  .right { display: flex; flex-direction: column; min-height: 0; }
-  .banner { display: flex; align-items: baseline; justify-content: space-between; gap: 2vw; margin-bottom: 3vh; }
-  .banner h2 { font: 400 clamp(34px, 4.4vw, 90px)/1 var(--font-drip); margin: 0; letter-spacing: 0.04em; }
-  .count { font: 700 clamp(16px, 1.5vw, 28px) var(--font-mono); color: var(--muted); white-space: nowrap; }
-  .names { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 1.4vw 1.4vw; overflow: hidden; }
-  .name {
-    display: inline-flex; align-items: center; gap: 0.9vw;
-    background: linear-gradient(100deg, #5a1222, var(--maroon) 40%, #5e1424);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
-    padding: 0.9vh 1.6vw 0.9vh 2vw;
-    font-weight: 800;
-    line-height: 1.15;
-    max-width: 100%;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  }
-  .name .txt { overflow-wrap: anywhere; }
-  .name .n {
-    font: 700 0.62em/1 var(--font-mono);
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 999px;
-    padding: 0.45em 0.7em;
-    white-space: nowrap;
-  }
-  .name.lead { background: var(--cream); color: var(--maroon-deep); box-shadow: 0 0 50px rgba(244, 238, 226, 0.25); }
-  .name.lead .n { background: var(--maroon-deep); color: var(--cream); }
-  .name.bump { animation: bump 0.9s ease-out; }
-  @keyframes bump {
-    0% { transform: scale(1.25); box-shadow: 0 0 0 6px var(--mint), 0 0 50px rgba(159, 224, 191, 0.6); }
-    100% { transform: scale(1); }
-  }
-  .empty-wall { flex: 1; display: grid; place-items: center; text-align: center; color: var(--muted); font-size: clamp(18px, 1.8vw, 32px); }
-  .empty-wall .ghost { width: 10vw; min-width: 90px; animation: bob 3s ease-in-out infinite; display: block; margin: 0 auto 2vh; }
+  .right { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 0; }
+  .right .ghost { width: 9vw; min-width: 90px; display: block; margin: 0 auto 2vh; }
+  .tally { font: 700 clamp(120px, 20vw, 380px)/0.9 var(--font-mono); letter-spacing: -0.04em; }
+  .tally.bump { animation: bump 0.7s ease-out; }
+  @keyframes bump { 0% { transform: scale(1.18); color: var(--mint); } 100% { transform: scale(1); } }
+  .tally-label { font: 400 clamp(36px, 4.6vw, 90px)/1 var(--font-drip); letter-spacing: 0.04em; margin-top: 2vh; }
+  .tally-sub { font: 700 clamp(22px, 2.4vw, 46px)/1.1 var(--font-hand); color: var(--blood); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1.5vh; }
 
-  .corner { position: fixed; right: 12px; bottom: 12px; z-index: 60; opacity: 0.25; transition: opacity 0.2s; }
+  .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; text-align: center; padding: 3vw; background: radial-gradient(circle at 50% 40%, #3a0a12, var(--ink) 70%); }
+  .overlay .big { font: 400 clamp(60px, 12vw, 260px)/1 var(--font-drip); letter-spacing: 0.04em; }
+  .overlay .sub { font: 700 clamp(26px, 3vw, 60px)/1.1 var(--font-hand); color: var(--blood); text-transform: uppercase; letter-spacing: 0.05em; }
+  .overlay .ghost { width: 14vw; min-width: 120px; display: block; margin: 0 auto 3vh; }
+  .count-num { animation: zoom 1s ease-out; display: inline-block; }
+  @keyframes zoom { from { transform: scale(2.4); opacity: 0; } 30% { opacity: 1; } }
+  .label { font: 700 clamp(18px, 1.8vw, 34px)/1 var(--font-body); letter-spacing: 0.2em; text-transform: uppercase; color: var(--mint); margin-bottom: 3vh; }
+  .champ { font: 400 clamp(64px, 11vw, 230px)/0.95 var(--font-drip); letter-spacing: 0.03em; overflow-wrap: anywhere; animation: rise 0.9s cubic-bezier(.2, 1.4, .4, 1); text-shadow: 0 0 60px rgba(159, 224, 191, 0.35); }
+  .champ + .champ { margin-top: 2vh; }
+  .champ-votes { font: 700 clamp(20px, 2.2vw, 42px) var(--font-mono); color: var(--muted); margin-top: 2vh; }
+  @keyframes rise { from { transform: translateY(40px) scale(0.8); opacity: 0; } }
+  .runners { margin-top: 5vh; color: var(--muted); font-size: clamp(16px, 1.6vw, 30px); }
+  .runners b { color: var(--cream); }
+
+  .corner { position: fixed; right: 12px; bottom: 12px; z-index: 60; display: flex; gap: 8px; opacity: 0.25; transition: opacity 0.2s; }
   .corner:hover { opacity: 1; }
   .corner .btn { min-height: 36px; padding: 8px 12px; font-size: 13px; }
 
@@ -67,8 +55,7 @@
     body { overflow: auto; }
     .stage { grid-template-columns: 1fr; height: auto; }
     .qr { width: min(70vw, 340px); }
-    .names { overflow: visible; gap: 10px; }
-    .name { padding: 8px 14px 8px 18px; gap: 10px; }
+    .right { padding: 6vh 0; }
   }
 </style>
 </head>
@@ -86,19 +73,26 @@
     <div class="url" id="url"></div>
   </div>
   <div class="right">
-    <div class="banner"><h2>Best costume votes</h2><span class="count" id="count"></span></div>
-    <div id="names-wrap" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+    <span id="ghost"></span>
+    <div class="tally" id="tally">0</div>
+    <div class="tally-label" id="tally-label">votes so far</div>
+    <div class="tally-sub">Winner revealed soon…</div>
   </div>
 </div>
-<div class="corner"><button class="btn btn-soft" id="fs">⛶ Full screen</button></div>
+<div class="overlay" id="overlay" hidden></div>
+<div class="corner">
+  <button class="btn btn-soft" id="replay" hidden>↻ Replay reveal</button>
+  <button class="btn btn-soft" id="fs">⛶ Full screen</button>
+</div>
 
 <script type="module">
 import { connect } from './app/backend.js';
-import { $, esc, paintBackdrop, demoBanner, pageUrl, groupVotes, BAT, GHOST } from './app/common.js';
+import { $, esc, paintBackdrop, demoBanner, pageUrl, winnersOf, confetti, BAT, GHOST } from './app/common.js';
 
 paintBackdrop();
 demoBanner();
 $('#bat').innerHTML = BAT;
+$('#ghost').innerHTML = GHOST;
 
 const guestUrl = pageUrl('./');
 const qr = qrcode(0, 'M');
@@ -108,27 +102,83 @@ $('#qr').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 0, scalable: true, a
 $('#url').textContent = guestUrl.replace(/^https?:\/\//, '');
 
 const api = await connect();
-let prevCounts = new Map();
+let lastCount = null, shownAt;
 
 api.watchVotes(votes => {
-  const groups = groupVotes(votes);
-  $('#count').textContent = `${votes.length} vote${votes.length === 1 ? '' : 's'}`;
-  if (!groups.length) {
-    $('#names-wrap').innerHTML = `<div class="empty-wall"><div>${GHOST}Scan the code and type the name of your favorite costume!</div></div>`;
-    prevCounts = new Map();
-    return;
+  const n = votes.length;
+  const el = $('#tally');
+  el.textContent = n;
+  $('#tally-label').textContent = n === 1 ? 'vote so far' : 'votes so far';
+  if (lastCount !== null && n > lastCount) {
+    el.classList.remove('bump');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('bump');
   }
-  // Bigger text for more votes; the leader (or tied leaders) gets the cream pill.
-  const top = groups[0].count;
-  $('#names-wrap').innerHTML = `<div class="names">${groups.map(g => {
-    const size = 1.6 + 1.6 * (g.count / top);
-    const bumped = prevCounts.size && (prevCounts.get(g.key) ?? 0) < g.count;
-    return `<div class="name ${g.count === top && top > 1 ? 'lead' : ''} ${bumped ? 'bump' : ''}" style="font-size:clamp(18px, ${size.toFixed(2)}vw, ${Math.round(size * 18)}px)">
-      <span class="txt">${esc(g.name)}</span><span class="n">${g.count}</span></div>`;
-  }).join('')}</div>`;
-  prevCounts = new Map(groups.map(g => [g.key, g.count]));
+  lastCount = n;
 });
 
+let revealTimer = null, currentResults = null;
+api.watchState(state => {
+  currentResults = state.results;
+  $('#replay').hidden = !state.revealed;
+  if (!state.revealed) {
+    clearTimeout(revealTimer);
+    revealTimer = null;
+    $('#overlay').hidden = true;
+    shownAt = undefined;
+    return;
+  }
+  const at = state.results?.at;
+  if (at === shownAt) return;
+  // Animate when the host reveals while this screen is open (or it reloads right after).
+  const live = shownAt !== undefined || Date.now() - (at ?? 0) < 15000;
+  shownAt = at;
+  if (live) playReveal(state.results);
+  else showWinner(state.results);
+});
+
+function playReveal(results) {
+  clearTimeout(revealTimer);
+  const overlay = $('#overlay');
+  overlay.hidden = false;
+  const seq = [
+    `<div>${GHOST}<div class="sub">And the best costume goes to…</div></div>`,
+    '<div class="big"><span class="count-num">3</span></div>',
+    '<div class="big"><span class="count-num">2</span></div>',
+    '<div class="big"><span class="count-num">1</span></div>',
+  ];
+  let i = 0;
+  (function step() {
+    if (i < seq.length) {
+      overlay.innerHTML = seq[i++];
+      revealTimer = setTimeout(step, i === 1 ? 2200 : 1000);
+    } else {
+      revealTimer = null;
+      showWinner(results);
+      confetti(6000);
+    }
+  })();
+}
+
+function showWinner(results) {
+  const overlay = $('#overlay');
+  overlay.hidden = false;
+  const winners = winnersOf(results);
+  if (!winners.length) {
+    overlay.innerHTML = `<div>${GHOST}<div class="big">No votes!</div><div class="sub">The ghosts stayed home</div></div>`;
+    return;
+  }
+  const runners = (results.ranking ?? []).filter(r => r.count < winners[0].count).slice(0, 3);
+  const plural = n => `${n} vote${n === 1 ? '' : 's'}`;
+  overlay.innerHTML = `<div>
+    <div class="label">${winners.length > 1 ? '🏆 It’s a tie! 🏆' : '🏆 Best Costume 🏆'}</div>
+    ${winners.map(w => `<div class="champ">${esc(w.name)}</div>`).join('')}
+    <div class="champ-votes">${plural(winners[0].count)}${winners.length > 1 ? ' each' : ''}</div>
+    ${runners.length ? `<div class="runners">Runners-up: ${runners.map(r => `<b>${esc(r.name)}</b> (${r.count})`).join(' · ')}</div>` : ''}
+  </div>`;
+}
+
+$('#replay').addEventListener('click', () => playReveal(currentResults));
 $('#fs').addEventListener('click', () => {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen?.().catch(() => {});

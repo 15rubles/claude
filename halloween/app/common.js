@@ -137,24 +137,88 @@ addEventListener('backend-error', e => {
     : `Connection problem: ${err?.message ?? err}`, 'err');
 });
 
-// Groups votes by name, ignoring case and extra spaces, most votes first.
-// Each group shows the spelling most people used.
-export function groupVotes(votes) {
+export const normName = s => String(s ?? '').replace(/\s+/g, ' ').trim();
+
+// Groups votes by name, ignoring case and extra spaces, and applies the host's merges
+// (misspellings folded into the right name). Most votes first.
+export function groupVotes(votes, merges = []) {
+  const to = new Map(merges.map(m => [m.from, m.to]));
+  const canon = k => {
+    const seen = new Set();
+    while (to.has(k) && !seen.has(k)) { seen.add(k); k = to.get(k); }
+    return k;
+  };
   const groups = new Map();
   for (const v of votes) {
-    const name = String(v.name ?? '').replace(/\s+/g, ' ').trim();
+    const name = normName(v.name);
     if (!name) continue;
-    const key = name.toLocaleLowerCase();
-    const g = groups.get(key) ?? { count: 0, spellings: new Map(), last: 0 };
+    const own = name.toLocaleLowerCase();
+    const key = canon(own);
+    const g = groups.get(key) ?? { key, count: 0, spellings: new Map(), variants: new Map() };
     g.count++;
-    g.spellings.set(name, (g.spellings.get(name) ?? 0) + 1);
-    g.last = Math.max(g.last, v.at ?? 0);
+    if (own === key) {
+      g.spellings.set(name, (g.spellings.get(name) ?? 0) + 1);
+    } else {
+      const variant = g.variants.get(own) ?? { key: own, name, count: 0 };
+      variant.count++;
+      g.variants.set(own, variant);
+    }
     groups.set(key, g);
   }
-  return [...groups.entries()].map(([key, g]) => ({
-    key,
-    name: [...g.spellings].sort((a, b) => b[1] - a[1])[0][0],
+  const top = m => [...m].sort((a, b) => b[1] - a[1])[0][0];
+  return [...groups.values()].map(g => ({
+    key: g.key,
+    name: g.spellings.size ? top(g.spellings) : [...g.variants.values()][0].name,
     count: g.count,
-    last: g.last,
+    variants: [...g.variants.values()].sort((a, b) => b.count - a.count),
   })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+// Ranked results → the winning names (all tied at the top, if any votes were cast).
+export function winnersOf(results) {
+  const ranking = results?.ranking ?? [];
+  const top = ranking[0]?.count ?? 0;
+  return top > 0 ? ranking.filter(r => r.count === top) : [];
+}
+
+export function confetti(duration = 4500) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas');
+  c.className = 'confetti';
+  document.body.append(c);
+  const ctx = c.getContext('2d');
+  const dpr = devicePixelRatio || 1;
+  c.width = innerWidth * dpr;
+  c.height = innerHeight * dpr;
+  const colors = ['#9fe0bf', '#9a52b8', '#f0873a', '#f4eee2', '#e2333f'];
+  const bits = Array.from({ length: 160 }, () => ({
+    x: Math.random() * c.width,
+    y: -Math.random() * c.height * 0.6,
+    vx: (Math.random() - 0.5) * 3 * dpr,
+    vy: (2 + Math.random() * 4) * dpr,
+    r: (4 + Math.random() * 6) * dpr,
+    rot: Math.random() * 6,
+    vr: (Math.random() - 0.5) * 0.3,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    tri: Math.random() < 0.4, // candy-corn triangles
+  }));
+  const start = performance.now();
+  (function frame(now) {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const b of bits) {
+      b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rot);
+      ctx.fillStyle = b.color;
+      if (b.tri) {
+        ctx.beginPath(); ctx.moveTo(0, -b.r); ctx.lineTo(b.r, b.r); ctx.lineTo(-b.r, b.r); ctx.fill();
+      } else {
+        ctx.fillRect(-b.r / 2, -b.r / 4, b.r, b.r / 2);
+      }
+      ctx.restore();
+    }
+    if (now - start < duration) requestAnimationFrame(frame);
+    else c.remove();
+  })(start);
 }
